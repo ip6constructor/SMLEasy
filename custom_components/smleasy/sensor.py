@@ -9,11 +9,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
     PERCENTAGE,
-    UnitOfDataSize,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
     UnitOfFrequency,
+    UnitOfInformation,
     UnitOfPower,
 )
 from homeassistant.core import HomeAssistant
@@ -227,7 +227,8 @@ DESCRIPTIONS: tuple[SmartmeterSensorDescription, ...] = (
         key="tx_bytes",
         key_in_payload="tx_bytes",
         name="TX Bytes",
-        native_unit_of_measurement=UnitOfDataSize.BYTES,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:upload-network-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -236,7 +237,8 @@ DESCRIPTIONS: tuple[SmartmeterSensorDescription, ...] = (
         key="rx_bytes",
         key_in_payload="rx_bytes",
         name="RX Bytes",
-        native_unit_of_measurement=UnitOfDataSize.BYTES,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:download-network-outline",
         entity_category=EntityCategory.DIAGNOSTIC,

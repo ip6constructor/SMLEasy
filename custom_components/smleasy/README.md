@@ -19,8 +19,8 @@ Diese Integration liest den Status deines Smartmeter-Geraets ueber HTTP (`/api/s
 
 ### Option A: Manuell
 
-1. Kopiere den Ordner `smartmeter_v32` nach:
-   - `<config>/custom_components/smartmeter_v32`
+1. Kopiere den Ordner `smleasy` nach:
+   - `<config>/custom_components/smleasy`
 2. Starte Home Assistant neu.
 3. Gehe zu Einstellungen -> Geraete & Dienste -> Integration hinzufuegen.
 4. Suche nach `SMLEasy`.

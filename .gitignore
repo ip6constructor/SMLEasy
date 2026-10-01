@@ -1,4 +1,6 @@
 .pio
+__pycache__/
+*.py[cod]
 build/
 managed_components/
 _backup/

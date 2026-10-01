@@ -1,4 +1,4 @@
-DOMAIN = "smartmeter_v32"
+DOMAIN = "smleasy"
 PLATFORMS = ["sensor", "button"]
 
 CONF_SCAN_INTERVAL = "scan_interval"

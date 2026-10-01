@@ -43,9 +43,9 @@ SMLEasy offers two separate HA paths. Choose one to avoid duplicate entities:
 
 ### HACS custom integration
 
-The integration under `custom_components/smartmeter_v32` polls `/api/status` locally and provides sensors and control buttons. Install using the HACS button above, restart Home Assistant, then add **SMLEasy** under **Settings > Devices & services > Add integration**. Enter the device IP and port (normally 80).
+The integration under `custom_components/smleasy` polls `/api/status` locally and provides sensors and control buttons. Install using the HACS button above, restart Home Assistant, then add **SMLEasy** under **Settings > Devices & services > Add integration**. Enter the device IP and port (normally 80).
 
-Manual installation: copy `custom_components/smartmeter_v32` into `<config>/custom_components/`, restart Home Assistant, and add the integration.
+Manual installation: copy `custom_components/smleasy` into `<config>/custom_components/`, restart Home Assistant, and add the integration. After upgrading from the old `smartmeter_v32` domain, remove the old integration entry and add SMLEasy again.
 
 ### MQTT discovery from firmware
 
@@ -59,7 +59,7 @@ First login: username `admin`, password `P@assword26`. Change the password immed
 
 - `src/app/`: ESP-IDF firmware and embedded dashboard
 - `components/sml/`: SML reader and parser
-- `custom_components/smartmeter_v32/`: Home Assistant HACS integration
+- `custom_components/smleasy/`: Home Assistant HACS integration
 - `partitions_4mb_ota.csv`: dual-slot OTA partition layout
 
 ## License

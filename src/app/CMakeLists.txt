@@ -1,0 +1,28 @@
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "config_store.cpp"
+        "app_state.cpp"
+        "wifi_manager.cpp"
+        "web_server.cpp"
+        "meter_task.cpp"
+        "rtc_log.cpp"
+        "mqtt_manager.cpp"
+        "energy_stats.cpp"
+    INCLUDE_DIRS
+        "."
+        "include"
+    REQUIRES
+        sml
+        esp_http_server
+        esp_wifi
+        esp_netif
+        esp_event
+        mdns
+        nvs_flash
+        app_update
+        driver
+        freertos
+        esp_system
+        lwip
+)

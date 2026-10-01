@@ -1,0 +1,13 @@
+.pio
+build/
+managed_components/
+_backup/
+sdkconfig
+idf_build*.log
+idf_set_target.log
+pio_*.log
+.vscode/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch

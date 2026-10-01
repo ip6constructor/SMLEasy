@@ -1,13 +1,9 @@
 {
   "name": "SMLEasy",
-  "domains": [
-    "smleasy"
-  ],
   "country": [
     "DE"
   ],
   "content_in_root": false,
-  "homeassistant": ">=2024.6.0",
-  "iot_class": "local_polling",
+  "homeassistant": "2024.6.0",
   "render_readme": true
 }

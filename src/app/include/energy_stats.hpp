@@ -23,9 +23,8 @@ struct StatsSnapshot {
     bool   time_synced{false};
 };
 
-/// In-RAM energy statistics: short power history + daily/monthly consumption
-/// accumulated from the meter's own energy counters. Nothing here is persisted
-/// to flash — all totals reset on reboot.
+/// Energy statistics from the meter's own counters. The completed previous-day
+/// totals are persisted at rollover; current-day/month totals and history stay in RAM.
 class EnergyStats {
 public:
     static EnergyStats& get();
@@ -49,6 +48,8 @@ private:
     EnergyStats& operator=(const EnergyStats&) = delete;
 
     void check_rollover(int day_of_year, int year, int month);
+    void load_persisted_day();
+    void persist_day_snapshot() const;
 
     mutable SemaphoreHandle_t mutex_{nullptr};
     std::deque<PowerSample> hist_;

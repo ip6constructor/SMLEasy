@@ -1,8 +1,12 @@
 #include "energy_stats.hpp"
+#include "nvs.h"
+#include "esp_log.h"
 #include <ctime>
 #include <cstdio>
 
 namespace app {
+
+static const char* TAG = "EnergyStats";
 
 EnergyStats& EnergyStats::get() {
     static EnergyStats inst;
@@ -11,12 +15,56 @@ EnergyStats& EnergyStats::get() {
 
 EnergyStats::EnergyStats() {
     mutex_ = xSemaphoreCreateMutex();
+    load_persisted_day();
+}
+
+void EnergyStats::load_persisted_day()
+{
+    nvs_handle_t handle;
+    if (nvs_open("energy_stats", NVS_READONLY, &handle) != ESP_OK) return;
+
+    int32_t day = -1, year = -1, month = -1;
+    uint64_t yesterday_import_wh = 0, yesterday_export_wh = 0;
+    const bool valid = nvs_get_i32(handle, "day_of_year", &day) == ESP_OK &&
+        nvs_get_i32(handle, "year", &year) == ESP_OK &&
+        nvs_get_i32(handle, "month", &month) == ESP_OK &&
+        nvs_get_u64(handle, "y_import_wh", &yesterday_import_wh) == ESP_OK &&
+        nvs_get_u64(handle, "y_export_wh", &yesterday_export_wh) == ESP_OK;
+    nvs_close(handle);
+    if (!valid) return;
+
+    day_ = day;
+    year_ = year;
+    month_ = month;
+    yesterday_import_kwh_ = yesterday_import_wh / 1000.0;
+    yesterday_export_kwh_ = yesterday_export_wh / 1000.0;
+}
+
+void EnergyStats::persist_day_snapshot() const
+{
+    nvs_handle_t handle;
+    if (nvs_open("energy_stats", NVS_READWRITE, &handle) != ESP_OK) {
+        ESP_LOGW(TAG, "cannot open NVS for daily snapshot");
+        return;
+    }
+
+    const uint64_t import_wh = static_cast<uint64_t>(yesterday_import_kwh_ * 1000.0 + 0.5);
+    const uint64_t export_wh = static_cast<uint64_t>(yesterday_export_kwh_ * 1000.0 + 0.5);
+    esp_err_t err = nvs_set_i32(handle, "day_of_year", day_);
+    if (err == ESP_OK) err = nvs_set_i32(handle, "year", year_);
+    if (err == ESP_OK) err = nvs_set_i32(handle, "month", month_);
+    if (err == ESP_OK) err = nvs_set_u64(handle, "y_import_wh", import_wh);
+    if (err == ESP_OK) err = nvs_set_u64(handle, "y_export_wh", export_wh);
+    if (err == ESP_OK) err = nvs_commit(handle);
+    nvs_close(handle);
+    if (err != ESP_OK) ESP_LOGW(TAG, "daily snapshot save failed: %s", esp_err_to_name(err));
 }
 
 void EnergyStats::check_rollover(int day_of_year, int year, int month)
 {
     if (day_ == -1) {
         day_ = day_of_year; year_ = year; month_ = month;
+        persist_day_snapshot();
         return;
     }
     if (year != year_ || month != month_) {
@@ -25,12 +73,15 @@ void EnergyStats::check_rollover(int day_of_year, int year, int month)
         month_ = month;
         year_  = year;
     }
-    if (day_of_year != day_) {
+    if (year != year_ || day_of_year != day_) {
         yesterday_import_kwh_ = today_import_kwh_;
         yesterday_export_kwh_ = today_export_kwh_;
         today_import_kwh_ = 0;
         today_export_kwh_ = 0;
         day_ = day_of_year;
+        year_ = year;
+        month_ = month;
+        persist_day_snapshot();
     }
 }
 

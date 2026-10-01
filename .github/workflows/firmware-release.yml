@@ -1,0 +1,59 @@
+name: Firmware Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO
+        run: python -m pip install platformio
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < build_version.txt)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid build_version.txt: $version" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/* && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match firmware version $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build ESP32-C3 firmware
+        run: pio run --environment esp32c3_optical_meter
+
+      - name: Prepare release asset
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p release
+          cp .pio/build/esp32c3_optical_meter/firmware.bin "release/SMLEasy-${VERSION}.bin"
+          test -s "release/SMLEasy-${VERSION}.bin"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: SMLEasy v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: release/SMLEasy-${{ steps.version.outputs.version }}.bin

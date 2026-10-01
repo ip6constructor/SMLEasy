@@ -180,11 +180,81 @@ bool ConfigStore::save_web_auth(const WebAuthConfig& cfg)
     return user_err == ESP_OK && pass_err == ESP_OK && commit_err == ESP_OK;
 }
 
+bool ConfigStore::load_ui(UiConfig& out)
+{
+    nvs_handle_t h;
+    if (nvs_open(kNsUi, NVS_READONLY, &h) != ESP_OK) return false;
+    nvs_get_str(h, "lang", out.language);
+    nvs_get_str(h, "networks", out.allowed_networks);
+    nvs_close(h);
+    return true;
+}
+
+bool ConfigStore::save_ui(const UiConfig& cfg)
+{
+    nvs_handle_t h;
+    if (nvs_open(kNsUi, NVS_READWRITE, &h) != ESP_OK) return false;
+    const esp_err_t set_err = nvs_set_str(h, "lang", cfg.language.c_str());
+    const esp_err_t networks_err = nvs_set_str(h, "networks", cfg.allowed_networks.c_str());
+    const esp_err_t commit_err = nvs_commit(h);
+    nvs_close(h);
+    return set_err == ESP_OK && networks_err == ESP_OK && commit_err == ESP_OK;
+}
+
+bool ConfigStore::load_tls(TlsConfig& out)
+{
+    nvs_handle_t h;
+    if (nvs_open(kNsTls, NVS_READONLY, &h) != ESP_OK) return false;
+    nvs_get_str(h, "mode", out.mode);
+    nvs_get_str(h, "fqdn", out.fqdn);
+    nvs_get_str(h, "email", out.email);
+    nvs_get_str(h, "cert", out.certificate_pem);
+    nvs_get_str(h, "privkey", out.private_key_pem);
+    nvs_get_str(h, "fb_cert", out.fallback_certificate_pem);
+    nvs_get_str(h, "fb_key", out.fallback_private_key_pem);
+    nvs_get_str(h, "acme_key", out.acme_account_key_pem);
+    nvs_get_str(h, "acme_url", out.acme_account_url);
+    uint8_t staging = out.acme_staging ? 1 : 0;
+    nvs_get_u8(h, "acme_staging", staging);
+    out.acme_staging = staging != 0;
+    nvs_get_u16(h, "renew_days", out.renewal_interval_days);
+    nvs_get_i64(h, "issued_at", &out.last_issued_epoch);
+    nvs_close(h);
+    return true;
+}
+
+bool ConfigStore::save_tls(const TlsConfig& cfg)
+{
+    if (cfg.mode != "manual" && cfg.mode != "letsencrypt") return false;
+    if (cfg.fqdn.size() > 253 || cfg.email.size() > 254 ||
+        cfg.certificate_pem.size() > 3800 || cfg.private_key_pem.size() > 3800 ||
+        cfg.fallback_certificate_pem.size() > 3800 || cfg.fallback_private_key_pem.size() > 3800 ||
+        cfg.acme_account_key_pem.size() > 3800 || cfg.acme_account_url.size() > 512 ||
+        cfg.renewal_interval_days < 1 || cfg.renewal_interval_days > 60) return false;
+    nvs_handle_t h;
+    if (nvs_open(kNsTls, NVS_READWRITE, &h) != ESP_OK) return false;
+    esp_err_t err = nvs_set_str(h, "mode", cfg.mode.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fqdn", cfg.fqdn.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "email", cfg.email.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "cert", cfg.certificate_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "privkey", cfg.private_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fb_cert", cfg.fallback_certificate_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fb_key", cfg.fallback_private_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "acme_key", cfg.acme_account_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "acme_url", cfg.acme_account_url.c_str());
+    if (err == ESP_OK) err = nvs_set_u8(h, "acme_staging", cfg.acme_staging ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u16(h, "renew_days", cfg.renewal_interval_days);
+    if (err == ESP_OK) err = nvs_set_i64(h, "issued_at", cfg.last_issued_epoch);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err == ESP_OK;
+}
+
 bool ConfigStore::reset_all_config()
 {
     bool ok = true;
     constexpr const char* namespaces[] = {
-        kNsWifi, kNsAuth, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff,
+        kNsWifi, kNsAuth, kNsUi, kNsTls, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff,
     };
 
     for (const char* name : namespaces) {

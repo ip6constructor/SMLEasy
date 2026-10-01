@@ -27,6 +27,10 @@ private:
     static esp_err_t handle_wifi_save(httpd_req_t*);
     static esp_err_t handle_auth_get(httpd_req_t*);
     static esp_err_t handle_auth_save(httpd_req_t*);
+    static esp_err_t handle_ui_language_get(httpd_req_t*);
+    static esp_err_t handle_ui_language_save(httpd_req_t*);
+    static esp_err_t handle_access_networks_get(httpd_req_t*);
+    static esp_err_t handle_access_networks_save(httpd_req_t*);
     static esp_err_t handle_ha_config_get(httpd_req_t*);
     static esp_err_t handle_ha_config_save(httpd_req_t*);
     static esp_err_t handle_tariff_get(httpd_req_t*);
@@ -37,10 +41,19 @@ private:
     static esp_err_t handle_reboot(httpd_req_t*);
     static esp_err_t handle_reset_counters(httpd_req_t*);
     static esp_err_t handle_ota(httpd_req_t*);
+    static esp_err_t handle_ota_github(httpd_req_t*);
+    static esp_err_t handle_ota_github_status(httpd_req_t*);
+    static esp_err_t handle_acme_challenge(httpd_req_t*);
+    static esp_err_t handle_tls_config_get(httpd_req_t*);
+    static esp_err_t handle_tls_config_save(httpd_req_t*);
+    static esp_err_t handle_acme_request(httpd_req_t*);
+    static esp_err_t handle_acme_status(httpd_req_t*);
     static esp_err_t handle_meter(httpd_req_t*);
     static esp_err_t handle_favicon(httpd_req_t*);   ///< 204 No Content for /favicon.ico
 
     httpd_handle_t server_{nullptr};
+    httpd_handle_t challenge_server_{nullptr};
+    bool server_is_https_{false};
 };
 
 } // namespace app

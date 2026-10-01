@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title description">
+  <title id="title">Entwurf der Zählwerks-Kachel</title>
+  <desc id="description">Dashboard-Kachel mit vergrößerten Zählwerksanzeigen für Bezug und Einspeisung.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-20%" width="130%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#18211f" flood-opacity=".12"/>
+    </filter>
+    <linearGradient id="meter" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#343a38"/>
+      <stop offset="1" stop-color="#151918"/>
+    </linearGradient>
+    <linearGradient id="window" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5f0dc"/>
+      <stop offset="1" stop-color="#d8d2bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="760" fill="#f0f2ef"/>
+  <path d="M0 0h1200v110H0z" fill="#e8ece8"/>
+  <text x="120" y="65" fill="#62716b" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="2">SMLEASY / DASHBOARD-KONZEPT</text>
+  <text x="120" y="105" fill="#1e2925" font-family="Segoe UI, sans-serif" font-size="30" font-weight="700">Zählwerks-Kachel unter Aktuelle Leistung</text>
+
+  <rect x="120" y="145" width="960" height="500" rx="10" fill="#fff" filter="url(#shadow)"/>
+  <text x="160" y="197" fill="#26322d" font-family="Segoe UI, sans-serif" font-size="19" font-weight="700" letter-spacing="1">ZÄHLERSTÄNDE</text>
+  <rect x="857" y="169" width="180" height="32" rx="16" fill="#e8f4ed"/>
+  <circle cx="878" cy="185" r="5" fill="#258459"/>
+  <text x="893" y="190" fill="#286348" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">ZÄHLER LIVE</text>
+  <text x="160" y="229" fill="#77817c" font-family="Segoe UI, sans-serif" font-size="14">Bezug und Einspeisung als gut lesbare Zählwerke</text>
+
+  <rect x="160" y="255" width="880" height="322" rx="12" fill="#f4f8fc" stroke="#dce7f2" stroke-width="2"/>
+  <rect x="181" y="276" width="838" height="280" rx="8" fill="#f8fbfe" stroke="#dce7f2"/>
+  <text x="207" y="309" fill="#60758f" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">ZÄHLWERKE  /  OBIS 1.8.0 + 2.8.0</text>
+
+  <rect x="207" y="333" width="386" height="194" rx="8" fill="#fff" stroke="#dce7f2" stroke-width="2"/>
+  <rect x="607" y="333" width="386" height="194" rx="8" fill="#fff" stroke="#dce7f2" stroke-width="2"/>
+  <text x="229" y="362" fill="#60758f" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">1.8.0  /  BEZUG GESAMT</text>
+  <text x="629" y="362" fill="#60758f" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">2.8.0  /  EINSPEISUNG GESAMT</text>
+
+  <rect x="228" y="379" width="344" height="93" rx="5" fill="#fff" stroke="#c7d7e8" stroke-width="2"/>
+  <rect x="628" y="379" width="344" height="93" rx="5" fill="#fff" stroke="#c7d7e8" stroke-width="2"/>
+  <path d="M234 387h332M634 387h332" stroke="#f4f8fc" stroke-width="3"/>
+  <text x="244" y="447" fill="#132238" font-family="Consolas, monospace" font-size="47" font-weight="700" letter-spacing="2">0012845</text>
+  <text x="466" y="447" fill="#c73434" font-family="Consolas, monospace" font-size="33" font-weight="700">.760</text>
+  <text x="644" y="447" fill="#132238" font-family="Consolas, monospace" font-size="47" font-weight="700" letter-spacing="2">0000932</text>
+  <text x="866" y="447" fill="#c73434" font-family="Consolas, monospace" font-size="33" font-weight="700">.180</text>
+  <text x="497" y="498" fill="#60758f" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">kWh</text>
+  <text x="897" y="498" fill="#60758f" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">kWh</text>
+
+  <rect x="160" y="596" width="6" height="24" rx="3" fill="#258459"/>
+  <text x="180" y="613" fill="#55615b" font-family="Segoe UI, sans-serif" font-size="14">Helle Zählwerksfelder im Stil der bestehenden Dashboard-Karten.</text>
+  <text x="180" y="635" fill="#7a847e" font-family="Segoe UI, sans-serif" font-size="12">Beispielwerte. Verfuegbare ESP-Werte: 1.8.0 Gesamtbezug und 2.8.0 Gesamteinspeisung; keine getrennten T1/T2-Daten.</text>
+</svg>

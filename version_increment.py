@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 Import("env")
 
@@ -8,6 +9,9 @@ if len(parts) != 3 or not all(part.isdigit() for part in parts):
     raise ValueError("build_version.txt must contain a semantic version such as 1.0.0")
 
 major, minor, patch = (int(part) for part in parts)
-version = f"{major}.{minor}.{patch + 1}"
-version_file.write_text(version + "\n", encoding="ascii")
-print(f"Auto-incremented firmware version to {version}")
+if os.getenv("CI", "").lower() == "true":
+    print(f"Using CI firmware version {major}.{minor}.{patch}")
+else:
+    version = f"{major}.{minor}.{patch + 1}"
+    version_file.write_text(version + "\n", encoding="ascii")
+    print(f"Auto-incremented firmware version to {version}")

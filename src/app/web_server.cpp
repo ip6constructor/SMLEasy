@@ -6,23 +6,42 @@
 #include "wifi_manager.hpp"
 #include "mqtt_manager.hpp"
 #include "energy_stats.hpp"
+#include "acme_client.hpp"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_app_format.h"
+#include "esp_https_ota.h"
+#include "esp_crt_bundle.h"
+#include "esp_https_server.h"
 #include "cJSON.h"
 #include "mbedtls/base64.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/pk.h"
+#include "mbedtls/oid.h"
+#include "mbedtls/x509_crt.h"
+#include "lwip/sockets.h"
+#include "lwip/ip4_addr.h"
+#include "lwip/ip6_addr.h"
 
+#include <array>
+#include <atomic>
+#include <cctype>
 #include <cstring>
+#include <cstdlib>
 #include <map>
 #include <string>
 #include <vector>
 
 static const char* TAG = "WebServer";
-
-// ── helpers ───────────────────────────────────────────────────────────────────
+static std::atomic<int> s_github_ota_state{0};
+static std::atomic<int> s_acme_issuance_state{0};
+static std::atomic<bool> s_acme_scheduler_started{false};
+static std::atomic<bool> s_ipv6_challenge_running{false};
+static std::atomic<int> s_ipv6_challenge_fd{-1};
 
 static esp_err_t send_json(httpd_req_t* req, const std::string& body)
 {
@@ -43,6 +62,232 @@ static esp_err_t read_body(httpd_req_t* req, std::string& out)
     }
     out.resize(static_cast<size_t>(received));
     return ESP_OK;
+}
+
+static esp_err_t read_body_limited(httpd_req_t* req, std::string& out, size_t limit)
+{
+    if (req->content_len == 0 || req->content_len > limit) return ESP_FAIL;
+    out.resize(req->content_len);
+    size_t offset = 0;
+    while (offset < out.size()) {
+        const int received = httpd_req_recv(req, &out[offset], out.size() - offset);
+        if (received <= 0) {
+            out.clear();
+            return ESP_FAIL;
+        }
+        offset += static_cast<size_t>(received);
+    }
+    return ESP_OK;
+}
+
+static bool parse_cidr(const std::string& cidr, int& family,
+                       std::array<uint8_t, 16>& network, int& prefix)
+{
+    const size_t slash = cidr.find('/');
+    if (slash == std::string::npos || slash == 0 || slash + 1 >= cidr.size()) return false;
+    const std::string address = cidr.substr(0, slash);
+    char* end = nullptr;
+    const long parsed_prefix = strtol(cidr.c_str() + slash + 1, &end, 10);
+    if (!end || *end != '\0') return false;
+
+    ip4_addr_t ip4{};
+    ip6_addr_t ip6{};
+    if (ip4addr_aton(address.c_str(), &ip4)) {
+        family = AF_INET;
+        if (parsed_prefix < 0 || parsed_prefix > 32) return false;
+        memcpy(network.data(), &ip4.addr, sizeof(ip4.addr));
+    } else if (ip6addr_aton(address.c_str(), &ip6)) {
+        family = AF_INET6;
+        if (parsed_prefix < 0 || parsed_prefix > 128) return false;
+        memcpy(network.data(), ip6.addr, sizeof(ip6.addr));
+    } else {
+        return false;
+    }
+    prefix = static_cast<int>(parsed_prefix);
+    return true;
+}
+
+static bool cidr_matches(const sockaddr_storage& peer, const std::string& cidr)
+{
+    int family = 0, prefix = 0;
+    std::array<uint8_t, 16> network{};
+    if (!parse_cidr(cidr, family, network, prefix)) return false;
+
+    if (peer.ss_family == AF_INET && family == AF_INET) {
+        const auto* address = reinterpret_cast<const sockaddr_in*>(&peer);
+        const auto* bytes = reinterpret_cast<const uint8_t*>(&address->sin_addr.s_addr);
+        const int full_bytes = prefix / 8;
+        const int remaining_bits = prefix % 8;
+        if (full_bytes && memcmp(bytes, network.data(), full_bytes) != 0) return false;
+        if (remaining_bits) {
+            const uint8_t mask = static_cast<uint8_t>(0xffu << (8 - remaining_bits));
+            if ((bytes[full_bytes] & mask) != (network[full_bytes] & mask)) return false;
+        }
+        return true;
+    }
+
+    if (peer.ss_family == AF_INET6 && family == AF_INET6) {
+        const auto* address = reinterpret_cast<const sockaddr_in6*>(&peer);
+        const uint8_t* bytes = address->sin6_addr.s6_addr;
+        const int full_bytes = prefix / 8;
+        const int remaining_bits = prefix % 8;
+        if (full_bytes && memcmp(bytes, network.data(), full_bytes) != 0) return false;
+        if (remaining_bits) {
+            const uint8_t mask = static_cast<uint8_t>(0xffu << (8 - remaining_bits));
+            if ((bytes[full_bytes] & mask) != (network[full_bytes] & mask)) return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+static bool is_private_address(const sockaddr_storage& peer)
+{
+    if (peer.ss_family == AF_INET) {
+        const auto* address = reinterpret_cast<const sockaddr_in*>(&peer);
+        const uint32_t ip = ntohl(address->sin_addr.s_addr);
+        return (ip & 0xff000000u) == 0x0a000000u ||
+               (ip & 0xfff00000u) == 0xac100000u ||
+               (ip & 0xffff0000u) == 0xc0a80000u;
+    }
+    if (peer.ss_family == AF_INET6) {
+        const auto* address = reinterpret_cast<const sockaddr_in6*>(&peer);
+        const uint8_t* bytes = address->sin6_addr.s6_addr;
+        const bool unique_local = (bytes[0] & 0xfeu) == 0xfcu;
+        const bool link_local = bytes[0] == 0xfeu && (bytes[1] & 0xc0u) == 0x80u;
+        if (unique_local || link_local) return true;
+        bool ipv4_mapped = bytes[10] == 0xffu && bytes[11] == 0xffu;
+        for (int i = 0; i < 10 && ipv4_mapped; ++i) ipv4_mapped = bytes[i] == 0;
+        if (ipv4_mapped) {
+            sockaddr_in mapped{};
+            mapped.sin_family = AF_INET;
+            memcpy(&mapped.sin_addr.s_addr, bytes + 12, 4);
+            sockaddr_storage mapped_peer{};
+            memcpy(&mapped_peer, &mapped, sizeof(mapped));
+            return is_private_address(mapped_peer);
+        }
+    }
+    return false;
+}
+
+static bool valid_cidr_list(const std::string& list)
+{
+    if (list.size() > 512) return false;
+    size_t start = 0;
+    while (start < list.size()) {
+        const size_t end = list.find_first_of(",; \t\r\n", start);
+        const std::string item = list.substr(start, end == std::string::npos ? end : end - start);
+        if (!item.empty()) {
+            int family = 0, prefix = 0;
+            std::array<uint8_t, 16> network{};
+            if (!parse_cidr(item, family, network, prefix)) return false;
+        }
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return true;
+}
+
+static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
+{
+    sockaddr_storage peer{};
+    socklen_t peer_len = sizeof(peer);
+    if (getpeername(sockfd, reinterpret_cast<sockaddr*>(&peer), &peer_len) != 0) {
+        shutdown(sockfd, SHUT_RDWR);
+        return ESP_FAIL;
+    }
+    if (is_private_address(peer)) return ESP_OK;
+
+    app::UiConfig cfg;
+    app::ConfigStore::get().load_ui(cfg);
+    size_t start = 0;
+    while (start < cfg.allowed_networks.size()) {
+        const size_t end = cfg.allowed_networks.find_first_of(",; \t\r\n", start);
+        const std::string item = cfg.allowed_networks.substr(
+            start, end == std::string::npos ? end : end - start);
+        if (!item.empty() && cidr_matches(peer, item)) return ESP_OK;
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    ESP_LOGW(TAG, "blocked web client outside allowed networks");
+    shutdown(sockfd, SHUT_RDWR);
+    return ESP_FAIL;
+}
+
+static bool lookup_acme_challenge_uri(const char* uri, std::string& response)
+{
+    constexpr char prefix[] = "/.well-known/acme-challenge/";
+    if (!uri || strncmp(uri, prefix, sizeof(prefix) - 1) != 0) return false;
+    const char* token = uri + sizeof(prefix) - 1;
+    if (!*token || strchr(token, '/') || strchr(token, '?')) return false;
+    return acme_client::get_http01_challenge(token, response);
+}
+
+static void ipv6_acme_challenge_task(void*)
+{
+#if CONFIG_LWIP_IPV6
+    int listener = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (listener < 0) {
+        ESP_LOGE(TAG, "IPv6 ACME listener socket failed");
+        s_ipv6_challenge_running.store(false);
+        vTaskDelete(nullptr);
+        return;
+    }
+    int enabled = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
+    setsockopt(listener, IPPROTO_IPV6, IPV6_V6ONLY, &enabled, sizeof(enabled));
+    sockaddr_in6 address{};
+    address.sin6_family = AF_INET6;
+    address.sin6_port = htons(80);
+    address.sin6_addr = in6addr_any;
+    if (bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0 ||
+        listen(listener, 2) != 0) {
+        ESP_LOGE(TAG, "IPv6 ACME listener could not bind port 80");
+        close(listener);
+        s_ipv6_challenge_running.store(false);
+        vTaskDelete(nullptr);
+        return;
+    }
+    s_ipv6_challenge_fd.store(listener);
+    ESP_LOGI(TAG, "IPv6 ACME-only listener active on port 80");
+    while (s_ipv6_challenge_running.load()) {
+        sockaddr_in6 peer{};
+        socklen_t peer_len = sizeof(peer);
+        const int client = accept(listener, reinterpret_cast<sockaddr*>(&peer), &peer_len);
+        if (client < 0) {
+            if (s_ipv6_challenge_running.load()) vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+        timeval timeout{5, 0};
+        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        char request[512]{};
+        const int received = recv(client, request, sizeof(request) - 1, 0);
+        char method[8]{}, uri[320]{};
+        const bool parsed = received > 0 &&
+            sscanf(request, "%7s %319s", method, uri) == 2 && strcmp(method, "GET") == 0;
+        std::string body;
+        const bool found = parsed && lookup_acme_challenge_uri(uri, body);
+        const char* status = found ? "200 OK" : "404 Not Found";
+        if (!found) body = "Not Found";
+        char headers[160]{};
+        const int header_len = snprintf(headers, sizeof(headers),
+            "HTTP/1.1 %s\r\nContent-Type: text/plain\r\nCache-Control: no-store\r\nContent-Length: %u\r\nConnection: close\r\n\r\n",
+            status, static_cast<unsigned>(body.size()));
+        if (header_len > 0) send(client, headers, static_cast<size_t>(header_len), 0);
+        if (!body.empty()) send(client, body.data(), body.size(), 0);
+        shutdown(client, SHUT_RDWR);
+        close(client);
+    }
+    int expected_fd = listener;
+    if (s_ipv6_challenge_fd.compare_exchange_strong(expected_fd, -1)) {
+        shutdown(listener, SHUT_RDWR);
+        close(listener);
+    }
+#else
+    ESP_LOGW(TAG, "IPv6 is disabled; no AAAA HTTP-01 listener available");
+    s_ipv6_challenge_running.store(false);
+#endif
+    vTaskDelete(nullptr);
 }
 
 static bool require_auth(httpd_req_t* req)
@@ -78,6 +323,254 @@ static void ota_reboot_task(void*)
     vTaskDelete(nullptr);
 }
 
+static bool is_semver(const std::string& version)
+{
+    int segments = 1;
+    bool digit_seen = false;
+    for (char ch : version) {
+        if (ch >= '0' && ch <= '9') {
+            digit_seen = true;
+        } else if (ch == '.' && digit_seen && segments < 3) {
+            ++segments;
+            digit_seen = false;
+        } else {
+            return false;
+        }
+    }
+    return segments == 3 && digit_seen;
+}
+
+static bool is_allowed_github_firmware_url(const std::string& url)
+{
+    constexpr char kPrefix[] = "https://github.com/ip6constructor/SMLEasy/releases/download/";
+    if (url.rfind(kPrefix, 0) != 0) return false;
+    const std::string asset_path = url.substr(sizeof(kPrefix) - 1);
+    const size_t slash = asset_path.find('/');
+    if (slash == std::string::npos || slash + 1 >= asset_path.size()) return false;
+    const std::string tag = asset_path.substr(0, slash);
+    if (tag.size() < 2 || tag[0] != 'v') return false;
+    const std::string version = tag.substr(1);
+    if (!is_semver(version)) return false;
+    return asset_path.substr(slash + 1) == "SMLEasy-" + version + ".bin";
+}
+
+static void github_ota_task(void* arg)
+{
+    char* url = static_cast<char*>(arg);
+    esp_http_client_config_t http_cfg{};
+    http_cfg.url = url;
+    http_cfg.timeout_ms = 30000;
+    http_cfg.buffer_size = 4096;
+    http_cfg.max_redirection_count = 5;
+    http_cfg.keep_alive_enable = true;
+    http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
+
+    ESP_LOGI(TAG, "Starting GitHub OTA from %s", url);
+    const esp_err_t err = esp_https_ota(&http_cfg);
+    free(url);
+    if (err == ESP_OK) {
+        s_github_ota_state.store(2);
+        app::AppState::get().push_log("I", TAG, "GitHub OTA verified; restarting");
+        vTaskDelay(pdMS_TO_TICKS(1500));
+        esp_restart();
+    }
+    ESP_LOGE(TAG, "GitHub OTA failed: %s", esp_err_to_name(err));
+    app::AppState::get().push_log("E", TAG, "GitHub OTA failed");
+    s_github_ota_state.store(3);
+    vTaskDelete(nullptr);
+}
+
+static bool valid_fqdn(const std::string& fqdn)
+{
+    if (fqdn.empty() || fqdn.size() > 253 || fqdn.find('.') == std::string::npos) return false;
+    size_t label_start = 0;
+    for (size_t i = 0; i <= fqdn.size(); ++i) {
+        if (i == fqdn.size() || fqdn[i] == '.') {
+            const size_t label_size = i - label_start;
+            if (label_size == 0 || label_size > 63 || fqdn[label_start] == '-' || fqdn[i - 1] == '-') return false;
+            label_start = i + 1;
+        } else {
+            const unsigned char ch = static_cast<unsigned char>(fqdn[i]);
+            if (!isalnum(ch) && ch != '-') return false;
+        }
+    }
+    return true;
+}
+
+static bool valid_email(const std::string& email)
+{
+    const size_t at = email.find('@');
+    return at != std::string::npos && at > 0 && at + 1 < email.size() &&
+           email.find('@', at + 1) == std::string::npos &&
+           email.find('.', at + 1) != std::string::npos &&
+           email.size() <= 254;
+}
+
+static bool valid_tls_pem_pair(const app::TlsConfig& cfg)
+{
+    if (cfg.certificate_pem.empty() || cfg.private_key_pem.empty()) return false;
+    mbedtls_x509_crt certificate;
+    mbedtls_pk_context private_key;
+    mbedtls_x509_crt_init(&certificate);
+    mbedtls_pk_init(&private_key);
+    const int cert_result = mbedtls_x509_crt_parse(
+        &certificate, reinterpret_cast<const unsigned char*>(cfg.certificate_pem.c_str()),
+        cfg.certificate_pem.size() + 1);
+    const int key_result = mbedtls_pk_parse_key(
+        &private_key, reinterpret_cast<const unsigned char*>(cfg.private_key_pem.c_str()),
+        cfg.private_key_pem.size() + 1, nullptr, 0);
+    const bool valid = cert_result == 0 && key_result == 0 &&
+        mbedtls_pk_check_pair(&certificate.pk, &private_key) == 0;
+    mbedtls_pk_free(&private_key);
+    mbedtls_x509_crt_free(&certificate);
+    return valid;
+}
+
+static void append_der_length(std::vector<uint8_t>& output, size_t length)
+{
+    if (length < 128) {
+        output.push_back(static_cast<uint8_t>(length));
+    } else if (length < 256) {
+        output.push_back(0x81);
+        output.push_back(static_cast<uint8_t>(length));
+    } else {
+        output.push_back(0x82);
+        output.push_back(static_cast<uint8_t>(length >> 8));
+        output.push_back(static_cast<uint8_t>(length));
+    }
+}
+
+static bool generate_self_signed_fallback(app::TlsConfig& cfg)
+{
+    const std::string fqdn = valid_fqdn(cfg.fqdn) ? cfg.fqdn : "smleasy.local";
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context rng;
+    mbedtls_pk_context key;
+    mbedtls_x509write_cert writer;
+    mbedtls_mpi serial;
+    mbedtls_entropy_init(&entropy);
+    mbedtls_ctr_drbg_init(&rng);
+    mbedtls_pk_init(&key);
+    mbedtls_x509write_crt_init(&writer);
+    mbedtls_mpi_init(&serial);
+
+    const char* personalization = "SMLEasy self-signed TLS fallback";
+    int result = mbedtls_ctr_drbg_seed(&rng, mbedtls_entropy_func, &entropy,
+        reinterpret_cast<const unsigned char*>(personalization), strlen(personalization));
+    if (result == 0) result = mbedtls_pk_setup(&key, mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY));
+    if (result == 0) result = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1,
+        mbedtls_pk_ec(key), mbedtls_ctr_drbg_random, &rng);
+    if (result == 0) result = mbedtls_mpi_lset(&serial, 1);
+
+    std::string subject = "CN=" + fqdn;
+    mbedtls_x509write_crt_set_version(&writer, MBEDTLS_X509_CRT_VERSION_3);
+    if (result == 0) result = mbedtls_x509write_crt_set_serial(&writer, &serial);
+    if (result == 0) result = mbedtls_x509write_crt_set_subject_name(&writer, subject.c_str());
+    if (result == 0) result = mbedtls_x509write_crt_set_issuer_name(&writer, subject.c_str());
+    mbedtls_x509write_crt_set_subject_key(&writer, &key);
+    mbedtls_x509write_crt_set_issuer_key(&writer, &key);
+    mbedtls_x509write_crt_set_md_alg(&writer, MBEDTLS_MD_SHA256);
+    if (result == 0) result = mbedtls_x509write_crt_set_basic_constraints(&writer, 0, -1);
+    if (result == 0) result = mbedtls_x509write_crt_set_key_usage(&writer,
+        MBEDTLS_X509_KU_DIGITAL_SIGNATURE | MBEDTLS_X509_KU_KEY_ENCIPHERMENT);
+
+    std::vector<uint8_t> san_value;
+    std::vector<uint8_t> dns_name;
+    dns_name.push_back(0x82);
+    append_der_length(dns_name, fqdn.size());
+    dns_name.insert(dns_name.end(), fqdn.begin(), fqdn.end());
+    san_value.push_back(0x30);
+    append_der_length(san_value, dns_name.size());
+    san_value.insert(san_value.end(), dns_name.begin(), dns_name.end());
+    if (result == 0) result = mbedtls_x509write_crt_set_extension(&writer,
+        MBEDTLS_OID_SUBJECT_ALT_NAME, MBEDTLS_OID_SIZE(MBEDTLS_OID_SUBJECT_ALT_NAME),
+        0, san_value.data(), san_value.size());
+
+    time_t now = time(nullptr);
+    if (now < 1700000000) now = 1735689600;
+    struct tm not_before_tm{}, not_after_tm{};
+    gmtime_r(&now, &not_before_tm);
+    now += 5LL * 365LL * 24LL * 60LL * 60LL;
+    gmtime_r(&now, &not_after_tm);
+    char not_before[16]{}, not_after[16]{};
+    strftime(not_before, sizeof(not_before), "%Y%m%d%H%M%S", &not_before_tm);
+    strftime(not_after, sizeof(not_after), "%Y%m%d%H%M%S", &not_after_tm);
+    if (result == 0) result = mbedtls_x509write_crt_set_validity(&writer, not_before, not_after);
+
+    unsigned char certificate_buffer[4096]{};
+    unsigned char key_buffer[2048]{};
+    if (result == 0) result = mbedtls_x509write_crt_pem(&writer, certificate_buffer,
+        sizeof(certificate_buffer), mbedtls_ctr_drbg_random, &rng);
+    if (result == 0) result = mbedtls_pk_write_key_pem(&key, key_buffer, sizeof(key_buffer));
+    if (result == 0) {
+        cfg.fallback_certificate_pem = reinterpret_cast<char*>(certificate_buffer);
+        cfg.fallback_private_key_pem = reinterpret_cast<char*>(key_buffer);
+        result = app::ConfigStore::get().save_tls(cfg) ? 0 : -1;
+    }
+
+    mbedtls_mpi_free(&serial);
+    mbedtls_x509write_crt_free(&writer);
+    mbedtls_pk_free(&key);
+    mbedtls_ctr_drbg_free(&rng);
+    mbedtls_entropy_free(&entropy);
+    if (result != 0) ESP_LOGE(TAG, "self-signed fallback generation failed: -0x%04x", -result);
+    return result == 0;
+}
+
+static void acme_issue_task(void*)
+{
+    app::TlsConfig cfg;
+    app::ConfigStore::get().load_tls(cfg);
+    acme_client::Request request;
+    request.directory_url = cfg.acme_staging
+        ? "https://acme-staging-v02.api.letsencrypt.org/directory"
+        : "https://acme-v02.api.letsencrypt.org/directory";
+    request.fqdn = cfg.fqdn;
+    request.email = cfg.email;
+    request.account_key_pem = cfg.acme_account_key_pem;
+    request.account_url = cfg.acme_account_url;
+    acme_client::Result result;
+    const esp_err_t err = acme_client::issue_http01(request, result);
+    if (!result.account_key_pem.empty()) cfg.acme_account_key_pem = result.account_key_pem;
+    if (!result.account_url.empty()) cfg.acme_account_url = result.account_url;
+    if (err == ESP_OK) {
+        cfg.certificate_pem = result.certificate_chain_pem;
+        cfg.private_key_pem = result.private_key_pem;
+        cfg.last_issued_epoch = static_cast<int64_t>(time(nullptr));
+        if (app::ConfigStore::get().save_tls(cfg)) {
+            s_acme_issuance_state.store(2);
+            app::AppState::get().push_log("I", TAG, "Let's Encrypt certificate issued");
+            vTaskDelay(pdMS_TO_TICKS(2500));
+            esp_restart();
+        }
+    }
+    if (!result.account_key_pem.empty() || !result.account_url.empty())
+        app::ConfigStore::get().save_tls(cfg);
+    ESP_LOGE(TAG, "ACME HTTP-01 issuance failed: %s", esp_err_to_name(err));
+    app::AppState::get().push_log("E", TAG, "Let's Encrypt issuance failed");
+    s_acme_issuance_state.store(3);
+    vTaskDelete(nullptr);
+}
+
+static void acme_renewal_task(void*)
+{
+    for (;;) {
+        const uint32_t delay_seconds = 3600u + (esp_random() % 3600u);
+        vTaskDelay(pdMS_TO_TICKS(delay_seconds * 1000u));
+        app::TlsConfig cfg;
+        app::ConfigStore::get().load_tls(cfg);
+        if (cfg.mode != "letsencrypt" || !app::WifiManager::get().is_sta_connected()) continue;
+        const time_t now = time(nullptr);
+        if (now < 1700000000) continue;
+        const int64_t interval_seconds = static_cast<int64_t>(cfg.renewal_interval_days) * 86400;
+        if (cfg.last_issued_epoch > 0 && now < cfg.last_issued_epoch + interval_seconds) continue;
+        int expected = s_acme_issuance_state.load();
+        if (expected == 1 || !s_acme_issuance_state.compare_exchange_strong(expected, 1)) continue;
+        if (xTaskCreate(acme_issue_task, "acme_issue", 16384, nullptr, 5, nullptr) != pdPASS)
+            s_acme_issuance_state.store(3);
+    }
+}
+
 namespace app {
 
 WebServer& WebServer::get() {
@@ -89,18 +582,44 @@ WebServer& WebServer::get() {
 
 esp_err_t WebServer::start(uint16_t port)
 {
-    httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
-    cfg.server_port       = port;
-    cfg.max_uri_handlers  = 40;
-    cfg.stack_size        = 8192;
-    cfg.lru_purge_enable  = true;
-    cfg.recv_wait_timeout = 60;
-    cfg.send_wait_timeout = 60;
+    TlsConfig tls;
+    ConfigStore::get().load_tls(tls);
+    if (acme_client::init() != ESP_OK) return ESP_ERR_NO_MEM;
+    if (tls.mode == "letsencrypt" && !s_acme_scheduler_started.exchange(true)) {
+        if (xTaskCreate(acme_renewal_task, "acme_renew", 4096, nullptr, 4, nullptr) != pdPASS)
+            s_acme_scheduler_started.store(false);
+    }
+    bool imported_certificate = valid_tls_pem_pair(tls);
+    TlsConfig fallback_tls;
+    fallback_tls.certificate_pem = tls.fallback_certificate_pem;
+    fallback_tls.private_key_pem = tls.fallback_private_key_pem;
+    if (!imported_certificate && !valid_tls_pem_pair(fallback_tls)) {
+        if (!generate_self_signed_fallback(tls)) {
+            ESP_LOGE(TAG, "could not create TLS fallback certificate");
+            return ESP_FAIL;
+        }
+    }
+    if (!imported_certificate) {
+        tls.certificate_pem = tls.fallback_certificate_pem;
+        tls.private_key_pem = tls.fallback_private_key_pem;
+    }
 
-    if (httpd_start(&server_, &cfg) != ESP_OK) {
-        ESP_LOGE(TAG, "httpd_start failed");
+    httpd_ssl_config_t ssl_cfg = HTTPD_SSL_CONFIG_DEFAULT();
+    ssl_cfg.httpd.max_uri_handlers = 40;
+    ssl_cfg.httpd.stack_size = 16384;
+    ssl_cfg.httpd.recv_wait_timeout = 60;
+    ssl_cfg.httpd.send_wait_timeout = 60;
+    ssl_cfg.httpd.open_fn = dashboard_network_filter;
+    ssl_cfg.port_secure = 443;
+    ssl_cfg.cacert_pem = reinterpret_cast<const uint8_t*>(tls.certificate_pem.c_str());
+    ssl_cfg.cacert_len = tls.certificate_pem.size() + 1;
+    ssl_cfg.prvtkey_pem = reinterpret_cast<const uint8_t*>(tls.private_key_pem.c_str());
+    ssl_cfg.prvtkey_len = tls.private_key_pem.size() + 1;
+    if (httpd_ssl_start(&server_, &ssl_cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "HTTPS dashboard failed to start");
         return ESP_FAIL;
     }
+    server_is_https_ = true;
 
     const httpd_uri_t routes[] = {
         { "/",                    HTTP_GET,  handle_root,          nullptr },
@@ -116,6 +635,14 @@ esp_err_t WebServer::start(uint16_t port)
         { "/api/config/wifi",     HTTP_POST, handle_wifi_save,         nullptr },
         { "/api/config/auth",     HTTP_GET,  handle_auth_get,          nullptr },
         { "/api/config/auth",     HTTP_POST, handle_auth_save,         nullptr },
+        { "/api/config/language", HTTP_GET,  handle_ui_language_get,   nullptr },
+        { "/api/config/language", HTTP_POST, handle_ui_language_save,  nullptr },
+        { "/api/config/networks", HTTP_GET,  handle_access_networks_get, nullptr },
+        { "/api/config/networks", HTTP_POST, handle_access_networks_save, nullptr },
+        { "/api/config/tls",     HTTP_GET,  handle_tls_config_get,    nullptr },
+        { "/api/config/tls",     HTTP_POST, handle_tls_config_save,   nullptr },
+        { "/api/config/tls/acme", HTTP_POST, handle_acme_request,     nullptr },
+        { "/api/config/tls/acme/status", HTTP_GET, handle_acme_status, nullptr },
         { "/api/config/ha",       HTTP_GET,  handle_ha_config_get,     nullptr },
         { "/api/config/ha",       HTTP_POST, handle_ha_config_save,    nullptr },
         { "/api/config/tariff",   HTTP_GET,  handle_tariff_get,        nullptr },
@@ -126,19 +653,56 @@ esp_err_t WebServer::start(uint16_t port)
         { "/api/reboot",          HTTP_POST, handle_reboot,        nullptr },
         { "/api/reset_counters",  HTTP_POST, handle_reset_counters,nullptr },
         { "/api/ota",             HTTP_POST, handle_ota,           nullptr },
+        { "/api/ota/github",      HTTP_POST, handle_ota_github,    nullptr },
+        { "/api/ota/github/status", HTTP_GET, handle_ota_github_status, nullptr },
         { "/api/meter",           HTTP_GET,  handle_meter,         nullptr },
         { "/favicon.ico",          HTTP_GET,  handle_favicon,       nullptr },
     };
     for (const auto& r : routes) httpd_register_uri_handler(server_, &r);
 
-    ESP_LOGI(TAG, "HTTP server started on port %u", port);
+    if (tls.mode == "letsencrypt") {
+        httpd_config_t challenge_cfg = HTTPD_DEFAULT_CONFIG();
+        challenge_cfg.server_port = 80;
+        challenge_cfg.ctrl_port = 32769;
+        challenge_cfg.max_uri_handlers = 1;
+        challenge_cfg.stack_size = 4096;
+        challenge_cfg.uri_match_fn = httpd_uri_match_wildcard;
+        if (httpd_start(&challenge_server_, &challenge_cfg) == ESP_OK) {
+            const httpd_uri_t challenge_route = {
+                "/.well-known/acme-challenge/*", HTTP_GET, handle_acme_challenge, nullptr
+            };
+            httpd_register_uri_handler(challenge_server_, &challenge_route);
+            s_ipv6_challenge_running.store(true);
+            if (xTaskCreate(ipv6_acme_challenge_task, "acme_ipv6", 4096, nullptr, 4, nullptr) != pdPASS) {
+                s_ipv6_challenge_running.store(false);
+                ESP_LOGE(TAG, "could not start IPv6 ACME listener task");
+            }
+        } else {
+            ESP_LOGE(TAG, "ACME HTTP-01 listener failed to start on port 80");
+        }
+    }
+
+    ESP_LOGI(TAG, "HTTPS dashboard started on port 443%s",
+             tls.mode == "letsencrypt" ? "; isolated ACME HTTP-01 listener on port 80" : "");
     return ESP_OK;
 }
 
 void WebServer::stop() {
+    s_ipv6_challenge_running.store(false);
+    const int ipv6_fd = s_ipv6_challenge_fd.exchange(-1);
+    if (ipv6_fd >= 0) {
+        shutdown(ipv6_fd, SHUT_RDWR);
+        close(ipv6_fd);
+    }
+    if (challenge_server_) {
+        httpd_stop(challenge_server_);
+        challenge_server_ = nullptr;
+    }
     if (server_) {
-        httpd_stop(server_);
+        if (server_is_https_) httpd_ssl_stop(server_);
+        else httpd_stop(server_);
         server_ = nullptr;
+        server_is_https_ = false;
     }
 }
 
@@ -597,6 +1161,243 @@ esp_err_t WebServer::handle_auth_save(httpd_req_t* req)
         ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+esp_err_t WebServer::handle_ui_language_get(httpd_req_t* req)
+{
+    UiConfig cfg;
+    ConfigStore::get().load_ui(cfg);
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "language", cfg.language.c_str());
+    cJSON_AddStringToObject(root, "allowed_networks", cfg.allowed_networks.c_str());
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{\"language\":\"auto\",\"allowed_networks\":\"\"}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_ui_language_save(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (req->content_len > 128 || read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid request body");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* language = json ? cJSON_GetObjectItem(json, "language") : nullptr;
+    if (!cJSON_IsString(language) || !language->valuestring) {
+        cJSON_Delete(json);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "language is required");
+        return ESP_FAIL;
+    }
+    const std::string value = language->valuestring;
+    cJSON_Delete(json);
+    if (value != "auto" && value != "en" && value != "de" &&
+        value != "nl" && value != "fr" && value != "pl") {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "unsupported language");
+        return ESP_FAIL;
+    }
+    UiConfig cfg;
+    ConfigStore::get().load_ui(cfg);
+    cfg.language = value;
+    return send_json(req, ConfigStore::get().save_ui(cfg)
+        ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+esp_err_t WebServer::handle_access_networks_get(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    UiConfig cfg;
+    ConfigStore::get().load_ui(cfg);
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "allowed_networks", cfg.allowed_networks.c_str());
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{\"allowed_networks\":\"\"}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_access_networks_save(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (req->content_len > 1024 || read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid request body");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* networks = json ? cJSON_GetObjectItem(json, "allowed_networks") : nullptr;
+    if (!cJSON_IsString(networks) || !networks->valuestring) {
+        cJSON_Delete(json);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "allowed_networks is required");
+        return ESP_FAIL;
+    }
+    const std::string value = networks->valuestring;
+    cJSON_Delete(json);
+    if (!valid_cidr_list(value)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid CIDR network list");
+        return ESP_FAIL;
+    }
+    UiConfig cfg;
+    ConfigStore::get().load_ui(cfg);
+    cfg.allowed_networks = value;
+    return send_json(req, ConfigStore::get().save_ui(cfg)
+        ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+esp_err_t WebServer::handle_tls_config_get(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "mode", cfg.mode.c_str());
+    cJSON_AddStringToObject(root, "fqdn", cfg.fqdn.c_str());
+    cJSON_AddStringToObject(root, "email", cfg.email.c_str());
+    cJSON_AddNumberToObject(root, "renewal_interval_days", cfg.renewal_interval_days);
+    cJSON_AddBoolToObject(root, "acme_staging", cfg.acme_staging);
+    cJSON_AddBoolToObject(root, "has_certificate", !cfg.certificate_pem.empty());
+    cJSON_AddBoolToObject(root, "has_fallback_certificate", !cfg.fallback_certificate_pem.empty());
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (read_body_limited(req, raw, 9000) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid or oversized TLS configuration");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    if (!json) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
+        return ESP_FAIL;
+    }
+    auto get_string = [json](const char* name) -> const char* {
+        cJSON* value = cJSON_GetObjectItem(json, name);
+        return cJSON_IsString(value) && value->valuestring ? value->valuestring : nullptr;
+    };
+    const char* mode = get_string("mode");
+    const char* fqdn = get_string("fqdn");
+    const char* email = get_string("email");
+    const char* certificate = get_string("certificate_pem");
+    const char* private_key = get_string("private_key_pem");
+    cJSON* staging = cJSON_GetObjectItem(json, "acme_staging");
+    const std::string certificate_value = certificate ? certificate : "";
+    const std::string private_key_value = private_key ? private_key : "";
+    cJSON* interval = cJSON_GetObjectItem(json, "renewal_interval_days");
+    if (!mode || !fqdn || !email || !certificate || !private_key || !cJSON_IsNumber(interval)) {
+        cJSON_Delete(json);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing TLS configuration fields");
+        return ESP_FAIL;
+    }
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    const std::string previous_fqdn = cfg.fqdn;
+    cfg.mode = mode;
+    cfg.fqdn = fqdn;
+    cfg.email = email;
+    cfg.renewal_interval_days = static_cast<uint16_t>(interval->valueint);
+    if (staging) cfg.acme_staging = cJSON_IsTrue(staging);
+    cJSON_Delete(json);
+
+    if (cfg.fqdn != previous_fqdn) {
+        cfg.fallback_certificate_pem.clear();
+        cfg.fallback_private_key_pem.clear();
+    }
+
+    if (!valid_fqdn(cfg.fqdn) || !valid_email(cfg.email) ||
+        cfg.renewal_interval_days < 1 || cfg.renewal_interval_days > 60 ||
+        (certificate_value.empty() != private_key_value.empty())) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid hostname, email, interval, or PEM key pair");
+        return ESP_FAIL;
+    }
+    if (!certificate_value.empty()) {
+        cfg.certificate_pem = certificate_value;
+        cfg.private_key_pem = private_key_value;
+        if (!valid_tls_pem_pair(cfg)) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid PEM certificate/key pair");
+            return ESP_FAIL;
+        }
+    }
+    if (cfg.mode == "letsencrypt" && (cfg.fqdn.empty() || cfg.email.empty())) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Let's Encrypt requires FQDN and email");
+        return ESP_FAIL;
+    }
+    if (!ConfigStore::get().save_tls(cfg)) return send_json(req, "{\"ok\":false}");
+    send_json(req, "{\"ok\":true,\"restarting\":true}");
+    if (xTaskCreate(ota_reboot_task, "tls_reboot", 2048, nullptr, 5, nullptr) != pdPASS)
+        ESP_LOGE(TAG, "TLS config saved; automatic reboot task could not be started");
+    return ESP_OK;
+}
+
+esp_err_t WebServer::handle_acme_challenge(httpd_req_t* req)
+{
+    constexpr char prefix[] = "/.well-known/acme-challenge/";
+    const std::string uri = req->uri;
+    if (uri.rfind(prefix, 0) != 0) {
+        httpd_resp_set_status(req, "404 Not Found");
+        return httpd_resp_send(req, "Not Found", HTTPD_RESP_USE_STRLEN);
+    }
+    const std::string token = uri.substr(sizeof(prefix) - 1);
+    if (token.empty() || token.find('/') != std::string::npos) {
+        httpd_resp_set_status(req, "404 Not Found");
+        return httpd_resp_send(req, "Not Found", HTTPD_RESP_USE_STRLEN);
+    }
+    std::string response;
+    if (!acme_client::get_http01_challenge(token.c_str(), response)) {
+        httpd_resp_set_status(req, "404 Not Found");
+        return httpd_resp_send(req, "Not Found", HTTPD_RESP_USE_STRLEN);
+    }
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    return httpd_resp_send(req, response.c_str(), static_cast<ssize_t>(response.size()));
+}
+
+esp_err_t WebServer::handle_acme_request(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    if (cfg.mode != "letsencrypt" || !WebServer::get().challenge_server_) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_send(req, "Let's Encrypt mode and HTTP-01 listener are required", HTTPD_RESP_USE_STRLEN);
+    }
+    int expected = s_acme_issuance_state.load();
+    if (expected == 1 || !s_acme_issuance_state.compare_exchange_strong(expected, 1)) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return send_json(req, "{\"ok\":false,\"reason\":\"ACME request already running\"}");
+    }
+    if (xTaskCreate(acme_issue_task, "acme_issue", 16384, nullptr, 5, nullptr) != pdPASS) {
+        s_acme_issuance_state.store(3);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "could not start ACME task");
+        return ESP_FAIL;
+    }
+    return send_json(req, "{\"ok\":true,\"state\":\"requesting\"}");
+}
+
+esp_err_t WebServer::handle_acme_status(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    const int state = s_acme_issuance_state.load();
+    const char* status = state == 1 ? "requesting" : state == 2 ? "issued" :
+                         state == 3 ? "failed" : "idle";
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "state", status);
+    cJSON_AddBoolToObject(root, "ok", state != 3);
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{\"state\":\"idle\",\"ok\":true}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
 // ── /api/start, /api/stop, /api/reboot, /api/reset_counters ──────────────────
 
 esp_err_t WebServer::handle_start(httpd_req_t* req) {
@@ -638,6 +1439,68 @@ esp_err_t WebServer::handle_reset_counters(httpd_req_t* req) {
 
 esp_err_t WebServer::handle_meter(httpd_req_t* req) {
     return handle_status(req);  // reuse full status
+}
+
+esp_err_t WebServer::handle_ota_github_status(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    const int state = s_github_ota_state.load();
+    const char* status = state == 1 ? "downloading" : state == 2 ? "restarting" :
+                         state == 3 ? "failed" : "idle";
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "state", status);
+    cJSON_AddBoolToObject(root, "ok", state != 3);
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{\"state\":\"idle\",\"ok\":true}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_ota_github(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    if (s_github_ota_state.load() == 1) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return send_json(req, "{\"ok\":false,\"reason\":\"update_running\"}");
+    }
+    if (req->content_len == 0 || req->content_len > 1024) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid request body");
+        return ESP_FAIL;
+    }
+    std::string raw;
+    if (read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "read error");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* asset_url = json ? cJSON_GetObjectItem(json, "url") : nullptr;
+    if (!cJSON_IsString(asset_url) || !asset_url->valuestring) {
+        cJSON_Delete(json);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "firmware URL is required");
+        return ESP_FAIL;
+    }
+    const std::string url = asset_url->valuestring;
+    cJSON_Delete(json);
+    if (!is_allowed_github_firmware_url(url)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "unsupported GitHub firmware asset");
+        return ESP_FAIL;
+    }
+
+    char* task_url = static_cast<char*>(malloc(url.size() + 1));
+    if (!task_url) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "out of memory");
+        return ESP_FAIL;
+    }
+    memcpy(task_url, url.c_str(), url.size() + 1);
+    s_github_ota_state.store(1);
+    if (xTaskCreate(github_ota_task, "github_ota", 8192, task_url, 5, nullptr) != pdPASS) {
+        free(task_url);
+        s_github_ota_state.store(3);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "could not start OTA task");
+        return ESP_FAIL;
+    }
+    return send_json(req, "{\"ok\":true,\"state\":\"downloading\"}");
 }
 
 // ── /api/ota (POST — binary firmware image) ───────────────────────────────────

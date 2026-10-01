@@ -65,10 +65,15 @@ static void wifi_event_handler(void* arg, esp_event_base_t base,
         ESP_LOGI(TAG, "STA IP: %s", buf);
     } else if (base == IP_EVENT && id == IP_EVENT_GOT_IP6) {
         auto* event = static_cast<ip_event_got_ip6_t*>(data);
+        const auto address_type = esp_netif_ip6_get_addr_type(&event->ip6_info.ip);
+        if (address_type != ESP_IP6_ADDR_IS_GLOBAL && address_type != ESP_IP6_ADDR_IS_UNIQUE_LOCAL) {
+            return;
+        }
         char buf[48];
         snprintf(buf, sizeof(buf), IPV6STR, IPV62STR(event->ip6_info.ip));
-        app::WifiManager::get().set_ipv6(buf);
-        ESP_LOGI(TAG, "STA IPv6: %s", buf);
+        const bool is_global = address_type == ESP_IP6_ADDR_IS_GLOBAL;
+        app::WifiManager::get().set_ipv6(buf, is_global);
+        ESP_LOGI(TAG, "STA IPv6 %s: %s", is_global ? "global" : "ULA", buf);
     }
 }
 
@@ -122,6 +127,8 @@ bool WifiManager::reconnect(const std::string& ssid, const std::string& pass)
     sta_connected_ = false;
     ap_active_ = false;
     ip_.clear();
+    ipv6_.clear();
+    ipv6_is_global_ = false;
     xEventGroupClearBits(s_wifi_eg, STA_CONNECTED_BIT | STA_FAILED_BIT);
     esp_wifi_stop();
     const bool connected = start_sta(ssid, pass);
@@ -134,6 +141,8 @@ bool WifiManager::reconnect(const std::string& ssid, const std::string& pass)
 bool WifiManager::start_sta(const std::string& ssid, const std::string& pass)
 {
     s_retry = 0;
+    ipv6_.clear();
+    ipv6_is_global_ = false;
     if (!esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"))
         esp_netif_create_default_wifi_sta();
     esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -183,8 +192,7 @@ bool WifiManager::start_sta(const std::string& ssid, const std::string& pass)
         if (netif && esp_netif_get_ip6_linklocal(netif, &ip6) == ESP_OK) {
             char ipv6_buf[48];
             snprintf(ipv6_buf, sizeof(ipv6_buf), IPV6STR, IPV62STR(ip6));
-            ipv6_ = ipv6_buf;
-            ESP_LOGI(TAG, "STA IPv6 link-local: %s", ipv6_.c_str());
+            ESP_LOGI(TAG, "STA IPv6 link-local (not routable): %s", ipv6_buf);
         }
         start_sntp_once();
         return true;

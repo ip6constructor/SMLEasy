@@ -39,6 +39,26 @@ struct WebAuthConfig {
     std::string password{"P@assword26"};
 };
 
+struct UiConfig {
+    std::string language{"auto"};
+    std::string allowed_networks{};
+};
+
+struct TlsConfig {
+    std::string mode{"manual"};
+    std::string fqdn{};
+    std::string email{};
+    std::string certificate_pem{};
+    std::string private_key_pem{};
+    std::string fallback_certificate_pem{};
+    std::string fallback_private_key_pem{};
+    std::string acme_account_key_pem{};
+    std::string acme_account_url{};
+    bool acme_staging{true};
+    uint16_t renewal_interval_days{60};
+    int64_t last_issued_epoch{0};
+};
+
 /// Tariff / pricing config used for cost estimation in the dashboard.
 struct TariffConfig {
     double      price_import_kwh{0.30};  ///< price paid per imported kWh
@@ -69,6 +89,10 @@ public:
 
     bool load_web_auth(WebAuthConfig& out);
     bool save_web_auth(const WebAuthConfig& cfg);
+    bool load_ui(UiConfig& out);
+    bool save_ui(const UiConfig& cfg);
+    bool load_tls(TlsConfig& out);
+    bool save_tls(const TlsConfig& cfg);
     bool reset_all_config();
 
     bool load_ha(HaConfig& out);
@@ -82,6 +106,8 @@ private:
     static constexpr const char* kNsMeter  = "meter_cfg";
     static constexpr const char* kNsWifi   = "wifi_cfg";
     static constexpr const char* kNsAuth   = "web_auth";
+    static constexpr const char* kNsUi     = "ui_cfg";
+    static constexpr const char* kNsTls    = "tls_cfg";
     static constexpr const char* kNsHa     = "ha_cfg";
     static constexpr const char* kNsMqttLegacy = "mqtt_cfg";
     static constexpr const char* kNsTariff = "tariff_cfg";

@@ -22,7 +22,12 @@ public:
     [[nodiscard]] bool        is_ap_active()     const { return ap_active_; }
     [[nodiscard]] std::string get_ip()           const { return ip_; }
     [[nodiscard]] std::string get_ipv6()         const { return ipv6_; }
-    void set_ipv6(const std::string& value) { ipv6_ = value; }
+    void set_ipv6(const std::string& value, bool is_global) {
+        if (is_global || ipv6_.empty() || !ipv6_is_global_) {
+            ipv6_ = value;
+            ipv6_is_global_ = is_global;
+        }
+    }
     [[nodiscard]] std::string ap_ssid()          const { return ap_ssid_; }
     [[nodiscard]] std::string sta_ssid()         const { return sta_ssid_; }
 
@@ -39,6 +44,7 @@ private:
     bool        have_wifi_credentials_{false};
     std::string ip_;
     std::string ipv6_;
+    bool        ipv6_is_global_{false};
     std::string ap_ssid_;
     std::string sta_ssid_;
 };

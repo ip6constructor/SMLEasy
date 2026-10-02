@@ -16,6 +16,9 @@ Open-source firmware and Home Assistant integration for the ESP32-C3 WiFi IR Sma
 
 The MT631 currently reports total import/export energy and net active power through this optical interface. Other values, such as phase currents, are shown only when the meter actually includes them in its SML telegram.
 
+<img width="1586" height="1271" alt="image" src="https://github.com/user-attachments/assets/250e6126-2f37-481e-8f2c-2bc8f16167d9" />
+
+
 ## Hardware
 
 - ESP32-C3 Mini

@@ -23,6 +23,12 @@ struct StatsSnapshot {
     bool   time_synced{false};
 };
 
+struct DailyBaselineSnapshot {
+    int32_t import_wh{0};
+    int32_t export_wh{0};
+    bool available{false};
+};
+
 /// Energy statistics from the meter's own counters. The current-day baseline and
 /// completed previous-day totals are persisted; monthly totals and history stay in RAM.
 class EnergyStats {
@@ -34,6 +40,8 @@ public:
     void record(int32_t power_net_w, int32_t fwd_wh, int32_t rev_wh);
 
     StatsSnapshot snapshot() const;
+    DailyBaselineSnapshot daily_baseline() const;
+    bool set_daily_baseline(int32_t import_wh, int32_t export_wh);
 
     /// JSON array of {"t":epoch_s,"p":watts}, oldest first.
     std::string history_json() const;
@@ -49,7 +57,7 @@ private:
 
     void check_rollover(int day_of_year, int year, int month);
     void load_persisted_day();
-    void persist_day_snapshot() const;
+    bool persist_day_snapshot() const;
 
     mutable SemaphoreHandle_t mutex_{nullptr};
     std::deque<PowerSample> hist_;

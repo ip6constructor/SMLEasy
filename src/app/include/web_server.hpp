@@ -35,6 +35,8 @@ private:
     static esp_err_t handle_ha_config_save(httpd_req_t*);
     static esp_err_t handle_tariff_get(httpd_req_t*);
     static esp_err_t handle_tariff_save(httpd_req_t*);
+    static esp_err_t handle_daily_baseline_get(httpd_req_t*);
+    static esp_err_t handle_daily_baseline_save(httpd_req_t*);
     static esp_err_t handle_start(httpd_req_t*);            ///< Single-shot read
     static esp_err_t handle_start_continuous(httpd_req_t*); ///< Repeating reads
     static esp_err_t handle_stop(httpd_req_t*);

@@ -7,6 +7,7 @@
 namespace app {
 
 static const char* TAG = "EnergyStats";
+static constexpr int64_t kDailyBaselineToleranceWh = 400000;
 
 EnergyStats& EnergyStats::get() {
     static EnergyStats inst;
@@ -51,12 +52,12 @@ void EnergyStats::load_persisted_day()
     }
 }
 
-void EnergyStats::persist_day_snapshot() const
+bool EnergyStats::persist_day_snapshot() const
 {
     nvs_handle_t handle;
     if (nvs_open("energy_stats", NVS_READWRITE, &handle) != ESP_OK) {
         ESP_LOGW(TAG, "cannot open NVS for daily snapshot");
-        return;
+        return false;
     }
 
     const uint64_t import_wh = static_cast<uint64_t>(yesterday_import_kwh_ * 1000.0 + 0.5);
@@ -71,7 +72,11 @@ void EnergyStats::persist_day_snapshot() const
     if (err == ESP_OK) err = nvs_set_u8(handle, "have_day_start", have_day_start_ ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(handle);
     nvs_close(handle);
-    if (err != ESP_OK) ESP_LOGW(TAG, "daily snapshot save failed: %s", esp_err_to_name(err));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "daily snapshot save failed: %s", esp_err_to_name(err));
+        return false;
+    }
+    return true;
 }
 
 void EnergyStats::check_rollover(int day_of_year, int year, int month)
@@ -118,20 +123,32 @@ void EnergyStats::record(int32_t power_net_w, int32_t fwd_wh, int32_t rev_wh)
             today_export_kwh_ = 0;
             have_day_start_ = true;
             persist_day_snapshot();
-        } else if (fwd_wh >= day_start_import_wh_ && rev_wh >= day_start_export_wh_) {
-            today_import_kwh_ = (fwd_wh - day_start_import_wh_) / 1000.0;
-            today_export_kwh_ = (rev_wh - day_start_export_wh_) / 1000.0;
         } else {
-            if (fwd_wh < day_start_import_wh_) {
+            const int64_t import_delta = static_cast<int64_t>(fwd_wh) - day_start_import_wh_;
+            const int64_t export_delta = static_cast<int64_t>(rev_wh) - day_start_export_wh_;
+            bool baseline_adjusted = false;
+            if (import_delta >= 0) {
+                today_import_kwh_ = import_delta / 1000.0;
+            } else if (import_delta >= -kDailyBaselineToleranceWh) {
+                today_import_kwh_ = 0;
+            } else {
                 day_start_import_wh_ = fwd_wh;
                 today_import_kwh_ = 0;
+                baseline_adjusted = true;
             }
-            if (rev_wh < day_start_export_wh_) {
+            if (export_delta >= 0) {
+                today_export_kwh_ = export_delta / 1000.0;
+            } else if (export_delta >= -kDailyBaselineToleranceWh) {
+                today_export_kwh_ = 0;
+            } else {
                 day_start_export_wh_ = rev_wh;
                 today_export_kwh_ = 0;
+                baseline_adjusted = true;
             }
-            persist_day_snapshot();
-            ESP_LOGW(TAG, "meter counter reset detected; daily baseline adjusted");
+            if (baseline_adjusted) {
+                persist_day_snapshot();
+                ESP_LOGW(TAG, "meter counter reset detected; daily baseline adjusted");
+            }
         }
     }
 
@@ -169,6 +186,60 @@ StatsSnapshot EnergyStats::snapshot() const
     s.time_synced          = (day_ != -1);
     xSemaphoreGive(mutex_);
     return s;
+}
+
+DailyBaselineSnapshot EnergyStats::daily_baseline() const
+{
+    DailyBaselineSnapshot baseline;
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    baseline.import_wh = day_start_import_wh_;
+    baseline.export_wh = day_start_export_wh_;
+    baseline.available = have_day_start_;
+    xSemaphoreGive(mutex_);
+    return baseline;
+}
+
+bool EnergyStats::set_daily_baseline(int32_t import_wh, int32_t export_wh)
+{
+    if (import_wh <= 0 || export_wh <= 0) return false;
+    const time_t now = time(nullptr);
+    if (now <= 1700000000) return false;
+    struct tm tmv{};
+    localtime_r(&now, &tmv);
+
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    check_rollover(tmv.tm_yday, tmv.tm_year, tmv.tm_mon);
+    const int64_t import_delta = static_cast<int64_t>(prev_fwd_wh_) - import_wh;
+    const int64_t export_delta = static_cast<int64_t>(prev_rev_wh_) - export_wh;
+    if (!have_prev_ || import_delta < -kDailyBaselineToleranceWh ||
+        import_delta > kDailyBaselineToleranceWh || export_delta < -kDailyBaselineToleranceWh ||
+        export_delta > kDailyBaselineToleranceWh) {
+        xSemaphoreGive(mutex_);
+        return false;
+    }
+
+    const int32_t old_import_wh = day_start_import_wh_;
+    const int32_t old_export_wh = day_start_export_wh_;
+    const double old_today_import_kwh = today_import_kwh_;
+    const double old_today_export_kwh = today_export_kwh_;
+    const bool old_have_day_start = have_day_start_;
+
+    day_start_import_wh_ = import_wh;
+    day_start_export_wh_ = export_wh;
+    today_import_kwh_ = import_delta > 0 ? import_delta / 1000.0 : 0;
+    today_export_kwh_ = export_delta > 0 ? export_delta / 1000.0 : 0;
+    have_day_start_ = true;
+    if (!persist_day_snapshot()) {
+        day_start_import_wh_ = old_import_wh;
+        day_start_export_wh_ = old_export_wh;
+        today_import_kwh_ = old_today_import_kwh;
+        today_export_kwh_ = old_today_export_kwh;
+        have_day_start_ = old_have_day_start;
+        xSemaphoreGive(mutex_);
+        return false;
+    }
+    xSemaphoreGive(mutex_);
+    return true;
 }
 
 std::string EnergyStats::history_json() const

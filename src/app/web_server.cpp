@@ -239,6 +239,7 @@ static void github_ota_task(void* arg)
     http_cfg.url = url;
     http_cfg.timeout_ms = 30000;
     http_cfg.buffer_size = 4096;
+    http_cfg.buffer_size_tx = 2048;
     http_cfg.max_redirection_count = 5;
     http_cfg.keep_alive_enable = true;
     http_cfg.crt_bundle_attach = esp_crt_bundle_attach;
@@ -546,6 +547,8 @@ esp_err_t WebServer::start(uint16_t port)
         { "/api/config/ha",       HTTP_POST, handle_ha_config_save,    nullptr },
         { "/api/config/tariff",   HTTP_GET,  handle_tariff_get,        nullptr },
         { "/api/config/tariff",   HTTP_POST, handle_tariff_save,       nullptr },
+        { "/api/config/daily-baseline", HTTP_GET, handle_daily_baseline_get, nullptr },
+        { "/api/config/daily-baseline", HTTP_POST, handle_daily_baseline_save, nullptr },
         { "/api/start",           HTTP_POST, handle_start,            nullptr },
         { "/api/start_continuous", HTTP_POST, handle_start_continuous, nullptr },
         { "/api/stop",            HTTP_POST, handle_stop,             nullptr },
@@ -837,6 +840,61 @@ esp_err_t WebServer::handle_tariff_save(httpd_req_t* req) {
     cJSON_Delete(j);
     bool ok = ConfigStore::get().save_tariff(cfg);
     return send_json(req, ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+// ── /api/config/daily-baseline ────────────────────────────────────────────────
+
+esp_err_t WebServer::handle_daily_baseline_get(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    const DailyBaselineSnapshot baseline = EnergyStats::get().daily_baseline();
+    const StatsSnapshot stats = EnergyStats::get().snapshot();
+    const MeterData meter = AppState::get().get_meter_data();
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "has_baseline", baseline.available);
+    cJSON_AddBoolToObject(root, "time_synced", stats.time_synced);
+    cJSON_AddBoolToObject(root, "has_reading",
+        meter.populated && meter.has_fwd_active_wh && meter.has_rev_active_wh);
+    cJSON_AddNumberToObject(root, "import_start_wh", baseline.import_wh);
+    cJSON_AddNumberToObject(root, "export_start_wh", baseline.export_wh);
+    cJSON_AddNumberToObject(root, "current_import_wh", meter.fwd_active_wh);
+    cJSON_AddNumberToObject(root, "current_export_wh", meter.rev_active_wh);
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_daily_baseline_save(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (req->content_len == 0 || req->content_len > 512 || read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid daily baseline request");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* import_value = json ? cJSON_GetObjectItem(json, "import_start_wh") : nullptr;
+    cJSON* export_value = json ? cJSON_GetObjectItem(json, "export_start_wh") : nullptr;
+    if (!cJSON_IsNumber(import_value) || !cJSON_IsNumber(export_value) ||
+        import_value->valuedouble <= 0 || export_value->valuedouble <= 0 ||
+        import_value->valuedouble > INT32_MAX || export_value->valuedouble > INT32_MAX ||
+        import_value->valuedouble != static_cast<int32_t>(import_value->valuedouble) ||
+        export_value->valuedouble != static_cast<int32_t>(export_value->valuedouble)) {
+        cJSON_Delete(json);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "daily baselines must be positive whole Wh values");
+        return ESP_FAIL;
+    }
+    const int32_t import_start_wh = static_cast<int32_t>(import_value->valuedouble);
+    const int32_t export_start_wh = static_cast<int32_t>(export_value->valuedouble);
+    cJSON_Delete(json);
+
+    if (!EnergyStats::get().set_daily_baseline(import_start_wh, export_start_wh)) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return send_json(req, "{\"ok\":false,\"reason\":\"requires_synced_clock_current_reading_valid_values_and_nvs\"}");
+    }
+    return send_json(req, "{\"ok\":true}");
 }
 
 // ── /api/config/meter (GET) ───────────────────────────────────────────────────

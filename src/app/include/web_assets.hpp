@@ -313,6 +313,16 @@ const UI_TEXT = {
   'Invalid OBIS format for ': ['Invalid OBIS format for ', 'Ungültiges OBIS-Format bei ', 'Ongeldig OBIS-formaat bij ', 'Format OBIS invalide pour ', 'Nieprawidłowy format OBIS dla '],
   'Expected: 1-0:1.8.0*255': ['Expected: 1-0:1.8.0*255', 'Erwartet: 1-0:1.8.0*255', 'Verwacht: 1-0:1.8.0*255', 'Attendu : 1-0:1.8.0*255', 'Oczekiwano: 1-0:1.8.0*255'],
   'Meter settings saved': ['Meter settings saved', 'Zähler-Konfiguration gespeichert', 'Meterinstellingen opgeslagen', 'Configuration du compteur enregistrée', 'Zapisano ustawienia licznika'],
+  'Tagesstart-Zählerstände': ['Daily-start meter readings', 'Tagesstart-Zählerstände', 'Meterstanden bij dagstart', 'Index au début de la journée', 'Wskazania licznika na początek dnia'],
+  'Tagesstart-Hinweis': ['The daily totals are calculated from these readings and saved in device flash.', 'Tageswerte werden aus diesen Ständen berechnet und im Gerätespeicher gesichert.', 'Dagtotalen worden uit deze standen berekend en in het apparaatgeheugen opgeslagen.', 'Les totaux journaliers sont calculés à partir de ces relevés et enregistrés dans la mémoire de l’appareil.', 'Sumy dzienne są obliczane z tych wskazań i zapisywane w pamięci urządzenia.'],
+  'Bezug zum Tagesstart (kWh)': ['Import at day start (kWh)', 'Bezug zum Tagesstart (kWh)', 'Afname bij dagstart (kWh)', 'Soutirage au début de journée (kWh)', 'Pobór na początku dnia (kWh)'],
+  'Einspeisung zum Tagesstart (kWh)': ['Feed-in at day start (kWh)', 'Einspeisung zum Tagesstart (kWh)', 'Teruglevering bij dagstart (kWh)', 'Injection au début de journée (kWh)', 'Oddawanie na początku dnia (kWh)'],
+  'Aktuelle Zählerstände': ['Current meter readings', 'Aktuelle Zählerstände', 'Huidige meterstanden', 'Relevés actuels du compteur', 'Aktualne wskazania licznika'],
+  'Tagesstart laden': ['Load daily start', 'Tagesstart laden', 'Dagstart laden', 'Charger le début de journée', 'Wczytaj początek dnia'],
+  'Tagesstart im Flash speichern': ['Save daily start to flash', 'Tagesstart im Flash speichern', 'Dagstart opslaan in flash', 'Enregistrer dans la mémoire flash', 'Zapisz początek dnia w pamięci flash'],
+  'Tagesstartwerte gespeichert.': ['Daily-start readings saved.', 'Tagesstartwerte gespeichert.', 'Dagstartwaarden opgeslagen.', 'Relevés de début de journée enregistrés.', 'Zapisano wskazania początkowe dnia.'],
+  'Tagesstartwerte konnten nicht gespeichert werden.': ['Could not save daily-start readings.', 'Tagesstartwerte konnten nicht gespeichert werden.', 'Dagstartwaarden konden niet worden opgeslagen.', 'Impossible d’enregistrer les relevés de début de journée.', 'Nie udało się zapisać wskazań początkowych dnia.'],
+  'Tagesstart muss positiv sein und innerhalb ±400 kWh des aktuellen Standes liegen.': ['Daily start must be positive and within ±400 kWh of the current reading.', 'Tagesstart muss positiv sein und innerhalb ±400 kWh des aktuellen Standes liegen.', 'Dagstart moet positief zijn en binnen ±400 kWh van de huidige stand liggen.', 'Le relevé de début doit être positif et à moins de ±400 kWh du relevé actuel.', 'Wskazanie początkowe musi być dodatnie i mieścić się w zakresie ±400 kWh od aktualnego.'],
   'Wi-Fi saved and connected.': ['Wi-Fi saved and connected.', 'WLAN gespeichert und verbunden.', 'Wifi opgeslagen en verbonden.', 'Wi-Fi enregistré et connecté.', 'Zapisano Wi-Fi i połączono.'],
   'Wi-Fi saved, connection failed. AP remains active.': ['Wi-Fi saved, connection failed. AP remains active.', 'WLAN gespeichert, Verbindung fehlgeschlagen. AP bleibt aktiv.', 'Wifi opgeslagen, verbinden mislukt. AP blijft actief.', 'Wi-Fi enregistré, connexion échouée. Le point d’accès reste actif.', 'Zapisano Wi-Fi, połączenie nieudane. Punkt dostępowy pozostaje aktywny.'],
   'Password must match and be at least 8 characters.': ['Passwords must match and be at least 8 characters.', 'Passwörter müssen übereinstimmen und mindestens 8 Zeichen lang sein.', 'Wachtwoorden moeten overeenkomen en minstens 8 tekens lang zijn.', 'Les mots de passe doivent correspondre et contenir au moins 8 caractères.', 'Hasła muszą być zgodne i mieć co najmniej 8 znaków.'],
@@ -1519,6 +1529,81 @@ async function saveHa(e) {
   fetchHaCfg();
 }
 
+async function loadDailyBaseline() {
+  const status = document.getElementById('daily-baseline-status');
+  const current = document.getElementById('daily-baseline-current');
+  try {
+    const response = await fetch('/api/config/daily-baseline');
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+    const importField = document.getElementById('daily-import-start-kwh');
+    const exportField = document.getElementById('daily-export-start-kwh');
+    const importWh = data.has_baseline ? data.import_start_wh : data.current_import_wh;
+    const exportWh = data.has_baseline ? data.export_start_wh : data.current_export_wh;
+    if (importField) {
+      importField.value = data.has_reading ? (importWh / 1000).toFixed(3) : '';
+      importField.min = data.has_reading ? (Math.max(1, data.current_import_wh - 400000) / 1000).toFixed(3) : '0.001';
+      importField.max = data.has_reading ? (Math.min(2147483647, data.current_import_wh + 400000) / 1000).toFixed(3) : '2147483.647';
+    }
+    if (exportField) {
+      exportField.value = data.has_reading ? (exportWh / 1000).toFixed(3) : '';
+      exportField.min = data.has_reading ? (Math.max(1, data.current_export_wh - 400000) / 1000).toFixed(3) : '0.001';
+      exportField.max = data.has_reading ? (Math.min(2147483647, data.current_export_wh + 400000) / 1000).toFixed(3) : '2147483.647';
+    }
+    const form = document.getElementById('daily-baseline-form');
+    if (form) {
+      form.dataset.currentImportWh = data.has_reading ? String(data.current_import_wh) : '';
+      form.dataset.currentExportWh = data.has_reading ? String(data.current_export_wh) : '';
+    }
+    if (current) {
+      current.textContent = data.has_reading
+        ? localizedText('Aktuelle Zählerstände') + ': ' +
+          (data.current_import_wh / 1000).toFixed(3) + ' / ' +
+          (data.current_export_wh / 1000).toFixed(3) + ' kWh'
+        : localizedText('Noch keine Zählerablesung verfügbar.');
+    }
+    if (status) status.textContent = data.has_baseline
+      ? localizedText('Tagesstartwerte gespeichert.')
+      : localizedText('Tagesstart laden');
+  } catch (_) {
+    if (status) status.textContent = localizedText('Tagesstartwerte konnten nicht gespeichert werden.');
+  }
+}
+
+async function saveDailyBaseline(event) {
+  event.preventDefault();
+  const status = document.getElementById('daily-baseline-status');
+  const importKwh = Number(document.getElementById('daily-import-start-kwh').value);
+  const exportKwh = Number(document.getElementById('daily-export-start-kwh').value);
+  const form = document.getElementById('daily-baseline-form');
+  const importWh = Math.round(importKwh * 1000);
+  const exportWh = Math.round(exportKwh * 1000);
+  const currentImportWh = Number(form && form.dataset.currentImportWh);
+  const currentExportWh = Number(form && form.dataset.currentExportWh);
+  if (!Number.isFinite(importKwh) || !Number.isFinite(exportKwh) || importWh <= 0 || exportWh <= 0 ||
+      !Number.isFinite(currentImportWh) || !Number.isFinite(currentExportWh) ||
+      Math.abs(importWh - currentImportWh) > 400000 || Math.abs(exportWh - currentExportWh) > 400000) {
+    if (status) status.textContent = localizedText('Tagesstart muss positiv sein und innerhalb ±400 kWh des aktuellen Standes liegen.');
+    return;
+  }
+  try {
+    const response = await fetch('/api/config/daily-baseline', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        import_start_wh: importWh,
+        export_start_wh: exportWh
+      })
+    });
+    const result = response.ok ? await response.json() : {ok:false};
+    if (!result.ok) throw new Error(result.reason || 'save failed');
+    await loadDailyBaseline();
+    if (status) status.textContent = localizedText('Tagesstartwerte gespeichert.');
+  } catch (_) {
+    if (status) status.textContent = localizedText('Tagesstartwerte konnten nicht gespeichert werden.');
+  }
+}
+
 async function loadConfig() {
   try {
     const r = await fetch('/api/config/meter');
@@ -1703,6 +1788,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   if (document.getElementById('meter-form')) loadConfig();
+  if (document.getElementById('daily-baseline-form')) loadDailyBaseline();
   if (document.getElementById('tariff-form')) fetchTariffCfg();
   if (document.getElementById('ha-form')) fetchHaCfg();
   fetchStatus();
@@ -1731,7 +1817,7 @@ static const char kIndexHtml[] = R"rawhtml(<!DOCTYPE html>
 <article id="meter-values" class="card table-card"><h2>Aktuelle Zählerwerte</h2><table class="data-table"><thead><tr><th>OBIS</th><th>Beschreibung</th><th style="text-align:right">Wert</th><th>Einheit</th></tr></thead><tbody><tr><td>1.8.0</td><td>Bezug gesamt</td><td class="value" id="table-import">—</td><td>kWh</td></tr><tr><td>2.8.0</td><td>Einspeisung gesamt</td><td class="value" id="table-export">—</td><td>kWh</td></tr><tr><td>16.7.0</td><td>Aktuelle Leistung</td><td class="value" id="table-power">—</td><td>W</td></tr><tr><td>31.7.0</td><td>Strom L1</td><td class="value" id="table-current-l1">—</td><td>A</td></tr><tr><td>51.7.0</td><td>Strom L2</td><td class="value" id="table-current-l2">—</td><td>A</td></tr><tr><td>71.7.0</td><td>Strom L3</td><td class="value" id="table-current-l3">—</td><td>A</td></tr></tbody></table></article>
 <article class="card system-card"><h2>Systemstatus</h2><div class="system-list"><div class="kv"><span class="lbl">Hersteller</span><span class="val" id="m-mfr">—</span></div><div class="kv"><span class="lbl">Modell</span><span class="val" id="m-model">—</span></div><div class="kv"><span class="lbl">Firmware</span><span class="val" id="m-fw">—</span></div><div class="kv"><span class="lbl">Seriennr.</span><span class="val" id="m-ser">—</span></div><div class="kv"><span class="lbl">Login</span><span class="val" id="last-login-ok">—</span></div><div class="kv"><span class="lbl">Alarme</span><span class="val" id="m-alarm">Keine</span></div></div></article>
 <article class="card control-card"><h2>Steuerung</h2><div class="card-inner"><div class="btn-row"><button class="btn btn-blue" onclick="doStart()">&#9654; Einmal auslesen</button><label class="continuous-control"><span>Dauerlesen</span><span class="continuous-switch"><input id="continuous-toggle" type="checkbox" role="switch" checked onchange="setContinuousReading(this.checked)"><span class="continuous-switch-track"></span></span></label><button class="btn btn-gray" onclick="doResetCounters()">Zähler reset</button><button class="btn btn-gray" onclick="doReboot()">Neustart</button></div><div class="control-meta"><div class="kv"><span class="lbl">Firmware</span><span class="val" id="fw-ver-ctrl">—</span></div><a href="/config" class="btn btn-gray">Konfiguration</a></div></div></article>
-</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.4/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.4">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer></main></div></div><script src="/app.js"></script></body></html>
+</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.6/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.6">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer></main></div></div><script src="/app.js"></script></body></html>
 )rawhtml";
 
 static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
@@ -1748,8 +1834,8 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGc)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGc)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGc)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGc)"/></svg>)rawsvg" R"rawhtml(</div>
   <div class="lcars-header-bar">
     <h1>SMLEasy &mdash; Konfiguration</h1>
-    <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.4" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
-    <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.4/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.6" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.6/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
     <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
   </div>
 </header>
@@ -1864,6 +1950,25 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
       <input type="text" name="obis_pf_l1" maxlength="96" placeholder="1-0:13.7.0*255">
       <div class="save-row"><button class="btn btn-blue" type="submit">Speichern</button></div>
     </form>
+    </div>
+  </div>
+
+  <div class="card peach">
+    <h2 class="tan">Tagesstart-Zählerstände</h2>
+    <div class="card-inner">
+      <p style="margin-bottom:10px;color:var(--lc-dim);font-size:.82rem">Tageswerte werden aus diesen Ständen berechnet und im Gerätespeicher gesichert.</p>
+      <div id="daily-baseline-current" class="kv" style="margin-bottom:10px">Aktuelle Zählerstände werden geladen …</div>
+      <form id="daily-baseline-form" onsubmit="saveDailyBaseline(event)">
+        <label for="daily-import-start-kwh">Bezug zum Tagesstart (kWh)</label>
+        <input id="daily-import-start-kwh" type="number" min="0.001" max="2147483.647" step="0.001" required>
+        <label for="daily-export-start-kwh">Einspeisung zum Tagesstart (kWh)</label>
+        <input id="daily-export-start-kwh" type="number" min="0.001" max="2147483.647" step="0.001" required>
+        <div id="daily-baseline-status" class="kv" style="margin-top:8px">—</div>
+        <div class="save-row" style="display:flex;gap:8px">
+          <button class="btn btn-gray" type="button" onclick="loadDailyBaseline()">Tagesstart laden</button>
+          <button class="btn btn-blue" type="submit">Tagesstart im Flash speichern</button>
+        </div>
+      </form>
     </div>
   </div>
 

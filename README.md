@@ -19,6 +19,11 @@ The MT631 currently reports total import/export energy and net active power thro
 <img width="1586" height="1271" alt="image" src="https://github.com/user-attachments/assets/250e6126-2f37-481e-8f2c-2bc8f16167d9" />
 
 
+<img width="1625" height="547" alt="image" src="https://github.com/user-attachments/assets/6a848a1f-c715-4604-bfb2-7afa7fa27f3a" />
+
+
+<img width="1631" height="1218" alt="image" src="https://github.com/user-attachments/assets/3739f59f-1785-4d61-b76f-5b932d90eb8a" />
+
 ## Hardware
 
 - ESP32-C3 Mini

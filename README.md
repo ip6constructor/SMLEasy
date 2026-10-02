@@ -32,6 +32,8 @@ The MT631 currently reports total import/export energy and net active power thro
 
 Use a compatible optical head and observe its voltage, wiring, and meter-specific instructions. The firmware does not enable the meter's extended optical dataset or alter its PIN settings; configure those on the meter itself where applicable.
 
+z.b.: https://www.christians-shop.de/WiFi_IR_SMI_V32_DE_1 (Need Flash Hardware and a connector to overwrite the Default Safe-Boot Image from 0000000)
+
 ## Firmware
 
 The current recovery firmware is temporarily IPv4-only and serves the dashboard and API over HTTP at `http://<device-ip>/` on port 80. HTTPS, IPv6, and ACME certificate issuance are disabled while the firmware is stabilized.

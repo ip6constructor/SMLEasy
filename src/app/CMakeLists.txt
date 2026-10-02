@@ -15,7 +15,6 @@ idf_component_register(
     REQUIRES
         sml
         esp_http_server
-        esp_https_server
         esp_wifi
         esp_netif
         esp_event
@@ -24,7 +23,6 @@ idf_component_register(
         app_update
         esp_https_ota
         esp_http_client
-        acme_client
         driver
         freertos
         esp_system

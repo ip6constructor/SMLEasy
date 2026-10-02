@@ -8,6 +8,11 @@ struct MeterConfig {
     uint32_t    interval_s{30};  ///< Read interval in seconds (min 5)
     bool        uart_debug{false};  ///< true = log raw RX bytes each cycle
     bool        last_login_ok{false};  ///< Legacy field kept for UI compatibility
+    std::string profile_id{"mt631_ms2020"};
+    std::string profile_name{"Iskraemeco MT631 / MS2020"};
+    std::string manufacturer{"Iskraemeco"};
+    std::string model{"MT631/MS2020"};
+    std::string previous_profile_json{};
     std::string meter_pin{};  ///< Optional PIN used by login_cmd placeholder {PIN}
     std::string login_cmd{};  ///< Optional pre-read UART login command, supports {PIN} and escape sequences
     uint16_t    login_wait_ms{250};  ///< Delay after login command before frame read
@@ -44,23 +49,6 @@ struct UiConfig {
     std::string allowed_networks{};
 };
 
-struct TlsConfig {
-    std::string mode{"manual"};
-    std::string fqdn{};
-    std::string email{};
-    std::string certificate_pem{};
-    std::string private_key_pem{};
-    std::string fallback_certificate_pem{};
-    std::string fallback_private_key_pem{};
-    std::string acme_account_key_pem{};
-    std::string acme_account_url{};
-    bool acme_terms_accepted{false};
-    bool acme_staging{true};
-    bool self_signed_enabled{false};
-    uint16_t renewal_interval_days{60};
-    int64_t last_issued_epoch{0};
-};
-
 /// Tariff / pricing config used for cost estimation in the dashboard.
 struct TariffConfig {
     double      price_import_kwh{0.30};  ///< price paid per imported kWh
@@ -93,8 +81,6 @@ public:
     bool save_web_auth(const WebAuthConfig& cfg);
     bool load_ui(UiConfig& out);
     bool save_ui(const UiConfig& cfg);
-    bool load_tls(TlsConfig& out);
-    bool save_tls(const TlsConfig& cfg);
     bool reset_all_config();
 
     bool load_ha(HaConfig& out);

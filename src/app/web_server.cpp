@@ -6,7 +6,6 @@
 #include "wifi_manager.hpp"
 #include "mqtt_manager.hpp"
 #include "energy_stats.hpp"
-#include "acme_client.hpp"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 
@@ -15,17 +14,10 @@
 #include "esp_app_format.h"
 #include "esp_https_ota.h"
 #include "esp_crt_bundle.h"
-#include "esp_https_server.h"
 #include "cJSON.h"
 #include "mbedtls/base64.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/pk.h"
-#include "mbedtls/oid.h"
-#include "mbedtls/x509_crt.h"
 #include "lwip/sockets.h"
 #include "lwip/ip4_addr.h"
-#include "lwip/ip6_addr.h"
 
 #include <array>
 #include <atomic>
@@ -38,10 +30,6 @@
 
 static const char* TAG = "WebServer";
 static std::atomic<int> s_github_ota_state{0};
-static std::atomic<int> s_acme_issuance_state{0};
-static std::atomic<bool> s_acme_scheduler_started{false};
-static std::atomic<bool> s_ipv6_challenge_running{false};
-static std::atomic<int> s_ipv6_challenge_fd{-1};
 
 static esp_err_t send_json(httpd_req_t* req, const std::string& body)
 {
@@ -91,15 +79,10 @@ static bool parse_cidr(const std::string& cidr, int& family,
     if (!end || *end != '\0') return false;
 
     ip4_addr_t ip4{};
-    ip6_addr_t ip6{};
     if (ip4addr_aton(address.c_str(), &ip4)) {
         family = AF_INET;
         if (parsed_prefix < 0 || parsed_prefix > 32) return false;
         memcpy(network.data(), &ip4.addr, sizeof(ip4.addr));
-    } else if (ip6addr_aton(address.c_str(), &ip6)) {
-        family = AF_INET6;
-        if (parsed_prefix < 0 || parsed_prefix > 128) return false;
-        memcpy(network.data(), ip6.addr, sizeof(ip6.addr));
     } else {
         return false;
     }
@@ -126,18 +109,6 @@ static bool cidr_matches(const sockaddr_storage& peer, const std::string& cidr)
         return true;
     }
 
-    if (peer.ss_family == AF_INET6 && family == AF_INET6) {
-        const auto* address = reinterpret_cast<const sockaddr_in6*>(&peer);
-        const uint8_t* bytes = address->sin6_addr.s6_addr;
-        const int full_bytes = prefix / 8;
-        const int remaining_bits = prefix % 8;
-        if (full_bytes && memcmp(bytes, network.data(), full_bytes) != 0) return false;
-        if (remaining_bits) {
-            const uint8_t mask = static_cast<uint8_t>(0xffu << (8 - remaining_bits));
-            if ((bytes[full_bytes] & mask) != (network[full_bytes] & mask)) return false;
-        }
-        return true;
-    }
     return false;
 }
 
@@ -149,23 +120,6 @@ static bool is_private_address(const sockaddr_storage& peer)
         return (ip & 0xff000000u) == 0x0a000000u ||
                (ip & 0xfff00000u) == 0xac100000u ||
                (ip & 0xffff0000u) == 0xc0a80000u;
-    }
-    if (peer.ss_family == AF_INET6) {
-        const auto* address = reinterpret_cast<const sockaddr_in6*>(&peer);
-        const uint8_t* bytes = address->sin6_addr.s6_addr;
-        const bool unique_local = (bytes[0] & 0xfeu) == 0xfcu;
-        const bool link_local = bytes[0] == 0xfeu && (bytes[1] & 0xc0u) == 0x80u;
-        if (unique_local || link_local) return true;
-        bool ipv4_mapped = bytes[10] == 0xffu && bytes[11] == 0xffu;
-        for (int i = 0; i < 10 && ipv4_mapped; ++i) ipv4_mapped = bytes[i] == 0;
-        if (ipv4_mapped) {
-            sockaddr_in mapped{};
-            mapped.sin_family = AF_INET;
-            memcpy(&mapped.sin_addr.s_addr, bytes + 12, 4);
-            sockaddr_storage mapped_peer{};
-            memcpy(&mapped_peer, &mapped, sizeof(mapped));
-            return is_private_address(mapped_peer);
-        }
     }
     return false;
 }
@@ -212,82 +166,6 @@ static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
     ESP_LOGW(TAG, "blocked web client outside allowed networks");
     shutdown(sockfd, SHUT_RDWR);
     return ESP_FAIL;
-}
-
-static bool lookup_acme_challenge_uri(const char* uri, std::string& response)
-{
-    constexpr char prefix[] = "/.well-known/acme-challenge/";
-    if (!uri || strncmp(uri, prefix, sizeof(prefix) - 1) != 0) return false;
-    const char* token = uri + sizeof(prefix) - 1;
-    if (!*token || strchr(token, '/') || strchr(token, '?')) return false;
-    return acme_client::get_http01_challenge(token, response);
-}
-
-static void ipv6_acme_challenge_task(void*)
-{
-#if CONFIG_LWIP_IPV6
-    int listener = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-    if (listener < 0) {
-        ESP_LOGE(TAG, "IPv6 ACME listener socket failed");
-        s_ipv6_challenge_running.store(false);
-        vTaskDelete(nullptr);
-        return;
-    }
-    int enabled = 1;
-    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
-    setsockopt(listener, IPPROTO_IPV6, IPV6_V6ONLY, &enabled, sizeof(enabled));
-    sockaddr_in6 address{};
-    address.sin6_family = AF_INET6;
-    address.sin6_port = htons(80);
-    address.sin6_addr = in6addr_any;
-    if (bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0 ||
-        listen(listener, 2) != 0) {
-        ESP_LOGE(TAG, "IPv6 ACME listener could not bind port 80");
-        close(listener);
-        s_ipv6_challenge_running.store(false);
-        vTaskDelete(nullptr);
-        return;
-    }
-    s_ipv6_challenge_fd.store(listener);
-    ESP_LOGI(TAG, "IPv6 ACME-only listener active on port 80");
-    while (s_ipv6_challenge_running.load()) {
-        sockaddr_in6 peer{};
-        socklen_t peer_len = sizeof(peer);
-        const int client = accept(listener, reinterpret_cast<sockaddr*>(&peer), &peer_len);
-        if (client < 0) {
-            if (s_ipv6_challenge_running.load()) vTaskDelay(pdMS_TO_TICKS(100));
-            continue;
-        }
-        timeval timeout{5, 0};
-        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-        char request[512]{};
-        const int received = recv(client, request, sizeof(request) - 1, 0);
-        char method[8]{}, uri[320]{};
-        const bool parsed = received > 0 &&
-            sscanf(request, "%7s %319s", method, uri) == 2 && strcmp(method, "GET") == 0;
-        std::string body;
-        const bool found = parsed && lookup_acme_challenge_uri(uri, body);
-        const char* status = found ? "200 OK" : "404 Not Found";
-        if (!found) body = "Not Found";
-        char headers[160]{};
-        const int header_len = snprintf(headers, sizeof(headers),
-            "HTTP/1.1 %s\r\nContent-Type: text/plain\r\nCache-Control: no-store\r\nContent-Length: %u\r\nConnection: close\r\n\r\n",
-            status, static_cast<unsigned>(body.size()));
-        if (header_len > 0) send(client, headers, static_cast<size_t>(header_len), 0);
-        if (!body.empty()) send(client, body.data(), body.size(), 0);
-        shutdown(client, SHUT_RDWR);
-        close(client);
-    }
-    int expected_fd = listener;
-    if (s_ipv6_challenge_fd.compare_exchange_strong(expected_fd, -1)) {
-        shutdown(listener, SHUT_RDWR);
-        close(listener);
-    }
-#else
-    ESP_LOGW(TAG, "IPv6 is disabled; no AAAA HTTP-01 listener available");
-    s_ipv6_challenge_running.store(false);
-#endif
-    vTaskDelete(nullptr);
 }
 
 static bool require_auth(httpd_req_t* req)
@@ -380,6 +258,7 @@ static void github_ota_task(void* arg)
     vTaskDelete(nullptr);
 }
 
+#if 0 // Temporarily disabled while stabilizing the IPv4 HTTP recovery firmware.
 static bool valid_fqdn(const std::string& fqdn)
 {
     if (fqdn.empty() || fqdn.size() > 253 || fqdn.find('.') == std::string::npos) return false;
@@ -619,6 +498,7 @@ static void acme_renewal_task(void*)
             s_acme_issuance_state.store(3);
     }
 }
+#endif
 
 namespace app {
 
@@ -631,63 +511,17 @@ WebServer& WebServer::get() {
 
 esp_err_t WebServer::start(uint16_t port)
 {
-    TlsConfig tls;
-    ConfigStore::get().load_tls(tls);
-    if (acme_client::init() != ESP_OK) return ESP_ERR_NO_MEM;
-    if (tls.mode == "letsencrypt" && !s_acme_scheduler_started.exchange(true)) {
-        if (xTaskCreate(acme_renewal_task, "acme_renew", 4096, nullptr, 4, nullptr) != pdPASS)
-            s_acme_scheduler_started.store(false);
-    }
-    const bool imported_certificate = valid_tls_pem_pair(tls);
-    TlsConfig fallback_tls;
-    fallback_tls.certificate_pem = tls.fallback_certificate_pem;
-    fallback_tls.private_key_pem = tls.fallback_private_key_pem;
-    bool use_https = imported_certificate;
-    if (!use_https && tls.self_signed_enabled) {
-        if (!valid_tls_pem_pair(fallback_tls) && !generate_self_signed_fallback_with_stack(tls)) {
-            ESP_LOGE(TAG, "could not create requested self-signed certificate");
-            return ESP_FAIL;
-        }
-        fallback_tls.certificate_pem = tls.fallback_certificate_pem;
-        fallback_tls.private_key_pem = tls.fallback_private_key_pem;
-        use_https = valid_tls_pem_pair(fallback_tls);
-    }
-
-    if (use_https) {
-        if (!imported_certificate) {
-            tls.certificate_pem = tls.fallback_certificate_pem;
-            tls.private_key_pem = tls.fallback_private_key_pem;
-        }
-        httpd_ssl_config_t ssl_cfg = HTTPD_SSL_CONFIG_DEFAULT();
-        ssl_cfg.httpd.max_uri_handlers = 40;
-        ssl_cfg.httpd.stack_size = 16384;
-        ssl_cfg.httpd.recv_wait_timeout = 60;
-        ssl_cfg.httpd.send_wait_timeout = 60;
-        ssl_cfg.httpd.open_fn = dashboard_network_filter;
-        ssl_cfg.port_secure = 443;
-        ssl_cfg.cacert_pem = reinterpret_cast<const uint8_t*>(tls.certificate_pem.c_str());
-        ssl_cfg.cacert_len = tls.certificate_pem.size() + 1;
-        ssl_cfg.prvtkey_pem = reinterpret_cast<const uint8_t*>(tls.private_key_pem.c_str());
-        ssl_cfg.prvtkey_len = tls.private_key_pem.size() + 1;
-        if (httpd_ssl_start(&server_, &ssl_cfg) != ESP_OK) {
-            ESP_LOGE(TAG, "HTTPS dashboard failed to start");
-            return ESP_FAIL;
-        }
-        server_is_https_ = true;
-    } else {
-        httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
-        http_cfg.server_port = port;
-        http_cfg.max_uri_handlers = 40;
-        http_cfg.stack_size = 8192;
-        http_cfg.lru_purge_enable = true;
-        http_cfg.recv_wait_timeout = 60;
-        http_cfg.send_wait_timeout = 60;
-        http_cfg.open_fn = dashboard_network_filter;
-        if (httpd_start(&server_, &http_cfg) != ESP_OK) {
-            ESP_LOGE(TAG, "HTTP recovery dashboard failed to start");
-            return ESP_FAIL;
-        }
-        server_is_https_ = false;
+    httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
+    http_cfg.server_port = port;
+    http_cfg.max_uri_handlers = 40;
+    http_cfg.stack_size = 8192;
+    http_cfg.lru_purge_enable = true;
+    http_cfg.recv_wait_timeout = 60;
+    http_cfg.send_wait_timeout = 60;
+    http_cfg.open_fn = dashboard_network_filter;
+    if (httpd_start(&server_, &http_cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP dashboard start failed");
+        return ESP_FAIL;
     }
 
     const httpd_uri_t routes[] = {
@@ -708,10 +542,6 @@ esp_err_t WebServer::start(uint16_t port)
         { "/api/config/language", HTTP_POST, handle_ui_language_save,  nullptr },
         { "/api/config/networks", HTTP_GET,  handle_access_networks_get, nullptr },
         { "/api/config/networks", HTTP_POST, handle_access_networks_save, nullptr },
-        { "/api/config/tls",     HTTP_GET,  handle_tls_config_get,    nullptr },
-        { "/api/config/tls",     HTTP_POST, handle_tls_config_save,   nullptr },
-        { "/api/config/tls/acme", HTTP_POST, handle_acme_request,     nullptr },
-        { "/api/config/tls/acme/status", HTTP_GET, handle_acme_status, nullptr },
         { "/api/config/ha",       HTTP_GET,  handle_ha_config_get,     nullptr },
         { "/api/config/ha",       HTTP_POST, handle_ha_config_save,    nullptr },
         { "/api/config/tariff",   HTTP_GET,  handle_tariff_get,        nullptr },
@@ -729,62 +559,14 @@ esp_err_t WebServer::start(uint16_t port)
     };
     for (const auto& r : routes) httpd_register_uri_handler(server_, &r);
 
-    if (use_https && tls.mode == "letsencrypt") start_acme_challenge_listener();
-
-    ESP_LOGI(TAG, "%s dashboard started on port %u%s",
-             server_is_https_ ? "HTTPS" : "HTTP", server_is_https_ ? 443 : port,
-             use_https && tls.mode == "letsencrypt" ? "; isolated HTTP-01 listener on port 80" : "");
+    ESP_LOGI(TAG, "HTTP recovery dashboard started on IPv4 port %u", port);
     return ESP_OK;
-}
-
-esp_err_t WebServer::start_acme_challenge_listener()
-{
-    if (!challenge_server_) {
-        httpd_config_t challenge_cfg = HTTPD_DEFAULT_CONFIG();
-        challenge_cfg.server_port = 80;
-        challenge_cfg.ctrl_port = 32769;
-        challenge_cfg.max_uri_handlers = 1;
-        challenge_cfg.stack_size = 4096;
-        challenge_cfg.uri_match_fn = httpd_uri_match_wildcard;
-        if (httpd_start(&challenge_server_, &challenge_cfg) != ESP_OK) {
-            challenge_server_ = nullptr;
-            ESP_LOGE(TAG, "ACME HTTP-01 listener failed to start on port 80");
-            return ESP_FAIL;
-        }
-        const httpd_uri_t challenge_route = {
-            "/.well-known/acme-challenge/*", HTTP_GET, handle_acme_challenge, nullptr
-        };
-        httpd_register_uri_handler(challenge_server_, &challenge_route);
-    }
-    if (!s_ipv6_challenge_running.exchange(true) &&
-        xTaskCreate(ipv6_acme_challenge_task, "acme_ipv6", 4096, nullptr, 4, nullptr) != pdPASS) {
-        s_ipv6_challenge_running.store(false);
-        ESP_LOGE(TAG, "could not start IPv6 ACME listener task");
-    }
-    return ESP_OK;
-}
-
-void WebServer::stop_acme_challenge_listener()
-{
-    s_ipv6_challenge_running.store(false);
-    const int ipv6_fd = s_ipv6_challenge_fd.exchange(-1);
-    if (ipv6_fd >= 0) {
-        shutdown(ipv6_fd, SHUT_RDWR);
-        close(ipv6_fd);
-    }
-    if (challenge_server_) {
-        httpd_stop(challenge_server_);
-        challenge_server_ = nullptr;
-    }
 }
 
 void WebServer::stop() {
-    stop_acme_challenge_listener();
     if (server_) {
-        if (server_is_https_) httpd_ssl_stop(server_);
-        else httpd_stop(server_);
+        httpd_stop(server_);
         server_ = nullptr;
-        server_is_https_ = false;
     }
 }
 
@@ -906,7 +688,6 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     cJSON_AddBoolToObject  (root, "wifi_connected",
         WifiManager::get().is_sta_connected() || WifiManager::get().is_ap_active());
     cJSON_AddStringToObject(root, "ip",      WifiManager::get().get_ip().c_str());
-    cJSON_AddStringToObject(root, "ipv6",    WifiManager::get().get_ipv6().c_str());
     cJSON_AddStringToObject(root, "ssid",    WifiManager::get().is_sta_connected()
                                                ? WifiManager::get().sta_ssid().c_str()
                                                : WifiManager::get().ap_ssid().c_str());
@@ -1060,6 +841,34 @@ esp_err_t WebServer::handle_tariff_save(httpd_req_t* req) {
 
 // ── /api/config/meter (GET) ───────────────────────────────────────────────────
 
+static cJSON* meter_profile_json(const MeterConfig& cfg)
+{
+    cJSON* profile = cJSON_CreateObject();
+    cJSON_AddStringToObject(profile, "id", cfg.profile_id.c_str());
+    cJSON_AddStringToObject(profile, "name", cfg.profile_name.c_str());
+    cJSON_AddStringToObject(profile, "manufacturer", cfg.manufacturer.c_str());
+    cJSON_AddStringToObject(profile, "model", cfg.model.c_str());
+    cJSON_AddBoolToObject(profile, "pin_required", cfg.login_cmd.find("{PIN}") != std::string::npos);
+    cJSON_AddStringToObject(profile, "login_cmd", cfg.login_cmd.c_str());
+    cJSON_AddNumberToObject(profile, "login_wait_ms", cfg.login_wait_ms);
+    cJSON* obis = cJSON_CreateObject();
+    cJSON_AddStringToObject(obis, "import_wh", cfg.obis_import_wh.c_str());
+    cJSON_AddStringToObject(obis, "export_wh", cfg.obis_export_wh.c_str());
+    cJSON_AddStringToObject(obis, "power_net_w", cfg.obis_power_net_w.c_str());
+    cJSON_AddStringToObject(obis, "power_import_w", cfg.obis_power_import_w.c_str());
+    cJSON_AddStringToObject(obis, "power_export_w", cfg.obis_power_export_w.c_str());
+    cJSON_AddStringToObject(obis, "voltage_l1_v", cfg.obis_voltage_l1_v.c_str());
+    cJSON_AddStringToObject(obis, "voltage_l2_v", cfg.obis_voltage_l2_v.c_str());
+    cJSON_AddStringToObject(obis, "voltage_l3_v", cfg.obis_voltage_l3_v.c_str());
+    cJSON_AddStringToObject(obis, "current_l1_a", cfg.obis_current_l1_a.c_str());
+    cJSON_AddStringToObject(obis, "current_l2_a", cfg.obis_current_l2_a.c_str());
+    cJSON_AddStringToObject(obis, "current_l3_a", cfg.obis_current_l3_a.c_str());
+    cJSON_AddStringToObject(obis, "frequency_hz", cfg.obis_frequency_hz.c_str());
+    cJSON_AddStringToObject(obis, "pf_l1", cfg.obis_pf_l1.c_str());
+    cJSON_AddItemToObject(profile, "obis", obis);
+    return profile;
+}
+
 esp_err_t WebServer::handle_config_get(httpd_req_t* req) {
     REQUIRE_AUTH(req);
     MeterConfig cfg;
@@ -1070,6 +879,15 @@ esp_err_t WebServer::handle_config_get(httpd_req_t* req) {
     cJSON_AddStringToObject(root, "login_cmd", cfg.login_cmd.c_str());
     cJSON_AddNumberToObject(root, "login_wait_ms", cfg.login_wait_ms);
     cJSON_AddBoolToObject  (root, "has_meter_pin", !cfg.meter_pin.empty());
+    cJSON_AddStringToObject(root, "profile_id", cfg.profile_id.c_str());
+    cJSON_AddStringToObject(root, "profile_name", cfg.profile_name.c_str());
+    cJSON_AddStringToObject(root, "manufacturer", cfg.manufacturer.c_str());
+    cJSON_AddStringToObject(root, "model", cfg.model.c_str());
+    if (!cfg.previous_profile_json.empty()) {
+        cJSON* previous = cJSON_Parse(cfg.previous_profile_json.c_str());
+        if (cJSON_IsObject(previous)) cJSON_AddItemToObject(root, "previous_profile", previous);
+        else cJSON_Delete(previous);
+    }
     cJSON* obis = cJSON_CreateObject();
     cJSON_AddStringToObject(obis, "import_wh", cfg.obis_import_wh.c_str());
     cJSON_AddStringToObject(obis, "export_wh", cfg.obis_export_wh.c_str());
@@ -1107,6 +925,25 @@ esp_err_t WebServer::handle_config_save(httpd_req_t* req) {
     }
     MeterConfig cfg;
     ConfigStore::get().load_meter(cfg);
+    cJSON* profile_id = cJSON_GetObjectItem(j, "profile_id");
+    if (cJSON_IsString(profile_id) && profile_id->valuestring) {
+        const std::string requested_id = profile_id->valuestring;
+        if (requested_id != cfg.profile_id) {
+            cJSON* previous = meter_profile_json(cfg);
+            char* text = cJSON_PrintUnformatted(previous);
+            cfg.previous_profile_json = text ? text : "{}";
+            cJSON_free(text);
+            cJSON_Delete(previous);
+            cfg.profile_id = requested_id;
+        }
+    }
+    auto set_profile_text = [j](const char* key, std::string& target) {
+        cJSON* value = cJSON_GetObjectItem(j, key);
+        if (cJSON_IsString(value) && value->valuestring) target = value->valuestring;
+    };
+    set_profile_text("profile_name", cfg.profile_name);
+    set_profile_text("manufacturer", cfg.manufacturer);
+    set_profile_text("model", cfg.model);
     if (cJSON_IsNumber(cJSON_GetObjectItem(j, "interval_s")))
         cfg.interval_s = static_cast<uint32_t>(cJSON_GetObjectItem(j, "interval_s")->valuedouble);
     {
@@ -1328,6 +1165,8 @@ esp_err_t WebServer::handle_access_networks_save(httpd_req_t* req)
         ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+#if 0 // Temporarily disabled with HTTPS and ACME.
+#if 0 // Temporarily disabled during IPv4-only HTTP recovery.
 esp_err_t WebServer::handle_tls_config_get(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
@@ -1503,6 +1342,9 @@ esp_err_t WebServer::handle_acme_status(httpd_req_t* req)
     cJSON_Delete(root);
     return send_json(req, body);
 }
+#endif
+
+#endif
 
 // ── /api/start, /api/stop, /api/reboot, /api/reset_counters ──────────────────
 

@@ -26,7 +26,7 @@ Use a compatible optical head and observe its voltage, wiring, and meter-specifi
 
 ## Firmware
 
-When no valid certificate is enabled, the dashboard is available in HTTP recovery mode at `http://<device-ip>/`. After installing a certificate, use `https://<configured-fqdn>/`; the dashboard and API listen on port 443. The certificate contains that FQDN as its Subject Alternative Name, so using the IP address instead will cause a name mismatch.
+The current recovery firmware is temporarily IPv4-only and serves the dashboard and API over HTTP at `http://<device-ip>/` on port 80. HTTPS, IPv6, and ACME certificate issuance are disabled while the firmware is stabilized.
 
 The default meter profile is Iskraemeco MT631/MS2020. A successful read validates the SML frame CRC. Continuous reading starts by default after boot; the interval defaults to 30 seconds. Stop disables it until the next reboot.
 
@@ -44,18 +44,19 @@ The OTA image is produced at `.pio/build/esp32c3_optical_meter/firmware.bin`. Up
 
 The GitHub Actions workflow builds the ESP32-C3 PlatformIO environment when a `v*` tag is pushed. The tag must match `build_version.txt`; the workflow publishes `SMLEasy-<version>.bin` to the release. The dashboard OTA picker only accepts assets from this repository with that exact naming scheme.
 
-### HTTPS and Let's Encrypt
+### Meter Profiles
 
-- Until a valid certificate is active, HTTP on port 80 remains available for recovery. Dashboard/API HTTPS uses port 443 after a valid certificate is installed.
-- The TLS form accepts a certificate chain (`fullchain.pem`) and matching private key in PEM format. The private key is stored in NVS; protect physical access to the device and enable flash encryption for deployments that require at-rest protection.
-- A self-signed certificate is generated only when the administrator explicitly enables that fallback. Browsers and Home Assistant will warn/reject it unless they trust the issuer; it is intended for encryption/testing, not public trust.
-- Let's Encrypt uses the HTTP-01 challenge. The FQDN must resolve publicly through A and/or AAAA to the ESP's current public address. The router must forward IPv4 TCP port 80 directly to ESP port 80 and allow inbound IPv6 TCP port 80 to the ESP's global IPv6 address. Port 80 serves only the challenge while ACME is active; the dashboard remains on 443.
-- Accept the Let's Encrypt terms in the configuration before requesting a certificate. Select the staging environment for initial testing; staging certificates are not trusted by normal browsers. Switch to production only after confirming DNS and router reachability.
-- Let's Encrypt certificates are normally valid for 90 days; the default renewal interval is 60 days with randomized hourly checking. Renewal needs the FQDN and HTTP-01 route to remain reachable.
+The editable catalog is [`profiles.json`](profiles.json) and is loaded from GitHub at `https://raw.githubusercontent.com/ip6constructor/SMLEasy/main/profiles.json`. Embedded profiles remain available offline; matching catalog IDs can update them, and new IDs are added to the selector. The catalog stays in the browser cache; the device stores the active meter settings and one previous profile snapshot in NVS, not the full catalog. To add a profile, append an entry with a unique `id`, `name`, `manufacturer`, `model`, `login_cmd`, `login_wait_ms`, and the OBIS fields used by the meter.
+
+### Temporary Network Mode
+
+- The dashboard and API use IPv4 HTTP on port 80. Do not expose the device directly to the Internet; HTTP traffic is not encrypted.
+- IPv6, the HTTPS server, and ACME/Let's Encrypt issuance are temporarily disabled. The standalone ACME component is not linked into the firmware.
+- GitHub OTA downloads still use outbound HTTPS.
 
 ### Network Access and Language
 
-The dashboard defaults to allowing RFC1918 IPv4, IPv6 ULA, and link-local clients. Additional IPv4/IPv6 CIDR networks can be added in the configuration page. The public ACME challenge listener is separate and is not restricted by this dashboard allowlist. The browser language is selected automatically with English as fallback; an explicit device setting can choose EN, DE, NL, FR, or PL.
+The dashboard defaults to allowing RFC1918 IPv4 clients. Additional IPv4 CIDR networks can be added in the configuration page. The browser language is selected automatically with English as fallback; an explicit device setting can choose EN, DE, NL, FR, or PL.
 
 ## Home Assistant
 
@@ -63,7 +64,7 @@ SMLEasy offers two separate HA paths. Choose one to avoid duplicate entities:
 
 ### HACS custom integration
 
-The integration under `custom_components/smleasy` polls `/api/status` locally and provides sensors and control buttons. Install using the HACS button above, restart Home Assistant, then add **SMLEasy** under **Settings > Devices & services > Add integration**. Use port 80 with HTTP recovery, or port 443 and enable **HTTPS** when a browser-trusted certificate is active. The self-signed fallback is not trusted by Home Assistant's default TLS verification.
+The integration under `custom_components/smleasy` polls `/api/status` locally and provides sensors and control buttons. Install using the HACS button above, restart Home Assistant, then add **SMLEasy** under **Settings > Devices & services > Add integration**. Use the device's IPv4 address, port 80, and HTTP.
 
 Manual installation: copy `custom_components/smleasy` into `<config>/custom_components/`, restart Home Assistant, and add the integration. After upgrading from the old `smartmeter_v32` domain, remove the old integration entry and add SMLEasy again.
 
@@ -73,7 +74,7 @@ Alternatively, enable **Home Assistant Integration** in the device configuration
 
 ## Security
 
-First login: username `admin`, password `P@assword26`. Change the password immediately after flashing the firmware. OTA and TLS settings require the same web-interface login. Do not expose the dashboard/API directly to the Internet; only the isolated HTTP-01 challenge path is intended to be publicly reachable during ACME issuance and renewal.
+First login: username `admin`, password `P@assword26`. Change the password immediately after flashing the firmware. OTA requires the same web-interface login. The dashboard uses unencrypted HTTP; keep it on a trusted local network and do not expose it directly to the Internet.
 
 ## Project layout
 
@@ -84,4 +85,4 @@ First login: username `admin`, password `P@assword26`. Change the password immed
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
+This project is licensed under the GNU Affero General Public License v3.0 or later. See [LICENSE](LICENSE). The dashboard links to the corresponding source for the running release and to the license text.

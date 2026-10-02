@@ -37,6 +37,20 @@ html{scroll-behavior:smooth}body{font-family:"Segoe UI",system-ui,sans-serif;col
 @media(max-width:430px){.kpi-grid{grid-template-columns:1fr}.metric-value{font-size:2.7rem}}.connection-card{grid-column:span 3}@media(max-width:1100px){.connection-card{grid-column:span 6}}@media(max-width:760px){.connection-card{grid-column:1/-1}}header{display:flex;align-items:center;min-height:var(--header-height);padding:0 24px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.72)}.lcars-header-elbow{display:flex;align-items:center;justify-content:center;width:52px;height:52px;flex:0 0 52px}.lcars-header-elbow.sml-logo svg{width:38px;height:38px;display:block}.lcars-header-bar{display:flex;align-items:center;gap:16px;flex:1;margin-left:14px}.lcars-header-bar h1{font-size:1.15rem;color:var(--text-primary);font-weight:700}.lcars-header-bar .btn{margin-left:auto}.overview-info{display:flex;justify-content:center;align-items:center;gap:8px;padding:20px 8px;color:var(--text-muted);font-size:.76rem;text-align:center}.overview-info strong{color:var(--text-secondary);font-family:"Cascadia Code","JetBrains Mono",monospace}
 .register-meter{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;color:var(--text-primary);background:rgba(22,140,255,.045)}.register-brand{margin:0 3px 10px;color:var(--text-secondary);font-size:.62rem;letter-spacing:.08em}.register-window{border-color:var(--border);background:rgba(255,255,255,.82)}.register-label{color:var(--text-secondary)}.register-reading{border-color:var(--border-strong);color:var(--text-primary);background:#fff}.register-unit{color:var(--text-secondary)}
 .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:760px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:430px){.kpi-grid{grid-template-columns:1fr}}
+.grid>.hero-card{grid-column:1/span 6;grid-row:1}.grid>.meter-card{grid-column:7/span 6;grid-row:1}
+.sidebar-product{margin-top:8px}
+.sidebar-values{display:grid;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:.68rem;font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+.sidebar-values span{min-width:0;overflow-wrap:anywhere}
+.continuous-control{display:inline-flex;align-items:center;gap:12px;min-height:42px;padding:0 14px;border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);background:var(--bg-card);font-size:.86rem;font-weight:650;cursor:pointer}
+.continuous-switch{position:relative;display:inline-flex;width:42px;height:24px;flex:0 0 42px}
+.continuous-switch input{position:absolute;width:1px;height:1px;opacity:0}
+.continuous-switch-track{position:absolute;inset:0;border-radius:999px;background:#aab8c8;transition:background .18s}
+.continuous-switch-track:before{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(19,34,56,.25);transition:transform .18s}
+.continuous-switch input:checked+.continuous-switch-track{background:var(--success)}
+.continuous-switch input:checked+.continuous-switch-track:before{transform:translateX(18px)}
+.continuous-switch input:focus-visible+.continuous-switch-track{outline:3px solid rgba(22,140,255,.3);outline-offset:2px}
+.continuous-switch input:disabled+.continuous-switch-track{opacity:.55}
+@media(max-width:1100px){.grid>.hero-card,.grid>.meter-card{grid-column:1/-1;grid-row:auto}}
 )rawcss";
 
 static const char kAppJs[] = R"rawjs(
@@ -44,6 +58,10 @@ static const char kAppJs[] = R"rawjs(
 let logSeq = 0;
 let statusTimer, logTimer;
 let logPaused = false;
+let controlRequestPending = false;
+let selectedMeterProfileId = 'mt631_ms2020';
+let selectedMeterProfileData = null;
+let previousMeterProfile = null;
 
 // ── Reconnect state ───────────────────────────────────────────────────────────
 let _offline = false;
@@ -67,7 +85,7 @@ const UI_TEXT = {
   'Live monitoring': ['Live monitoring', 'Live-Überwachung', 'Livebewaking', 'Surveillance en direct', 'Monitoring na żywo'],
   'Verbrauch auf einen Blick': ['Energy at a glance', 'Verbrauch auf einen Blick', 'Energie in één oogopslag', 'L’énergie en un coup d’œil', 'Energia w skrócie'],
   'Aktuelle Messwerte und Energiefluss deines Zählers.': ['Current readings and energy flow from your meter.', 'Aktuelle Messwerte und Energiefluss deines Zählers.', 'Actuele meetwaarden en energiestroom van je meter.', 'Mesures actuelles et flux d’énergie de votre compteur.', 'Aktualne odczyty i przepływ energii z licznika.'],
-  'Jetzt auslesen': ['Read now', 'Jetzt auslesen', 'Nu uitlezen', 'Lire maintenant', 'Odczytaj teraz'],
+  'Einmal auslesen': ['Read once', 'Einmal auslesen', 'Eenmalig uitlezen', 'Lire une fois', 'Odczytaj raz'],
   'Aktuelle Leistung': ['Current power', 'Aktuelle Leistung', 'Huidig vermogen', 'Puissance actuelle', 'Aktualna moc'],
   'Bezug': ['Import', 'Bezug', 'Afname', 'Soutirage', 'Pobór'],
   'Einspeisung': ['Feed-in', 'Einspeisung', 'Teruglevering', 'Injection', 'Oddawanie'],
@@ -80,8 +98,6 @@ const UI_TEXT = {
   'Zählerzeit': ['Meter time', 'Zählerzeit', 'Metertijd', 'Heure du compteur', 'Czas licznika'],
   'Verbindung': ['Connection', 'Verbindung', 'Verbinding', 'Connexion', 'Połączenie'],
   'IPv4': ['IPv4', 'IPv4', 'IPv4', 'IPv4', 'IPv4'],
-  'IPv6': ['IPv6', 'IPv6', 'IPv6', 'IPv6', 'IPv6'],
-  'Warte auf IPv6 vom Router': ['Waiting for router IPv6', 'Warte auf IPv6 vom Router', 'Wachten op IPv6 van de router', 'En attente de l’IPv6 du routeur', 'Oczekiwanie na IPv6 z routera'],
   'WLAN': ['Wi-Fi', 'WLAN', 'Wifi', 'Wi-Fi', 'Wi-Fi'],
   'Uptime': ['Uptime', 'Laufzeit', 'Uptime', 'Disponibilité', 'Czas pracy'],
   'Verbrauch heute': ['Consumption today', 'Verbrauch heute', 'Verbruik vandaag', 'Consommation du jour', 'Zużycie dzisiaj'],
@@ -119,19 +135,23 @@ const UI_TEXT = {
   'Done': ['Done', 'Fertig', 'Gereed', 'Terminé', 'Gotowe'],
   'Error': ['Error', 'Fehler', 'Fout', 'Erreur', 'Błąd'],
   'Idle': ['Idle', 'Bereit', 'Inactief', 'Inactif', 'Bezczynny'],
-  'Dauerhaft lesen': ['Continuous reading', 'Dauerhaft lesen', 'Continu uitlezen', 'Lecture continue', 'Odczyt ciągły'],
-  'Stoppen': ['Stop', 'Stoppen', 'Stoppen', 'Arrêter', 'Zatrzymaj'],
+  'Dauerlesen': ['Continuous reading', 'Dauerlesen', 'Continu uitlezen', 'Lecture continue', 'Odczyt ciągły'],
+  'Aktiv': ['Active', 'Aktiv', 'Actief', 'Actif', 'Aktywny'],
+  'Inaktiv': ['Inactive', 'Inaktiv', 'Inactief', 'Inactif', 'Nieaktywny'],
   'Zähler reset': ['Reset counters', 'Zähler reset', 'Tellers resetten', 'Réinitialiser les compteurs', 'Resetuj liczniki'],
   'Neustart': ['Restart', 'Neustart', 'Opnieuw starten', 'Redémarrer', 'Uruchom ponownie'],
   'Konfiguration': ['Settings', 'Konfiguration', 'Instellingen', 'Configuration', 'Konfiguracja'],
   'Copyright Michael Kreutzer 2026': ['Copyright Michael Kreutzer 2026', 'Copyright Michael Kreutzer 2026', 'Copyright Michael Kreutzer 2026', 'Copyright Michael Kreutzer 2026', 'Copyright Michael Kreutzer 2026'],
-  'Lizenz: GNU GPLv3': ['License: GNU GPLv3', 'Lizenz: GNU GPLv3', 'Licentie: GNU GPLv3', 'Licence : GNU GPLv3', 'Licencja: GNU GPLv3'],
+  'Lizenz: GNU AGPLv3': ['License: GNU AGPLv3', 'Lizenz: GNU AGPLv3', 'Licentie: GNU AGPLv3', 'Licence : GNU AGPLv3', 'Licencja: GNU AGPLv3'],
+  'Quellcode': ['Source code', 'Quellcode', 'Broncode', 'Code source', 'Kod źródłowy'],
+  'Lizenztext': ['License text', 'Lizenztext', 'Licentietekst', 'Texte de la licence', 'Tekst licencji'],
+  'Keine Gewährleistung': ['No warranty', 'Keine Gewährleistung', 'Geen garantie', 'Aucune garantie', 'Brak gwarancji'],
   'Sprache': ['Language', 'Sprache', 'Taal', 'Langue', 'Język'],
   'Sprache für die Oberfläche': ['Interface language', 'Sprache für die Oberfläche', 'Taal van de interface', 'Langue de l’interface', 'Język interfejsu'],
   'Zugriff auf das Zähler-Frontend': ['Meter interface access', 'Zugriff auf das Zähler-Frontend', 'Toegang tot de meterinterface', 'Accès à l’interface du compteur', 'Dostęp do interfejsu licznika'],
   'Zusätzliche erlaubte CIDR-Netze': ['Additional allowed CIDR networks', 'Zusätzliche erlaubte CIDR-Netze', 'Extra toegestane CIDR-netwerken', 'Réseaux CIDR autorisés supplémentaires', 'Dodatkowe dozwolone sieci CIDR'],
-  'Ein CIDR-Netz pro Zeile. Private IPv4- und IPv6-Netze sind immer erlaubt.': ['One CIDR network per line. Private IPv4 and IPv6 networks are always allowed.', 'Ein CIDR-Netz pro Zeile. Private IPv4- und IPv6-Netze sind immer erlaubt.', 'Eén CIDR-netwerk per regel. Privé-IPv4- en IPv6-netwerken zijn altijd toegestaan.', 'Un réseau CIDR par ligne. Les réseaux IPv4 et IPv6 privés sont toujours autorisés.', 'Jedna sieć CIDR w wierszu. Prywatne sieci IPv4 i IPv6 są zawsze dozwolone.'],
-  'Beispiele: 192.168.1.0/24 oder 2a00:6020:a105:c900::/64': ['Examples: 192.168.1.0/24 or 2a00:6020:a105:c900::/64', 'Beispiele: 192.168.1.0/24 oder 2a00:6020:a105:c900::/64', 'Voorbeelden: 192.168.1.0/24 of 2a00:6020:a105:c900::/64', 'Exemples : 192.168.1.0/24 ou 2a00:6020:a105:c900::/64', 'Przykłady: 192.168.1.0/24 lub 2a00:6020:a105:c900::/64'],
+  'Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.': ['One IPv4 CIDR network per line. Private IPv4 networks are always allowed.', 'Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.', 'Eén IPv4-CIDR-netwerk per regel. Privé-IPv4-netwerken zijn altijd toegestaan.', 'Un réseau CIDR IPv4 par ligne. Les réseaux IPv4 privés sont toujours autorisés.', 'Jedna sieć IPv4 CIDR w wierszu. Prywatne sieci IPv4 są zawsze dozwolone.'],
+  'Beispiel: 192.168.1.0/24': ['Example: 192.168.1.0/24', 'Beispiel: 192.168.1.0/24', 'Voorbeeld: 192.168.1.0/24', 'Exemple : 192.168.1.0/24', 'Przykład: 192.168.1.0/24'],
   'Netzwerke speichern': ['Save networks', 'Netzwerke speichern', 'Netwerken opslaan', 'Enregistrer les réseaux', 'Zapisz sieci'],
   'Netzwerkfilter gespeichert.': ['Network filter saved.', 'Netzwerkfilter gespeichert.', 'Netwerkfilter opgeslagen.', 'Filtre réseau enregistré.', 'Zapisano filtr sieci.'],
   'Netzwerkfilter konnte nicht gespeichert werden.': ['Could not save network filter.', 'Netzwerkfilter konnte nicht gespeichert werden.', 'Netwerkfilter kon niet worden opgeslagen.', 'Impossible d’enregistrer le filtre réseau.', 'Nie udało się zapisać filtra sieci.'],
@@ -154,6 +174,7 @@ const UI_TEXT = {
   'Default: MT631/MS2020': ['Default: MT631/MS2020', 'Default: MT631/MS2020', 'Standaard: MT631/MS2020', 'Par défaut : MT631/MS2020', 'Domyślnie: MT631/MS2020'],
   'Profil auswählen': ['Select profile', 'Profil auswählen', 'Profiel kiezen', 'Choisir un profil', 'Wybierz profil'],
   'Profil anwenden': ['Apply profile', 'Profil anwenden', 'Profiel toepassen', 'Appliquer le profil', 'Zastosuj profil'],
+  'Vorheriges Profil': ['Previous profile', 'Vorheriges Profil', 'Vorig profiel', 'Profil précédent', 'Poprzedni profil'],
   'GitHub Profil-URL (JSON)': ['GitHub profile URL (JSON)', 'GitHub Profil-URL (JSON)', 'GitHub-profiel-URL (JSON)', 'URL du profil GitHub (JSON)', 'Adres URL profilu GitHub (JSON)'],
   'Von URL laden': ['Load from URL', 'Von URL laden', 'Laden vanaf URL', 'Charger depuis l’URL', 'Wczytaj z URL'],
   'Katalog-Status': ['Catalog status', 'Katalog-Status', 'Catalogusstatus', 'État du catalogue', 'Stan katalogu'],
@@ -448,105 +469,6 @@ async function saveAccessNetworks(event) {
   alert(localizedText(result.ok ? 'Netzwerkfilter gespeichert.' : 'Netzwerkfilter konnte nicht gespeichert werden.'));
 }
 
-function updateTlsMode(mode) {
-  const letsEncrypt = mode === 'letsencrypt';
-  const prerequisites = document.getElementById('le-prerequisites');
-  const requestButton = document.getElementById('acme-request-button');
-  const stagingWarning = document.getElementById('acme-staging-warning');
-  const termsCheckbox = document.getElementById('acme-terms-accepted');
-  if (prerequisites) prerequisites.hidden = !letsEncrypt;
-  if (requestButton) requestButton.hidden = !letsEncrypt;
-  if (stagingWarning) stagingWarning.hidden = !letsEncrypt || document.getElementById('tls-acme-environment').value !== 'staging';
-  if (termsCheckbox) termsCheckbox.required = letsEncrypt;
-}
-
-async function loadTlsConfig() {
-  try {
-    const response = await fetch('/api/config/tls');
-    if (!response.ok) return;
-    const config = await response.json();
-    document.getElementById('tls-mode').value = config.mode || 'manual';
-    document.getElementById('tls-fqdn').value = config.fqdn || '';
-    document.getElementById('tls-email').value = config.email || '';
-    document.getElementById('tls-renewal-days').value = config.renewal_interval_days || 60;
-    document.getElementById('tls-acme-environment').value = config.acme_staging === false ? 'production' : 'staging';
-    document.getElementById('tls-self-signed-enabled').checked = config.self_signed_enabled === true;
-    document.getElementById('acme-terms-accepted').checked = config.acme_terms_accepted === true;
-    const certificateStatus = document.getElementById('tls-current-cert-status');
-    if (certificateStatus && config.has_certificate)
-      certificateStatus.textContent = localizedText('TLS-Zertifikat ist gespeichert; PEM-Schlüssel werden nicht erneut angezeigt.');
-    updateTlsMode(config.mode || 'manual');
-  } catch (_) {}
-}
-
-async function saveTlsConfig(event) {
-  event.preventDefault();
-  const certificate = document.getElementById('tls-certificate').value.trim();
-  const privateKey = document.getElementById('tls-private-key').value.trim();
-  const result = document.getElementById('tls-save-status');
-  if (Boolean(certificate) !== Boolean(privateKey)) {
-    alert(localizedText('PEM-Zertifikat und privater Schlüssel passen nicht zusammen.'));
-    return;
-  }
-  const payload = {
-    mode: document.getElementById('tls-mode').value,
-    fqdn: document.getElementById('tls-fqdn').value.trim(),
-    email: document.getElementById('tls-email').value.trim(),
-    renewal_interval_days: Number(document.getElementById('tls-renewal-days').value),
-    acme_staging: document.getElementById('tls-acme-environment').value === 'staging',
-    self_signed_enabled: document.getElementById('tls-self-signed-enabled').checked,
-    acme_terms_accepted: document.getElementById('acme-terms-accepted').checked,
-    certificate_pem: certificate,
-    private_key_pem: privateKey
-  };
-  try {
-    const response = await fetch('/api/config/tls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const saved = response.ok ? await response.json() : { ok: false };
-    if (!saved.ok) throw new Error('save failed');
-    if (result) result.textContent = localizedText('TLS-Einstellungen gespeichert; Gerät startet neu …');
-  } catch (_) {
-    if (result) result.textContent = localizedText('TLS-Konfiguration konnte nicht gespeichert werden.');
-  }
-}
-
-async function requestAcmeCertificate() {
-  const status = document.getElementById('acme-request-status');
-  const button = document.getElementById('acme-request-button');
-  if (document.getElementById('tls-mode').value !== 'letsencrypt') return;
-  if (button) button.disabled = true;
-  if (status) status.textContent = localizedText('ACME-Anforderung läuft …');
-  try {
-    const response = await fetch('/api/config/tls/acme', { method: 'POST' });
-    const result = response.ok ? await response.json() : null;
-    if (!result || !result.ok) throw new Error('ACME request failed');
-    const poll = setInterval(async () => {
-      try {
-        const statusResponse = await fetch('/api/config/tls/acme/status');
-        const current = statusResponse.ok ? await statusResponse.json() : null;
-        if (!current) throw new Error('status unavailable');
-        if (current.state === 'issued') {
-          if (status) status.textContent = localizedText('Zertifikat ausgestellt; Gerät startet neu …');
-          clearInterval(poll);
-        } else if (current.state === 'failed') {
-          if (status) status.textContent = localizedText('ACME-Anforderung fehlgeschlagen. DNS und Routerfreigabe prüfen.');
-          if (button) button.disabled = false;
-          clearInterval(poll);
-        }
-      } catch (_) {
-        if (status) status.textContent = localizedText('Zertifikat ausgestellt; Gerät startet neu …');
-        clearInterval(poll);
-      }
-    }, 2000);
-  } catch (_) {
-    if (status) status.textContent = localizedText('ACME-Anforderung fehlgeschlagen. DNS und Routerfreigabe prüfen.');
-    if (button) button.disabled = false;
-  }
-}
-
 function _startReconnect() {
   if (_offline) return;                  // already in reconnect mode
   _offline = true;
@@ -686,26 +608,43 @@ function setRowVisible(id, visible) {
 }
 
 function setConnectionStatus(online) {
-  document.querySelectorAll('.connection-card .status, .sidebar-footer .status').forEach(el => {
+  document.querySelectorAll('.sidebar-footer .status').forEach(el => {
     el.classList.toggle('offline', !online);
     const label = el.querySelector('span');
     if (label) label.textContent = online ? 'Verbunden' : 'Getrennt';
   });
 }
 
+function moveConnectionInfoToSidebar() {
+  const card = document.querySelector('.connection-card');
+  const version = document.getElementById('fw-ver-footer');
+  if (!card || !version) return;
+  const values = document.createElement('div');
+  values.className = 'sidebar-values';
+  card.querySelectorAll('.kv .val').forEach(value => values.appendChild(value));
+  const product = version.parentElement;
+  product.classList.add('sidebar-product');
+  product.after(values);
+  card.remove();
+}
+
+moveConnectionInfoToSidebar();
+
 function updateControlButtons(state) {
   const continuous = state.continuous === true;
   const running = state.job_state === 'Running';
   const singleButton = document.querySelector('button[onclick="doStart()"]');
-  const continuousButton = document.querySelector('button[onclick="doStartContinuous()"]');
-  const stopButton = document.querySelector('button[onclick="doStop()"]');
-  if (singleButton) singleButton.disabled = continuous || running;
-  if (continuousButton) {
-    continuousButton.disabled = continuous || running;
-    continuousButton.textContent = continuous ? 'Dauerlesen aktiv' : '↻ Dauerhaft lesen';
-    continuousButton.setAttribute('aria-pressed', String(continuous));
+  const continuousToggle = document.getElementById('continuous-toggle');
+  const continuousState = document.getElementById('continuous-state');
+  if (singleButton) {
+    singleButton.hidden = continuous;
+    singleButton.disabled = running || controlRequestPending;
   }
-  if (stopButton) stopButton.disabled = !continuous && !running;
+  if (continuousToggle) {
+    continuousToggle.checked = continuous;
+    continuousToggle.disabled = controlRequestPending || (running && !continuous);
+  }
+  if (continuousState) continuousState.textContent = localizedText(continuous ? 'Aktiv' : 'Inaktiv');
 }
 
 async function fetchStatus() {
@@ -794,7 +733,7 @@ async function fetchStatus() {
         el.style.color = d.last_login_ok ? 'var(--lc-green,#0f0)' : 'var(--lc-orange,#f80)';
       }
     }
-    kv('wifi-ip', d.ip); kv('wifi-ipv6', d.ipv6 || localizedText('Warte auf IPv6 vom Router')); kv('wifi-ssid', d.ssid);
+    kv('wifi-ip', d.ip); kv('wifi-ssid', d.ssid);
     // Show both IPs if both modes active
     if (d.ip_sta && d.ip_ap) {
       kv('wifi-ip',   'STA: ' + d.ip_sta + '  |  AP: ' + d.ip_ap);
@@ -860,20 +799,27 @@ async function doStart() {
   fetchStatus();
   fetchLog();
 }
-async function doStartContinuous() {
-  const r = await fetch('/api/start_continuous', {method:'POST'});
-  const j = await r.json();
-  if (!j.ok && j.reason === 'already_running') {
-    alert(localizedText('Ablesung läuft bereits.'));
-    return;
+async function setContinuousReading(enabled) {
+  if (controlRequestPending) return;
+  controlRequestPending = true;
+  updateControlButtons({continuous: !enabled, job_state: ''});
+  try {
+    const endpoint = enabled ? '/api/start_continuous' : '/api/stop';
+    const r = await fetch(endpoint, {method:'POST'});
+    const j = await r.json();
+    if (!r.ok || !j.ok) {
+      if (j.reason === 'already_running') alert(localizedText('Ablesung läuft bereits.'));
+      return;
+    }
+    if (enabled) {
+      logSeq = 0;
+      await fetchLog();
+    }
+    await fetchStatus();
+  } finally {
+    controlRequestPending = false;
+    fetchStatus();
   }
-  logSeq = 0;
-  fetchStatus();
-  fetchLog();
-}
-async function doStop() {
-  await fetch('/api/stop', {method:'POST'});
-  fetchStatus();
 }
 async function doReboot() {
   if (!confirm(localizedText('Gerät neu starten?'))) return;
@@ -891,11 +837,13 @@ const PROFILE_FIELDS = [
   'current_l1_a','current_l2_a','current_l3_a','frequency_hz','pf_l1'
 ];
 
-const PROFILE_URL_DEFAULT = 'https://raw.githubusercontent.com/<user>/<repo>/main/profiles.json';
+const PROFILE_URL_DEFAULT = 'https://raw.githubusercontent.com/ip6constructor/SMLEasy/main/profiles.json';
 
 const BUILTIN_METER_PROFILES = {
   mt631_ms2020: {
     name: 'Iskraemeco MT631 / MS2020',
+    manufacturer: 'Iskraemeco',
+    model: 'MT631/MS2020',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
@@ -917,13 +865,15 @@ const BUILTIN_METER_PROFILES = {
   },
   dtz541: {
     name: 'Holley DTZ541',
+    manufacturer: 'Holley',
+    model: 'DTZ541',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
     obis: {
       import_wh: '1-0:1.8.0*255',
       export_wh: '1-0:2.8.0*255',
-      power_net_w: '1-0:16.7.0*255,1-0:1.7.0*255',
+      power_net_w: '1-0:16.7.0*255',
       power_import_w: '1-0:1.7.0*255',
       power_export_w: '1-0:2.7.0*255',
       voltage_l1_v: '1-0:32.7.0*255',
@@ -938,13 +888,15 @@ const BUILTIN_METER_PROFILES = {
   },
   ed300l: {
     name: 'EMH ED300L',
+    manufacturer: 'EMH',
+    model: 'ED300L',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
     obis: {
       import_wh: '1-0:1.8.0*255',
       export_wh: '1-0:2.8.0*255',
-      power_net_w: '1-0:16.7.0*255,1-0:1.7.0*255',
+      power_net_w: '1-0:16.7.0*255',
       power_import_w: '1-0:1.7.0*255',
       power_export_w: '1-0:2.7.0*255',
       voltage_l1_v: '1-0:32.7.0*255',
@@ -959,6 +911,8 @@ const BUILTIN_METER_PROFILES = {
   },
   ebz_dd3: {
     name: 'eBZ DD3',
+    manufacturer: 'eBZ',
+    model: 'DD3',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
@@ -980,6 +934,8 @@ const BUILTIN_METER_PROFILES = {
   },
   landis_e350: {
     name: 'Landis+Gyr E350',
+    manufacturer: 'Landis+Gyr',
+    model: 'E350',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 300,
@@ -1001,6 +957,8 @@ const BUILTIN_METER_PROFILES = {
   },
   easymeter_q3a: {
     name: 'EasyMeter Q3A / Q3D',
+    manufacturer: 'EasyMeter',
+    model: 'Q3A/Q3D',
     pin_required: false,
     login_cmd: '/?\\r\\n',
     login_wait_ms: 300,
@@ -1022,6 +980,8 @@ const BUILTIN_METER_PROFILES = {
   },
   generic_three_phase: {
     name: 'Generisch 3-phasig OBIS',
+    manufacturer: 'Generic',
+    model: '3-phase SML',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
@@ -1043,13 +1003,15 @@ const BUILTIN_METER_PROFILES = {
   },
   generic_single_phase: {
     name: 'Generisch 1-phasig OBIS',
+    manufacturer: 'Generic',
+    model: 'single-phase SML',
     pin_required: false,
     login_cmd: '',
     login_wait_ms: 250,
     obis: {
       import_wh: '1-0:1.8.0*255',
       export_wh: '1-0:2.8.0*255',
-      power_net_w: '1-0:16.7.0*255,1-0:1.7.0*255',
+      power_net_w: '1-0:16.7.0*255',
       power_import_w: '1-0:1.7.0*255',
       power_export_w: '1-0:2.7.0*255',
       voltage_l1_v: '1-0:32.7.0*255',
@@ -1064,6 +1026,8 @@ const BUILTIN_METER_PROFILES = {
   },
   iec62056_pin_mode: {
     name: 'IEC62056 Login mit PIN',
+    manufacturer: 'Generic',
+    model: 'IEC 62056 PIN mode',
     pin_required: true,
     login_cmd: '/?{PIN}!\\r\\n',
     login_wait_ms: 500,
@@ -1139,7 +1103,7 @@ function emptyObisMap() {
   };
 }
 
-function sanitizeProfileProfile(entry, fallbackName) {
+function sanitizeProfileProfile(entry, fallbackName, profileId) {
   const p = entry || {};
   const obis = emptyObisMap();
   for (const key of PROFILE_FIELDS) {
@@ -1152,7 +1116,10 @@ function sanitizeProfileProfile(entry, fallbackName) {
     : [];
 
   return {
+    id: String(p.id || profileId || ''),
     name: String(p.name || fallbackName || 'Externes Profil'),
+    manufacturer: String(p.manufacturer || ''),
+    model: String(p.model || ''),
     pin_required: !!p.pin_required,
     login_cmd: String(p.login_cmd || ''),
     login_wait_ms: Number.isFinite(parseInt(p.login_wait_ms, 10)) ? parseInt(p.login_wait_ms, 10) : 250,
@@ -1172,7 +1139,7 @@ function parseExternalProfilesJson(data) {
     for (let i = 0; i < data.length; i++) {
       const e = data[i] || {};
       const id = e.id ? String(e.id) : ('profile_' + (i + 1));
-      out[id] = sanitizeProfileProfile(e, e.name || id);
+      out[id] = sanitizeProfileProfile(e, e.name || id, id);
     }
     return out;
   }
@@ -1181,34 +1148,34 @@ function parseExternalProfilesJson(data) {
     for (let i = 0; i < data.profiles.length; i++) {
       const e = data.profiles[i] || {};
       const id = e.id ? String(e.id) : ('profile_' + (i + 1));
-      out[id] = sanitizeProfileProfile(e, e.name || id);
+      out[id] = sanitizeProfileProfile(e, e.name || id, id);
     }
     return out;
   }
 
   if (data.profiles && typeof data.profiles === 'object') {
     for (const [id, e] of Object.entries(data.profiles)) {
-      out[String(id)] = sanitizeProfileProfile(e, e && e.name ? e.name : String(id));
+      out[String(id)] = sanitizeProfileProfile(e, e && e.name ? e.name : String(id), String(id));
     }
     return out;
   }
 
   if (typeof data === 'object') {
     for (const [id, e] of Object.entries(data)) {
-      out[String(id)] = sanitizeProfileProfile(e, e && e.name ? e.name : String(id));
+      out[String(id)] = sanitizeProfileProfile(e, e && e.name ? e.name : String(id), String(id));
     }
   }
   return out;
 }
 
-async function loadProfilesFromUrl() {
+async function loadProfilesFromUrl(silent = false) {
   const input = document.getElementById('profile-url-input');
   const status = document.getElementById('profile-url-status');
   if (!input) return;
 
   const urlRaw = (input.value || '').trim();
   if (!urlRaw) {
-    alert(localizedText('Bitte eine URL eintragen.'));
+    if (!silent) alert(localizedText('Bitte eine URL eintragen.'));
     return;
   }
   const url = normalizeGitHubRawUrl(urlRaw);
@@ -1229,8 +1196,9 @@ async function loadProfilesFromUrl() {
     renderProfileOptions();
     if (status) status.textContent = count + ' ' + localizedText('External profiles loaded');
   } catch (err) {
-    if (status) status.textContent = 'Fehler beim Laden';
-    alert(localizedText('Profile catalog could not be loaded: ') + (err && err.message ? err.message : err));
+    const message = localizedText('Profile catalog could not be loaded: ') + (err && err.message ? err.message : err);
+    if (status) status.textContent = message;
+    if (!silent) alert(message);
   }
 }
 
@@ -1242,16 +1210,26 @@ function getAllProfiles() {
   const merged = Object.assign({}, BUILTIN_METER_PROFILES);
   const remote = getRemoteProfiles();
   for (const [rid, rp] of Object.entries(remote)) {
-    merged['ext_' + rid] = rp;
+    const profileId = Object.prototype.hasOwnProperty.call(BUILTIN_METER_PROFILES, rid)
+      ? rid : 'ext_' + rid;
+    merged[profileId] = Object.assign({}, rp, {id: profileId});
+  }
+  if (previousMeterProfile && previousMeterProfile.obis) {
+    merged.previous_profile = sanitizeProfileProfile(
+      previousMeterProfile, previousMeterProfile.name || 'Vorheriges Profil', '');
+  }
+  if (selectedMeterProfileId && !Object.prototype.hasOwnProperty.call(merged, selectedMeterProfileId) &&
+      selectedMeterProfileData && selectedMeterProfileData.obis) {
+    merged[selectedMeterProfileId] = Object.assign({}, selectedMeterProfileData, {id: selectedMeterProfileId});
   }
   const c1 = getCustomProfile(1);
   const c2 = getCustomProfile(2);
   merged.custom1 = c1 || {
-    name: 'Custom 1 (leer)', pin_required: false, login_cmd: '', login_wait_ms: 250,
+    id: 'custom1', name: 'Custom 1 (leer)', pin_required: false, login_cmd: '', login_wait_ms: 250,
     obis: emptyObisMap()
   };
   merged.custom2 = c2 || {
-    name: 'Custom 2 (leer)', pin_required: false, login_cmd: '', login_wait_ms: 250,
+    id: 'custom2', name: 'Custom 2 (leer)', pin_required: false, login_cmd: '', login_wait_ms: 250,
     obis: emptyObisMap()
   };
   return merged;
@@ -1260,7 +1238,7 @@ function getAllProfiles() {
 function renderProfileOptions() {
   const sel = document.getElementById('meter-profile-select');
   if (!sel) return;
-  const keep = sel.value;
+  const keep = selectedMeterProfileId || sel.value;
   const profiles = getAllProfiles();
   const c1Name = document.getElementById('custom-profile-name-1');
   const c2Name = document.getElementById('custom-profile-name-2');
@@ -1271,10 +1249,13 @@ function renderProfileOptions() {
   for (const id of ids) {
     const o = document.createElement('option');
     o.value = id;
-    o.textContent = (id.indexOf('ext_') === 0 ? '[GitHub] ' : '') + profiles[id].name;
+    const prefix = id === 'previous_profile' ? localizedText('Vorheriges Profil') + ': ' :
+      id.indexOf('ext_') === 0 ? '[GitHub] ' : '';
+    o.textContent = prefix + profiles[id].name;
     sel.appendChild(o);
   }
   if (ids.includes(keep)) sel.value = keep;
+  if (profiles[selectedMeterProfileId]) selectedMeterProfileData = profiles[selectedMeterProfileId];
 }
 
 function applyProfileById(profileId) {
@@ -1283,6 +1264,8 @@ function applyProfileById(profileId) {
   const profiles = getAllProfiles();
   const p = profiles[profileId];
   if (!p) return;
+  selectedMeterProfileId = profileId === 'previous_profile' ? (p.id || '') : profileId;
+  selectedMeterProfileData = p;
 
   for (const key of PROFILE_FIELDS) {
     const field = f['obis_' + key];
@@ -1333,6 +1316,7 @@ function saveCurrentAsCustom(slot) {
   }
 
   const profile = {
+    id: 'custom' + slot,
     name: customName,
     pin_required: (f.login_cmd.value || '').indexOf('{PIN}') >= 0,
     login_cmd: (f.login_cmd.value || ''),
@@ -1342,6 +1326,8 @@ function saveCurrentAsCustom(slot) {
   saveCustomProfile(slot, profile);
   renderProfileOptions();
   const sel = document.getElementById('meter-profile-select');
+  selectedMeterProfileId = 'custom' + slot;
+  selectedMeterProfileData = getAllProfiles()[selectedMeterProfileId] || profile;
   if (sel) sel.value = 'custom' + slot;
   alert(localizedText('Custom profile ') + slot + localizedText(' saved.'));
 }
@@ -1384,6 +1370,10 @@ async function saveMeter(e) {
     login_cmd:         (fd.get('login_cmd') || '').toString(),
     login_wait_ms:     parseInt((fd.get('login_wait_ms') || '250').toString(), 10),
     clear_meter_pin:   fd.get('clear_meter_pin') === 'on',
+    profile_id:        selectedMeterProfileId,
+    profile_name:      selectedMeterProfileData ? selectedMeterProfileData.name : '',
+    manufacturer:      selectedMeterProfileData ? selectedMeterProfileData.manufacturer : '',
+    model:              selectedMeterProfileData ? selectedMeterProfileData.model : '',
     obis,
   });
   const pin = (fd.get('meter_pin') || '').toString();
@@ -1391,7 +1381,19 @@ async function saveMeter(e) {
   if (pin.length > 0) payload.meter_pin = pin;
   const r = await fetch('/api/config/meter', {method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-  alert(r.ok ? localizedText('Meter settings saved') : localizedText('Fehler beim Speichern'));
+  const result = r.ok ? await r.json() : {ok:false};
+  if (result.ok) {
+    const savedResponse = await fetch('/api/config/meter');
+    if (savedResponse.ok) {
+      const saved = await savedResponse.json();
+      selectedMeterProfileId = saved.profile_id || selectedMeterProfileId;
+      previousMeterProfile = saved.previous_profile || null;
+      renderProfileOptions();
+      const profileSelect = document.getElementById('meter-profile-select');
+      if (profileSelect) profileSelect.value = selectedMeterProfileId;
+    }
+  }
+  alert(result.ok ? localizedText('Meter settings saved') : localizedText('Fehler beim Speichern'));
 }
 
 function applyDefaultObisProfile() {
@@ -1522,6 +1524,15 @@ async function loadConfig() {
     const r = await fetch('/api/config/meter');
     if (!r.ok) return;
     const d = await r.json();
+    selectedMeterProfileId = d.profile_id || 'mt631_ms2020';
+    selectedMeterProfileData = {
+      id: selectedMeterProfileId,
+      name: d.profile_name || 'Iskraemeco MT631 / MS2020',
+      manufacturer: d.manufacturer || 'Iskraemeco',
+      model: d.model || 'MT631/MS2020',
+      obis: d.obis || emptyObisMap()
+    };
+    previousMeterProfile = d.previous_profile || null;
     const f = document.getElementById('meter-form');
     if (!f) return;
     f.interval_s.value = d.interval_s ?? 30;
@@ -1548,11 +1559,17 @@ async function loadConfig() {
     const profileUrlInput = document.getElementById('profile-url-input');
     if (profileUrlInput) {
       profileUrlInput.placeholder = PROFILE_URL_DEFAULT;
-      profileUrlInput.value = getRemoteProfileUrl();
+      const savedUrl = getRemoteProfileUrl();
+      profileUrlInput.value = savedUrl && savedUrl.indexOf('<user>') < 0
+        ? savedUrl : PROFILE_URL_DEFAULT;
+      renderProfileOptions();
+      await loadProfilesFromUrl(true);
+    } else {
+      renderProfileOptions();
     }
-    renderProfileOptions();
     const sel = document.getElementById('meter-profile-select');
-    if (sel && !sel.value) sel.value = 'mt631_ms2020';
+    if (sel && Array.from(sel.options).some(option => option.value === selectedMeterProfileId))
+      sel.value = selectedMeterProfileId;
   } catch(_) {}
 }
 
@@ -1678,7 +1695,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderProfileOptions();
   if (document.getElementById('github-ota-select')) loadGithubVersions();
   if (document.getElementById('access-networks-form')) loadAccessNetworks();
-  if (document.getElementById('tls-config-form')) loadTlsConfig();
   const otaForm = document.getElementById('ota-form');
   if (otaForm) {
     otaForm.addEventListener('submit', (e) => {
@@ -1704,18 +1720,18 @@ static const char kIndexHtml[] = R"rawhtml(<!DOCTYPE html>
 <aside class="sidebar"><div class="brand">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="smlGh" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#132238" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40M8 55 A42 42 0 0 0 40 91.5M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGh)" stroke-width="9" stroke-linecap="round"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGh)"/></svg>)rawsvg" R"rawhtml(<div>EasySML<small>Smart energy</small></div></div>
 <div class="nav-title">Übersicht</div><a class="nav-item active" href="#dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></a><a class="nav-item" href="#meter-values"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8V5"/></svg><span>Zählerwerte</span></a><a class="nav-item" href="#history"><svg viewBox="0 0 24 24"><path d="M4 18 9 12l4 3 7-9"/><path d="M4 4v14h17"/></svg><span>Verlauf</span></a><div class="nav-title" style="margin-top:24px">Konfiguration</div><a class="nav-item" href="/config"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.3a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 18l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12H1.5a2 2 0 1 1 0-4h.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.2.5v-.1a2 2 0 1 1 4 0v.2A2 2 0 0 0 16.6 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 20.8 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3Z"/></svg><span>Verbindung & Einstellungen</span></a><div class="sidebar-footer"><div class="status"><i class="status-dot"></i><span>Verbunden</span></div><div style="margin-top:8px">EasySML <span id="fw-ver-footer">v1.0</span></div></div></aside>
 <div class="workspace"><header class="topbar"><div><div class="eyebrow">Smart meter / Übersicht</div><h1>Dashboard</h1></div><div class="topbar-meta"><span id="fw-ver">—</span><span id="status-pill" class="status"><i class="status-dot"></i>Idle</span></div></header>
-<main id="dashboard" class="main-content"><div class="page-intro"><div><div class="eyebrow">Live monitoring</div><h2>Verbrauch auf einen Blick</h2><p>Aktuelle Messwerte und Energiefluss deines Zählers.</p></div><button class="btn btn-blue" onclick="doStart()">&#9654; Jetzt auslesen</button></div>
+<main id="dashboard" class="main-content"><div class="page-intro"><div><div class="eyebrow">Live monitoring</div><h2>Verbrauch auf einen Blick</h2><p>Aktuelle Messwerte und Energiefluss deines Zählers.</p></div></div>
 <section class="grid">
 <article class="card hero-card"><h2>Aktuelle Leistung</h2><div class="metric-value" id="current-power">—<span class="metric-unit">W</span></div><div class="metric-sub" id="power-kilowatt">— kW netto</div></article>
 <article class="card meter-card register-card"><div class="register-heading"><h2>Zählerstände</h2><span class="register-live">Zähler Live</span></div><div class="register-subtitle">Bezug und Einspeisung als Zählwerke</div><div class="register-meter"><div class="register-brand"><span>ZÄHLWERKE · OBIS 1.8.0 / 2.8.0</span></div><div class="register-displays"><div class="register-window"><div class="register-label">1.8.0 / BEZUG GESAMT</div><span class="register-reading" id="m-fwh">—</span><div class="register-unit">kWh</div></div><div class="register-window"><div class="register-label">2.8.0 / EINSPEISUNG GESAMT</div><span class="register-reading" id="m-rwh">—</span><div class="register-unit">kWh</div></div></div></div><div class="register-time"><span>Zählerzeit</span><span class="val" id="m-time">—</span></div></article>
-<article class="card connection-card"><h2>Verbindung</h2><div class="status"><i class="status-dot"></i><span>—</span></div><div class="kv" style="margin-top:20px"><span class="lbl">IPv4</span><span class="val" id="wifi-ip">—</span></div><div class="kv"><span class="lbl">IPv6</span><span class="val" id="wifi-ipv6">—</span></div><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></article>
+<article class="card connection-card"><h2>Verbindung</h2><div class="status"><i class="status-dot"></i><span>—</span></div><div class="kv" style="margin-top:20px"><span class="lbl">IPv4</span><span class="val" id="wifi-ip">—</span></div><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></article>
 <div class="kpi-grid"><article class="card kpi-card"><div class="label">Verbrauch heute</div><div class="kpi-value" id="today-import">—</div><div class="kpi-change positive">Importierte Energie</div></article><article class="card kpi-card"><div class="label">Einspeisung heute</div><div class="kpi-value" id="today-export">—</div><div class="kpi-change">Exportierte Energie</div></article><article class="card kpi-card"><div class="label">Nettokosten heute</div><div class="kpi-value" id="cost-today">—</div><div class="kpi-change" id="cost-breakdown">Bezug minus Einspeisevergütung</div></article></div>
 <article id="history" class="card chart-card"><h2>Leistungsverlauf <span style="float:right;font-weight:400;letter-spacing:0;text-transform:none">Letzte Messpunkte</span></h2><div class="chart-wrap"><svg viewBox="0 0 800 220" preserveAspectRatio="none" aria-label="Leistungsverlauf"><path class="chart-grid" d="M0 20H800M0 75H800M0 130H800M0 185H800"/><path id="history-area" class="chart-area" d="M0 185L0 185L800 185Z"/><polyline id="history-line" class="chart-line" points="0,185 800,185"/></svg></div></article>
 <article class="card split-card"><h2>Verbrauchsaufteilung</h2><div class="donut" aria-label="Verbrauchsaufteilung"></div><div class="legend"><span><b><i style="background:var(--primary)"></i>Bezug heute</b><strong id="legend-import">—</strong></span><span><b><i style="background:#8bdcf4"></i>Monat gesamt</b><strong id="legend-month">—</strong></span></div></article>
 <article id="meter-values" class="card table-card"><h2>Aktuelle Zählerwerte</h2><table class="data-table"><thead><tr><th>OBIS</th><th>Beschreibung</th><th style="text-align:right">Wert</th><th>Einheit</th></tr></thead><tbody><tr><td>1.8.0</td><td>Bezug gesamt</td><td class="value" id="table-import">—</td><td>kWh</td></tr><tr><td>2.8.0</td><td>Einspeisung gesamt</td><td class="value" id="table-export">—</td><td>kWh</td></tr><tr><td>16.7.0</td><td>Aktuelle Leistung</td><td class="value" id="table-power">—</td><td>W</td></tr><tr><td>31.7.0</td><td>Strom L1</td><td class="value" id="table-current-l1">—</td><td>A</td></tr><tr><td>51.7.0</td><td>Strom L2</td><td class="value" id="table-current-l2">—</td><td>A</td></tr><tr><td>71.7.0</td><td>Strom L3</td><td class="value" id="table-current-l3">—</td><td>A</td></tr></tbody></table></article>
 <article class="card system-card"><h2>Systemstatus</h2><div class="system-list"><div class="kv"><span class="lbl">Hersteller</span><span class="val" id="m-mfr">—</span></div><div class="kv"><span class="lbl">Modell</span><span class="val" id="m-model">—</span></div><div class="kv"><span class="lbl">Firmware</span><span class="val" id="m-fw">—</span></div><div class="kv"><span class="lbl">Seriennr.</span><span class="val" id="m-ser">—</span></div><div class="kv"><span class="lbl">Login</span><span class="val" id="last-login-ok">—</span></div><div class="kv"><span class="lbl">Alarme</span><span class="val" id="m-alarm">Keine</span></div></div></article>
-<article class="card control-card"><h2>Steuerung</h2><div class="card-inner"><div class="btn-row"><button class="btn btn-blue" onclick="doStartContinuous()">&#8635; Dauerhaft lesen</button><button class="btn btn-red" onclick="doStop()">&#9646;&#9646; Stoppen</button><button class="btn btn-gray" onclick="doResetCounters()">Zähler reset</button><button class="btn btn-gray" onclick="doReboot()">Neustart</button></div><div class="control-meta"><div class="kv"><span class="lbl">Firmware</span><span class="val" id="fw-ver-ctrl">—</span></div><a href="/config" class="btn btn-gray">Konfiguration</a></div></div></article>
-</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> Lizenz: GNU GPLv3 <span>·</span> Version <strong id="app-version">—</strong></footer></main></div></div><script src="/app.js"></script></body></html>
+<article class="card control-card"><h2>Steuerung</h2><div class="card-inner"><div class="btn-row"><button class="btn btn-blue" onclick="doStart()">&#9654; Einmal auslesen</button><label class="continuous-control"><span>Dauerlesen</span><span class="continuous-switch"><input id="continuous-toggle" type="checkbox" role="switch" checked onchange="setContinuousReading(this.checked)"><span class="continuous-switch-track"></span></span></label><button class="btn btn-gray" onclick="doResetCounters()">Zähler reset</button><button class="btn btn-gray" onclick="doReboot()">Neustart</button></div><div class="control-meta"><div class="kv"><span class="lbl">Firmware</span><span class="val" id="fw-ver-ctrl">—</span></div><a href="/config" class="btn btn-gray">Konfiguration</a></div></div></article>
+</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.0/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.0">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer></main></div></div><script src="/app.js"></script></body></html>
 )rawhtml";
 
 static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
@@ -1732,9 +1748,12 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGc)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGc)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGc)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGc)"/></svg>)rawsvg" R"rawhtml(</div>
   <div class="lcars-header-bar">
     <h1>SMLEasy &mdash; Konfiguration</h1>
+    <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.0" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.0/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
     <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
   </div>
 </header>
+<p class="overview-info" style="padding:8px 16px">GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.</p>
 <main>
   <div class="card peach">
     <h2 class="tan">Sprache</h2>
@@ -1758,8 +1777,8 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
       <form id="access-networks-form" onsubmit="saveAccessNetworks(event)">
         <label for="allowed-networks">Zusätzliche erlaubte CIDR-Netze</label>
         <textarea id="allowed-networks" rows="4" maxlength="512" placeholder="192.168.1.0/24&#10;2a00:6020:a105:c900::/64"></textarea>
-        <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">Ein CIDR-Netz pro Zeile. Private IPv4- und IPv6-Netze sind immer erlaubt.</p>
-        <p style="margin-top:4px;color:var(--lc-dim);font-size:.74rem">Beispiele: 192.168.1.0/24 oder 2a00:6020:a105:c900::/64</p>
+        <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.</p>
+        <p style="margin-top:4px;color:var(--lc-dim);font-size:.74rem">Beispiel: 192.168.1.0/24</p>
         <div class="save-row"><button class="btn btn-blue" type="submit">Netzwerke speichern</button></div>
       </form>
     </div>
@@ -1803,7 +1822,7 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
       <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px;align-items:end">
         <div>
           <label>GitHub Profil-URL (JSON)</label>
-          <input type="url" id="profile-url-input" placeholder="https://raw.githubusercontent.com/<user>/<repo>/main/profiles.json">
+          <input type="url" id="profile-url-input" placeholder="https://raw.githubusercontent.com/ip6constructor/SMLEasy/main/profiles.json">
         </div>
         <button class="btn btn-gray" type="button" onclick="loadProfilesFromUrl()">Von URL laden</button>
       </div>
@@ -1868,111 +1887,7 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   </div>
 
   <!-- Tariff config -->
-  <div class="card peach">
-    <h2 class="tan">Tarife</h2>
-    <div class="card-inner">
-    <form id="tariff-form" onsubmit="saveTariff(event)">
-      <label>Bezug / Verbrauch (EUR/kWh)</label>
-      <input type="number" name="price_import_kwh" min="0" step="0.0001" value="0.30" required>
-      <label>Einspeisung (EUR/kWh)</label>
-      <input type="number" name="price_export_kwh" min="0" step="0.0001" value="0.0664" required>
-      <label>Währung</label>
-      <input type="text" name="currency" maxlength="8" value="EUR" required>
-      <div class="save-row"><button class="btn btn-blue" type="submit">Tarife speichern</button></div>
     </form>
-    </div>
-  </div>
-
-  <!-- Home Assistant config -->
-  <div class="card peach">
-    <h2 class="tan">Home Assistant Integration</h2>
-    <div class="card-inner">
-    <div class="kv" style="margin-bottom:4px"><span class="lbl">Status</span><span class="val" id="ha-status-pill">—</span></div>
-    <form id="ha-form" onsubmit="saveHa(event)">
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <input type="checkbox" name="enabled"> Aktiviert
-      </label>
-      <label>MQTT Broker URI</label>
-      <input type="text" name="broker_uri" maxlength="128" placeholder="mqtt://192.168.1.1">
-      <label>Benutzername</label>
-      <input type="text" name="username" maxlength="64" autocomplete="username">
-      <label>Passwort</label>
-      <input type="password" name="password" maxlength="64" autocomplete="new-password" placeholder="(leer lassen = unverändert)">
-      <label>Gerätename</label>
-      <input type="text" name="device_name" maxlength="64" placeholder="Smartmeter">
-      <label>HA Discovery-Präfix</label>
-      <input type="text" name="ha_prefix" maxlength="64" placeholder="homeassistant">
-      <div class="save-row"><button class="btn btn-blue" type="submit">Speichern</button></div>
-    </form>
-    </div>
-  </div>
-
-  <!-- Web authentication -->
-  <div class="card peach">
-    <h2 class="tan">Weboberfläche schützen</h2>
-    <div class="card-inner">
-    <div class="kv"><span class="lbl">Benutzername</span><span class="val">admin</span></div>
-    <form id="web-auth-form" onsubmit="saveWebPassword(event)">
-      <label>Neues Passwort</label>
-      <input type="password" name="password" minlength="8" autocomplete="new-password" required>
-      <label>Neues Passwort wiederholen</label>
-      <input type="password" name="password_confirm" minlength="8" autocomplete="new-password" required>
-      <div class="save-row"><button class="btn btn-blue" type="submit">Passwort ändern</button></div>
-    </form>
-    </div>
-  </div>
-
-  <div class="card peach">
-    <h2 class="tan">Zertifikat und HTTPS</h2>
-    <div class="card-inner">
-      <form id="tls-config-form" onsubmit="saveTlsConfig(event)">
-        <label for="tls-mode">Zertifikatsmodus</label>
-        <select id="tls-mode" name="mode" onchange="updateTlsMode(this.value)">
-          <option value="manual">Manueller PEM-Import</option>
-          <option value="letsencrypt">Let's Encrypt (HTTP-01)</option>
-        </select>
-        <label for="tls-fqdn">FQDN / Hostname</label>
-        <input type="text" id="tls-fqdn" maxlength="253" placeholder="zaehler.example.net" required>
-        <label for="tls-email">Kontakt-E-Mail für Let’s Encrypt</label>
-        <input type="email" id="tls-email" maxlength="254" placeholder="admin@example.net" required>
-        <label for="tls-renewal-days">Erneuerungsintervall (Tage)</label>
-        <input type="number" id="tls-renewal-days" min="1" max="60" value="60" required>
-        <p style="margin-top:6px;color:var(--lc-dim);font-size:.78rem">Let’s Encrypt empfiehlt bei 90 Tagen Laufzeit eine Erneuerung alle 60 Tage.</p>
-        <section id="le-prerequisites" hidden style="margin-top:12px">
-          <label for="tls-acme-environment">ACME-Umgebung</label>
-          <select id="tls-acme-environment" onchange="updateTlsMode(document.getElementById('tls-mode').value)">
-            <option value="staging">Staging (Test, Browserwarnung)</option>
-            <option value="production">Produktion (gültiges Browser-Zertifikat)</option>
-          </select>
-          <p id="acme-staging-warning" style="margin-top:6px;color:var(--lc-orange);font-size:.78rem">Staging-Zertifikate sind nur für Tests und werden von normalen Browsern nicht als vertrauenswürdig erkannt.</p>
-          <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px">
-            <input type="checkbox" id="acme-terms-accepted" style="margin-top:3px">
-            <span>Ich stimme den Let’s-Encrypt-Nutzungsbedingungen zu.</span>
-          </label>
-          <h3 style="font-size:.9rem;margin:12px 0 8px">Voraussetzungen für Let's Encrypt</h3>
-          <ol style="padding-left:22px;color:var(--lc-dim);font-size:.82rem;line-height:1.55">
-            <li>Vor Erstanforderung und jeder Erneuerung muss der FQDN öffentlich per A (IPv4) oder AAAA (IPv6) auf die aktuelle Adresse des ESP zeigen.</li>
-            <li>Am Router: IPv4-TCP-Port 80 direkt auf ESP-Port 80 weiterleiten; kein abweichender Zielport.</li>
-            <li>Bei AAAA: IPv6-Port 80 direkt in der Router-Firewall für die globale IPv6-Adresse des ESP freigeben; IPv6 übersetzt keine Ports.</li>
-            <li>Port 80 dient nur der HTTP-01-Challenge von Let’s Encrypt; Dashboard und Konfiguration laufen über HTTPS auf Port 443.</li>
-            <li>DNS und Routerfreigabe müssen auch bei jeder Erneuerung erreichbar sein.</li>
-          </ol>
-          <p style="margin-top:10px;color:var(--lc-dim);font-size:.78rem">Nach der Erstausstellung versucht das Gerät die Erneuerung im konfigurierten Intervall; ACME verwendet dabei HTTP-01 auf Port 80.</p>
-          <button class="btn btn-blue" id="acme-request-button" type="button" onclick="requestAcmeCertificate()">Let’s-Encrypt-Zertifikat anfordern</button>
-          <div id="acme-request-status" style="margin-top:8px;font-size:.82rem;color:var(--lc-dim)"></div>
-        </section>
-        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px">
-          <input type="checkbox" id="tls-self-signed-enabled" style="margin-top:3px">
-          <span>Selbstsigniertes HTTPS-Fallback aktivieren (Browserwarnung)</span>
-        </label>
-        <p style="margin-top:6px;color:var(--lc-dim);font-size:.78rem">HTTPS bleibt aus, solange kein Zertifikat aktiviert ist.</p>
-        <label for="tls-certificate" style="margin-top:12px">Zertifikatskette (Fullchain PEM)</label>
-        <textarea id="tls-certificate" rows="7" maxlength="3800" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
-        <label for="tls-private-key">Privater Schlüssel (PEM)</label>
-        <textarea id="tls-private-key" rows="6" maxlength="3800" autocomplete="off" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
-        <div class="save-row"><button class="btn btn-blue" type="submit">TLS-Konfiguration speichern</button></div>
-        <div id="tls-save-status" style="margin-top:8px;font-size:.82rem;color:var(--lc-dim)"></div>
-      </form>
     </div>
   </div>
 

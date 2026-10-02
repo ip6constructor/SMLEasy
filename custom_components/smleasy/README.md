@@ -35,14 +35,15 @@ Diese Integration liest den Status deines Smartmeter-Geraets ueber HTTP (`/api/s
 ## Konfiguration
 
 - Host/IP: LAN-IP oder DNS-Name deines Smartmeters
-- Port: 80 im HTTP-Recovery-Modus, 443 mit aktivem TLS-Zertifikat
-- HTTPS: aktivieren, wenn ein TLS-Zertifikat installiert ist
+- Port: 80
+- HTTPS: deaktiviert lassen; die aktuelle Recovery-Firmware verwendet IPv4 und HTTP
 - Scan-Intervall: mindestens 5 Sekunden
 
 ## Hinweise
 
 - Die Integration nutzt nur die lokale REST-API des Geraets.
-- Fuer HTTPS muss Home Assistant dem Zertifikat vertrauen. Das selbstsignierte Fallback wird standardmaessig abgelehnt; nutze fuer HACS ein oeffentlich vertrautes Let's-Encrypt-Zertifikat.
-- Beim Let's-Encrypt HTTP-01-Verfahren wird Port 80 ausschliesslich fuer die Challenge verwendet, waehrend Dashboard und API ueber HTTPS-Port 443 laufen.
+- Die aktuelle Firmware stellt die lokale API unverschluesselt ueber HTTP bereit. Geraet nur in einem vertrauenswuerdigen lokalen Netzwerk betreiben.
 - Keine Cloud-Abhaengigkeit.
 - Diagnostics findest du in Home Assistant unter dem Geraet/der Integration.
+
+Der SMLEasy-Firmwarecode steht unter der GNU Affero General Public License v3.0 oder später. Siehe das [`LICENSE`](../../LICENSE) im Repository.

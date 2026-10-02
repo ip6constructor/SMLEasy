@@ -98,6 +98,7 @@ std::vector<ObisCode> parse_with_fallback(
     const char* field_name,
     app::AppState& st
 ) {
+    if (configured.empty()) return {};
     auto parsed = parse_obis_aliases(configured);
     if (!parsed.empty()) {
         return parsed;
@@ -332,8 +333,8 @@ void MeterTask::run() {
             st.push_log("E", TAG, rr.error.empty() ? "SML-Read fehlgeschlagen" : rr.error.c_str());
         } else {
             MeterData md;
-            md.manufacturer = "Iskraemeco";
-            md.model = "MT631/MS2020";
+            md.manufacturer = cfg.manufacturer.empty() ? "Unknown" : cfg.manufacturer;
+            md.model = cfg.model.empty() ? cfg.profile_name : cfg.model;
             md.populated = true;
 
             bool import_seen = false;

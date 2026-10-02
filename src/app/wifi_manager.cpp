@@ -63,17 +63,6 @@ static void wifi_event_handler(void* arg, esp_event_base_t base,
         snprintf(buf, sizeof(buf), IPSTR, IP2STR(&event->ip_info.ip));
         xEventGroupSetBits(s_wifi_eg, STA_CONNECTED_BIT);
         ESP_LOGI(TAG, "STA IP: %s", buf);
-    } else if (base == IP_EVENT && id == IP_EVENT_GOT_IP6) {
-        auto* event = static_cast<ip_event_got_ip6_t*>(data);
-        const auto address_type = esp_netif_ip6_get_addr_type(&event->ip6_info.ip);
-        if (address_type != ESP_IP6_ADDR_IS_GLOBAL && address_type != ESP_IP6_ADDR_IS_UNIQUE_LOCAL) {
-            return;
-        }
-        char buf[48];
-        snprintf(buf, sizeof(buf), IPV6STR, IPV62STR(event->ip6_info.ip));
-        const bool is_global = address_type == ESP_IP6_ADDR_IS_GLOBAL;
-        app::WifiManager::get().set_ipv6(buf, is_global);
-        ESP_LOGI(TAG, "STA IPv6 %s: %s", is_global ? "global" : "ULA", buf);
     }
 }
 
@@ -96,7 +85,6 @@ bool WifiManager::start()
 
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,  &wifi_event_handler, nullptr);
     esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &wifi_event_handler, nullptr);
-    esp_event_handler_register(IP_EVENT,   IP_EVENT_GOT_IP6,     &wifi_event_handler, nullptr);
 
     // Generate AP SSID from MAC
     uint8_t mac[6];
@@ -127,8 +115,6 @@ bool WifiManager::reconnect(const std::string& ssid, const std::string& pass)
     sta_connected_ = false;
     ap_active_ = false;
     ip_.clear();
-    ipv6_.clear();
-    ipv6_is_global_ = false;
     xEventGroupClearBits(s_wifi_eg, STA_CONNECTED_BIT | STA_FAILED_BIT);
     esp_wifi_stop();
     const bool connected = start_sta(ssid, pass);
@@ -141,12 +127,9 @@ bool WifiManager::reconnect(const std::string& ssid, const std::string& pass)
 bool WifiManager::start_sta(const std::string& ssid, const std::string& pass)
 {
     s_retry = 0;
-    ipv6_.clear();
-    ipv6_is_global_ = false;
     if (!esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"))
         esp_netif_create_default_wifi_sta();
     esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (sta_netif) esp_netif_create_ip6_linklocal(sta_netif);
     ensure_wifi_initialized();
     esp_wifi_set_mode(WIFI_MODE_STA);
 
@@ -188,12 +171,6 @@ bool WifiManager::start_sta(const std::string& ssid, const std::string& pass)
         sta_ssid_ = ssid;
         sta_connected_ = true;
         ESP_LOGI(TAG, "STA connected, IP=%s", ip_.c_str());
-        esp_ip6_addr_t ip6{};
-        if (netif && esp_netif_get_ip6_linklocal(netif, &ip6) == ESP_OK) {
-            char ipv6_buf[48];
-            snprintf(ipv6_buf, sizeof(ipv6_buf), IPV6STR, IPV62STR(ip6));
-            ESP_LOGI(TAG, "STA IPv6 link-local (not routable): %s", ipv6_buf);
-        }
         start_sntp_once();
         return true;
     }

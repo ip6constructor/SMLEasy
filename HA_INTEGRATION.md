@@ -12,11 +12,9 @@ MQTT wird nur als technischer Transport fuer die HA-Discovery genutzt.
 - Ein laufender MQTT-Broker ist erreichbar (z. B. Mosquitto).
 - ESP32 und Home Assistant sind im selben Netzwerk.
 
-## HTTPS und HACS
+## HACS und Netzwerkmodus
 
-Die HACS-Integration fragt die lokale REST-API ab. Im HTTP-Recovery-Modus verwendet sie Port 80. Sobald ein gültiges TLS-Zertifikat aktiviert ist, in Home Assistant Port 443 und `HTTPS` auswählen.
-
-Das selbstsignierte Fallback verschlüsselt die Verbindung, wird aber von Home Assistant standardmäßig nicht als vertrauenswürdig akzeptiert. Für HACS sollte ein öffentlich vertrauenswürdiges Let's-Encrypt-Zertifikat verwendet werden.
+Die aktuelle Recovery-Firmware ist vorübergehend IPv4-only und stellt Dashboard und REST-API unverschlüsselt über HTTP auf Port 80 bereit. HTTPS, IPv6 und ACME sind deaktiviert. In der HACS-Integration die IPv4-Adresse des Geräts und Port 80 verwenden und HTTPS ausgeschaltet lassen. Das Gerät nur in einem vertrauenswürdigen lokalen Netzwerk betreiben.
 
 ## Geraet konfigurieren
 

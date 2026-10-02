@@ -59,6 +59,11 @@ bool ConfigStore::load_meter(MeterConfig& out)
     uint8_t lgn = out.last_login_ok ? 1 : 0;
     nvs_get_u8(h, "last_lgn",   lgn);
     out.last_login_ok = (lgn != 0);
+    nvs_get_str(h, "profile_id", out.profile_id);
+    nvs_get_str(h, "profile_name", out.profile_name);
+    nvs_get_str(h, "manufacturer", out.manufacturer);
+    nvs_get_str(h, "model", out.model);
+    nvs_get_str(h, "prev_profile", out.previous_profile_json);
     uint16_t lwait = out.login_wait_ms;
     nvs_get_u16(h, "l_wait", lwait);
     out.login_wait_ms = lwait;
@@ -95,6 +100,11 @@ bool ConfigStore::save_meter(const MeterConfig& cfg)
     nvs_set_u32(h, "interval_s", cfg.interval_s);
     nvs_set_u8 (h, "uart_dbg",    cfg.uart_debug       ? 1 : 0);
     nvs_set_u8 (h, "last_lgn",    cfg.last_login_ok    ? 1 : 0);
+    nvs_set_str(h, "profile_id", cfg.profile_id.c_str());
+    nvs_set_str(h, "profile_name", cfg.profile_name.c_str());
+    nvs_set_str(h, "manufacturer", cfg.manufacturer.c_str());
+    nvs_set_str(h, "model", cfg.model.c_str());
+    nvs_set_str(h, "prev_profile", cfg.previous_profile_json.c_str());
     nvs_set_u16(h, "l_wait",      cfg.login_wait_ms);
     nvs_set_str(h, "m_pin",       cfg.meter_pin.c_str());
     nvs_set_str(h, "l_cmd",       cfg.login_cmd.c_str());
@@ -199,63 +209,6 @@ bool ConfigStore::save_ui(const UiConfig& cfg)
     const esp_err_t commit_err = nvs_commit(h);
     nvs_close(h);
     return set_err == ESP_OK && networks_err == ESP_OK && commit_err == ESP_OK;
-}
-
-bool ConfigStore::load_tls(TlsConfig& out)
-{
-    nvs_handle_t h;
-    if (nvs_open(kNsTls, NVS_READONLY, &h) != ESP_OK) return false;
-    nvs_get_str(h, "mode", out.mode);
-    nvs_get_str(h, "fqdn", out.fqdn);
-    nvs_get_str(h, "email", out.email);
-    nvs_get_str(h, "cert", out.certificate_pem);
-    nvs_get_str(h, "privkey", out.private_key_pem);
-    nvs_get_str(h, "fb_cert", out.fallback_certificate_pem);
-    nvs_get_str(h, "fb_key", out.fallback_private_key_pem);
-    nvs_get_str(h, "acme_key", out.acme_account_key_pem);
-    nvs_get_str(h, "acme_url", out.acme_account_url);
-    uint8_t terms = out.acme_terms_accepted ? 1 : 0;
-    nvs_get_u8(h, "acme_terms", terms);
-    out.acme_terms_accepted = terms != 0;
-    uint8_t staging = out.acme_staging ? 1 : 0;
-    nvs_get_u8(h, "acme_staging", staging);
-    out.acme_staging = staging != 0;
-    uint8_t self_signed = out.self_signed_enabled ? 1 : 0;
-    nvs_get_u8(h, "self_signed", self_signed);
-    out.self_signed_enabled = self_signed != 0;
-    nvs_get_u16(h, "renew_days", out.renewal_interval_days);
-    nvs_get_i64(h, "issued_at", &out.last_issued_epoch);
-    nvs_close(h);
-    return true;
-}
-
-bool ConfigStore::save_tls(const TlsConfig& cfg)
-{
-    if (cfg.mode != "manual" && cfg.mode != "letsencrypt") return false;
-    if (cfg.fqdn.size() > 253 || cfg.email.size() > 254 ||
-        cfg.certificate_pem.size() > 3800 || cfg.private_key_pem.size() > 3800 ||
-        cfg.fallback_certificate_pem.size() > 3800 || cfg.fallback_private_key_pem.size() > 3800 ||
-        cfg.acme_account_key_pem.size() > 3800 || cfg.acme_account_url.size() > 512 ||
-        cfg.renewal_interval_days < 1 || cfg.renewal_interval_days > 60) return false;
-    nvs_handle_t h;
-    if (nvs_open(kNsTls, NVS_READWRITE, &h) != ESP_OK) return false;
-    esp_err_t err = nvs_set_str(h, "mode", cfg.mode.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "fqdn", cfg.fqdn.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "email", cfg.email.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "cert", cfg.certificate_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "privkey", cfg.private_key_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "fb_cert", cfg.fallback_certificate_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "fb_key", cfg.fallback_private_key_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "acme_key", cfg.acme_account_key_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "acme_url", cfg.acme_account_url.c_str());
-    if (err == ESP_OK) err = nvs_set_u8(h, "acme_terms", cfg.acme_terms_accepted ? 1 : 0);
-    if (err == ESP_OK) err = nvs_set_u8(h, "acme_staging", cfg.acme_staging ? 1 : 0);
-    if (err == ESP_OK) err = nvs_set_u8(h, "self_signed", cfg.self_signed_enabled ? 1 : 0);
-    if (err == ESP_OK) err = nvs_set_u16(h, "renew_days", cfg.renewal_interval_days);
-    if (err == ESP_OK) err = nvs_set_i64(h, "issued_at", cfg.last_issued_epoch);
-    if (err == ESP_OK) err = nvs_commit(h);
-    nvs_close(h);
-    return err == ESP_OK;
 }
 
 bool ConfigStore::reset_all_config()

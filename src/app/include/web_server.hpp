@@ -11,9 +11,6 @@ public:
     esp_err_t start(uint16_t port = 80);
     void      stop();
     [[nodiscard]] bool is_running() const { return server_ != nullptr; }
-    [[nodiscard]] bool is_https() const { return server_is_https_; }
-    esp_err_t start_acme_challenge_listener();
-    void stop_acme_challenge_listener();
 
 private:
     WebServer() = default;
@@ -46,17 +43,10 @@ private:
     static esp_err_t handle_ota(httpd_req_t*);
     static esp_err_t handle_ota_github(httpd_req_t*);
     static esp_err_t handle_ota_github_status(httpd_req_t*);
-    static esp_err_t handle_acme_challenge(httpd_req_t*);
-    static esp_err_t handle_tls_config_get(httpd_req_t*);
-    static esp_err_t handle_tls_config_save(httpd_req_t*);
-    static esp_err_t handle_acme_request(httpd_req_t*);
-    static esp_err_t handle_acme_status(httpd_req_t*);
     static esp_err_t handle_meter(httpd_req_t*);
     static esp_err_t handle_favicon(httpd_req_t*);   ///< 204 No Content for /favicon.ico
 
     httpd_handle_t server_{nullptr};
-    httpd_handle_t challenge_server_{nullptr};
-    bool server_is_https_{false};
 };
 
 } // namespace app

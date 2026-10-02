@@ -47,6 +47,8 @@ The OTA image is produced at `.pio/build/esp32c3_optical_meter/firmware.bin`. Up
 
 The GitHub Actions workflow builds the ESP32-C3 PlatformIO environment when a `v*` tag is pushed. The tag must match `build_version.txt`; the workflow publishes `SMLEasy-<version>.bin` to the release. The dashboard OTA picker only accepts assets from this repository with that exact naming scheme.
 
+The current published firmware is **v2.5.6**, with the OTA asset [`SMLEasy-2.5.6.bin`](https://github.com/ip6constructor/SMLEasy/releases/download/v2.5.6/SMLEasy-2.5.6.bin). In the device configuration, open **OTA-Update**, load GitHub versions, select **v2.5.6**, and install it. Older GitHub release entries have been removed; the corresponding source tags remain in the repository.
+
 ### Meter Profiles
 
 The editable catalog is [`profiles.json`](profiles.json) and is loaded from GitHub at `https://raw.githubusercontent.com/ip6constructor/SMLEasy/main/profiles.json`. Embedded profiles remain available offline; matching catalog IDs can update them, and new IDs are added to the selector. The catalog stays in the browser cache; the device stores the active meter settings and one previous profile snapshot in NVS, not the full catalog. To add a profile, append an entry with a unique `id`, `name`, `manufacturer`, `model`, `login_cmd`, `login_wait_ms`, and the OBIS fields used by the meter.

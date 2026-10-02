@@ -704,7 +704,7 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     cJSON_AddStringToObject(root, "app_version", esp_ota_get_app_description()->version);
     cJSON_AddStringToObject(root, "idf_version", IDF_VER);
 
-    // Daily/monthly energy statistics + cost estimate (in-RAM only, see EnergyStats).
+    // Daily totals use the persisted first-reading baseline; month totals remain in RAM.
     StatsSnapshot stats = EnergyStats::get().snapshot();
     TariffConfig tariff;
     ConfigStore::get().load_tariff(tariff);

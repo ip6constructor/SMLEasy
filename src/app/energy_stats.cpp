@@ -25,11 +25,16 @@ void EnergyStats::load_persisted_day()
 
     int32_t day = -1, year = -1, month = -1;
     uint64_t yesterday_import_wh = 0, yesterday_export_wh = 0;
+    int32_t day_start_import_wh = 0, day_start_export_wh = 0;
+    uint8_t have_day_start = 0;
     const bool valid = nvs_get_i32(handle, "day_of_year", &day) == ESP_OK &&
         nvs_get_i32(handle, "year", &year) == ESP_OK &&
         nvs_get_i32(handle, "month", &month) == ESP_OK &&
         nvs_get_u64(handle, "y_import_wh", &yesterday_import_wh) == ESP_OK &&
         nvs_get_u64(handle, "y_export_wh", &yesterday_export_wh) == ESP_OK;
+    const bool start_valid = nvs_get_i32(handle, "start_import_wh", &day_start_import_wh) == ESP_OK &&
+        nvs_get_i32(handle, "start_export_wh", &day_start_export_wh) == ESP_OK &&
+        nvs_get_u8(handle, "have_day_start", &have_day_start) == ESP_OK;
     nvs_close(handle);
     if (!valid) return;
 
@@ -38,6 +43,12 @@ void EnergyStats::load_persisted_day()
     month_ = month;
     yesterday_import_kwh_ = yesterday_import_wh / 1000.0;
     yesterday_export_kwh_ = yesterday_export_wh / 1000.0;
+
+    if (start_valid && have_day_start != 0) {
+        day_start_import_wh_ = day_start_import_wh;
+        day_start_export_wh_ = day_start_export_wh;
+        have_day_start_ = true;
+    }
 }
 
 void EnergyStats::persist_day_snapshot() const
@@ -55,6 +66,9 @@ void EnergyStats::persist_day_snapshot() const
     if (err == ESP_OK) err = nvs_set_i32(handle, "month", month_);
     if (err == ESP_OK) err = nvs_set_u64(handle, "y_import_wh", import_wh);
     if (err == ESP_OK) err = nvs_set_u64(handle, "y_export_wh", export_wh);
+    if (err == ESP_OK) err = nvs_set_i32(handle, "start_import_wh", day_start_import_wh_);
+    if (err == ESP_OK) err = nvs_set_i32(handle, "start_export_wh", day_start_export_wh_);
+    if (err == ESP_OK) err = nvs_set_u8(handle, "have_day_start", have_day_start_ ? 1 : 0);
     if (err == ESP_OK) err = nvs_commit(handle);
     nvs_close(handle);
     if (err != ESP_OK) ESP_LOGW(TAG, "daily snapshot save failed: %s", esp_err_to_name(err));
@@ -64,7 +78,7 @@ void EnergyStats::check_rollover(int day_of_year, int year, int month)
 {
     if (day_ == -1) {
         day_ = day_of_year; year_ = year; month_ = month;
-        persist_day_snapshot();
+        have_day_start_ = false;
         return;
     }
     if (year != year_ || month != month_) {
@@ -81,7 +95,7 @@ void EnergyStats::check_rollover(int day_of_year, int year, int month)
         day_ = day_of_year;
         year_ = year;
         month_ = month;
-        persist_day_snapshot();
+        have_day_start_ = false;
     }
 }
 
@@ -97,6 +111,28 @@ void EnergyStats::record(int32_t power_net_w, int32_t fwd_wh, int32_t rev_wh)
 
     if (synced) {
         check_rollover(tmv.tm_yday, tmv.tm_year, tmv.tm_mon);
+        if (!have_day_start_) {
+            day_start_import_wh_ = fwd_wh;
+            day_start_export_wh_ = rev_wh;
+            today_import_kwh_ = 0;
+            today_export_kwh_ = 0;
+            have_day_start_ = true;
+            persist_day_snapshot();
+        } else if (fwd_wh >= day_start_import_wh_ && rev_wh >= day_start_export_wh_) {
+            today_import_kwh_ = (fwd_wh - day_start_import_wh_) / 1000.0;
+            today_export_kwh_ = (rev_wh - day_start_export_wh_) / 1000.0;
+        } else {
+            if (fwd_wh < day_start_import_wh_) {
+                day_start_import_wh_ = fwd_wh;
+                today_import_kwh_ = 0;
+            }
+            if (rev_wh < day_start_export_wh_) {
+                day_start_export_wh_ = rev_wh;
+                today_export_kwh_ = 0;
+            }
+            persist_day_snapshot();
+            ESP_LOGW(TAG, "meter counter reset detected; daily baseline adjusted");
+        }
     }
 
     if (have_prev_) {
@@ -104,11 +140,9 @@ void EnergyStats::record(int32_t power_net_w, int32_t fwd_wh, int32_t rev_wh)
         const int32_t d_rev = rev_wh - prev_rev_wh_;
         // Ignore non-positive or implausibly large deltas (meter reset/rollover/first read jump).
         if (d_fwd > 0 && d_fwd < 1000000) {
-            today_import_kwh_ += d_fwd / 1000.0;
             month_import_kwh_ += d_fwd / 1000.0;
         }
         if (d_rev > 0 && d_rev < 1000000) {
-            today_export_kwh_ += d_rev / 1000.0;
             month_export_kwh_ += d_rev / 1000.0;
         }
     }

@@ -23,8 +23,8 @@ struct StatsSnapshot {
     bool   time_synced{false};
 };
 
-/// Energy statistics from the meter's own counters. The completed previous-day
-/// totals are persisted at rollover; current-day/month totals and history stay in RAM.
+/// Energy statistics from the meter's own counters. The current-day baseline and
+/// completed previous-day totals are persisted; monthly totals and history stay in RAM.
 class EnergyStats {
 public:
     static EnergyStats& get();
@@ -59,6 +59,9 @@ private:
     int32_t prev_rev_wh_{0};
 
     int day_{-1}, year_{-1}, month_{-1};
+    bool have_day_start_{false};
+    int32_t day_start_import_wh_{0};
+    int32_t day_start_export_wh_{0};
 
     double today_import_kwh_{0}, today_export_kwh_{0};
     double yesterday_import_kwh_{0}, yesterday_export_kwh_{0};

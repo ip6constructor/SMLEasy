@@ -343,7 +343,7 @@ bool get_http01_challenge(const char* token, std::string& response)
 
 esp_err_t issue_http01(const Request& request, Result& result)
 {
-    if (init() != ESP_OK || request.fqdn.empty() || request.email.empty())
+    if (init() != ESP_OK || request.fqdn.empty() || request.email.empty() || !request.terms_accepted)
         return ESP_ERR_INVALID_ARG;
 
     CryptoContext crypto;
@@ -376,7 +376,7 @@ esp_err_t issue_http01(const Request& request, Result& result)
         const std::string contact = "mailto:" + request.email;
         cJSON_AddItemToArray(contacts, cJSON_CreateString(contact.c_str()));
         cJSON_AddItemToObject(account_payload, "contact", contacts);
-        cJSON_AddBoolToObject(account_payload, "termsOfServiceAgreed", true);
+        cJSON_AddBoolToObject(account_payload, "termsOfServiceAgreed", request.terms_accepted);
         const std::string payload = print_json(account_payload);
         cJSON_Delete(account_payload);
         if (!send_signed(crypto, jwk, "", nonce, new_account_url, payload,

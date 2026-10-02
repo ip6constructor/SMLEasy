@@ -209,10 +209,13 @@ const UI_TEXT = {
   'ACME-Umgebung': ['ACME environment', 'ACME-Umgebung', 'ACME-omgeving', 'Environnement ACME', 'Środowisko ACME'],
   'Staging (Test, Browserwarnung)': ['Staging (test, browser warning)', 'Staging (Test, Browserwarnung)', 'Staging (test, browserwaarschuwing)', 'Staging (test, avertissement navigateur)', 'Staging (test, ostrzeżenie przeglądarki)'],
   'Produktion (gültiges Browser-Zertifikat)': ['Production (browser-trusted certificate)', 'Produktion (gültiges Browser-Zertifikat)', 'Productie (door browser vertrouwd certificaat)', 'Production (certificat reconnu par le navigateur)', 'Produkcja (certyfikat zaufany przez przeglądarkę)'],
+  'Ich stimme den Let’s-Encrypt-Nutzungsbedingungen zu.': ['I agree to the Let’s Encrypt terms of service.', 'Ich stimme den Let’s-Encrypt-Nutzungsbedingungen zu.', 'Ik ga akkoord met de gebruiksvoorwaarden van Let’s Encrypt.', 'J’accepte les conditions d’utilisation de Let’s Encrypt.', 'Akceptuję warunki korzystania z Let’s Encrypt.'],
   'Staging-Zertifikate sind nur für Tests und werden von normalen Browsern nicht als vertrauenswürdig erkannt.': ['Staging certificates are for testing and are not trusted by normal browsers.', 'Staging-Zertifikate sind nur für Tests und werden von normalen Browsern nicht als vertrauenswürdig erkannt.', 'Staging-certificaten zijn alleen voor tests en worden niet vertrouwd door normale browsers.', 'Les certificats staging sont réservés aux tests et ne sont pas reconnus par les navigateurs classiques.', 'Certyfikaty staging służą do testów i nie są zaufane przez zwykłe przeglądarki.'],
   'Let’s Encrypt empfiehlt bei 90 Tagen Laufzeit eine Erneuerung alle 60 Tage.': ['Let’s Encrypt recommends renewal every 60 days for 90-day certificates.', 'Let’s Encrypt empfiehlt bei 90 Tagen Laufzeit eine Erneuerung alle 60 Tage.', 'Let’s Encrypt raadt bij certificaten van 90 dagen vernieuwing om de 60 dagen aan.', 'Let’s Encrypt recommande un renouvellement tous les 60 jours pour les certificats de 90 jours.', 'Let’s Encrypt zaleca odnawianie co 60 dni dla certyfikatów ważnych 90 dni.'],
   'Zertifikatskette (Fullchain PEM)': ['Certificate chain (fullchain PEM)', 'Zertifikatskette (Fullchain PEM)', 'Certificaatketen (fullchain PEM)', 'Chaîne de certificats (fullchain PEM)', 'Łańcuch certyfikatów (fullchain PEM)'],
   'Privater Schlüssel (PEM)': ['Private key (PEM)', 'Privater Schlüssel (PEM)', 'Privésleutel (PEM)', 'Clé privée (PEM)', 'Klucz prywatny (PEM)'],
+  'Selbstsigniertes HTTPS-Fallback aktivieren (Browserwarnung)': ['Enable self-signed HTTPS fallback (browser warning)', 'Selbstsigniertes HTTPS-Fallback aktivieren (Browserwarnung)', 'Zelfondertekende HTTPS-fallback inschakelen (browserwaarschuwing)', 'Activer le HTTPS auto-signé de secours (avertissement navigateur)', 'Włącz samopodpisany HTTPS awaryjny (ostrzeżenie przeglądarki)'],
+  'HTTPS bleibt aus, solange kein Zertifikat aktiviert ist.': ['HTTPS remains off until a certificate is activated.', 'HTTPS bleibt aus, solange kein Zertifikat aktiviert ist.', 'HTTPS blijft uit totdat een certificaat is geactiveerd.', 'HTTPS reste désactivé tant qu’aucun certificat n’est activé.', 'HTTPS pozostaje wyłączony, dopóki certyfikat nie zostanie aktywowany.'],
   'TLS-Konfiguration speichern': ['Save TLS settings', 'TLS-Konfiguration speichern', 'TLS-instellingen opslaan', 'Enregistrer les paramètres TLS', 'Zapisz ustawienia TLS'],
   'TLS-Einstellungen gespeichert; Gerät startet neu …': ['TLS settings saved; device restarting …', 'TLS-Einstellungen gespeichert; Gerät startet neu …', 'TLS-instellingen opgeslagen; apparaat start opnieuw …', 'Paramètres TLS enregistrés ; redémarrage …', 'Zapisano TLS; urządzenie uruchamia się ponownie …'],
   'TLS-Zertifikat ist gespeichert; PEM-Schlüssel werden nicht erneut angezeigt.': ['TLS certificate is stored; PEM keys are not shown again.', 'TLS-Zertifikat ist gespeichert; PEM-Schlüssel werden nicht erneut angezeigt.', 'TLS-certificaat is opgeslagen; PEM-sleutels worden niet opnieuw getoond.', 'Le certificat TLS est enregistré ; les clés PEM ne sont pas réaffichées.', 'Certyfikat TLS jest zapisany; klucze PEM nie są ponownie wyświetlane.'],
@@ -450,9 +453,11 @@ function updateTlsMode(mode) {
   const prerequisites = document.getElementById('le-prerequisites');
   const requestButton = document.getElementById('acme-request-button');
   const stagingWarning = document.getElementById('acme-staging-warning');
+  const termsCheckbox = document.getElementById('acme-terms-accepted');
   if (prerequisites) prerequisites.hidden = !letsEncrypt;
   if (requestButton) requestButton.hidden = !letsEncrypt;
   if (stagingWarning) stagingWarning.hidden = !letsEncrypt || document.getElementById('tls-acme-environment').value !== 'staging';
+  if (termsCheckbox) termsCheckbox.required = letsEncrypt;
 }
 
 async function loadTlsConfig() {
@@ -465,6 +470,8 @@ async function loadTlsConfig() {
     document.getElementById('tls-email').value = config.email || '';
     document.getElementById('tls-renewal-days').value = config.renewal_interval_days || 60;
     document.getElementById('tls-acme-environment').value = config.acme_staging === false ? 'production' : 'staging';
+    document.getElementById('tls-self-signed-enabled').checked = config.self_signed_enabled === true;
+    document.getElementById('acme-terms-accepted').checked = config.acme_terms_accepted === true;
     const certificateStatus = document.getElementById('tls-current-cert-status');
     if (certificateStatus && config.has_certificate)
       certificateStatus.textContent = localizedText('TLS-Zertifikat ist gespeichert; PEM-Schlüssel werden nicht erneut angezeigt.');
@@ -487,6 +494,8 @@ async function saveTlsConfig(event) {
     email: document.getElementById('tls-email').value.trim(),
     renewal_interval_days: Number(document.getElementById('tls-renewal-days').value),
     acme_staging: document.getElementById('tls-acme-environment').value === 'staging',
+    self_signed_enabled: document.getElementById('tls-self-signed-enabled').checked,
+    acme_terms_accepted: document.getElementById('acme-terms-accepted').checked,
     certificate_pem: certificate,
     private_key_pem: privateKey
   };
@@ -1936,6 +1945,10 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
             <option value="production">Produktion (gültiges Browser-Zertifikat)</option>
           </select>
           <p id="acme-staging-warning" style="margin-top:6px;color:var(--lc-orange);font-size:.78rem">Staging-Zertifikate sind nur für Tests und werden von normalen Browsern nicht als vertrauenswürdig erkannt.</p>
+          <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px">
+            <input type="checkbox" id="acme-terms-accepted" style="margin-top:3px">
+            <span>Ich stimme den Let’s-Encrypt-Nutzungsbedingungen zu.</span>
+          </label>
           <h3 style="font-size:.9rem;margin:12px 0 8px">Voraussetzungen für Let's Encrypt</h3>
           <ol style="padding-left:22px;color:var(--lc-dim);font-size:.82rem;line-height:1.55">
             <li>Vor Erstanforderung und jeder Erneuerung muss der FQDN öffentlich per A (IPv4) oder AAAA (IPv6) auf die aktuelle Adresse des ESP zeigen.</li>
@@ -1948,6 +1961,11 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
           <button class="btn btn-blue" id="acme-request-button" type="button" onclick="requestAcmeCertificate()">Let’s-Encrypt-Zertifikat anfordern</button>
           <div id="acme-request-status" style="margin-top:8px;font-size:.82rem;color:var(--lc-dim)"></div>
         </section>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px">
+          <input type="checkbox" id="tls-self-signed-enabled" style="margin-top:3px">
+          <span>Selbstsigniertes HTTPS-Fallback aktivieren (Browserwarnung)</span>
+        </label>
+        <p style="margin-top:6px;color:var(--lc-dim);font-size:.78rem">HTTPS bleibt aus, solange kein Zertifikat aktiviert ist.</p>
         <label for="tls-certificate" style="margin-top:12px">Zertifikatskette (Fullchain PEM)</label>
         <textarea id="tls-certificate" rows="7" maxlength="3800" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
         <label for="tls-private-key">Privater Schlüssel (PEM)</label>

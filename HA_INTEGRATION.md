@@ -1,5 +1,7 @@
 # Home Assistant Integration (MQTT Discovery)
 
+Dieses Dokument beschreibt den MQTT-Discovery-Pfad der Firmware. Die separate HACS-Integration ist in `custom_components/smleasy/README.md` dokumentiert.
+
 Diese Firmware integriert Home Assistant als einen einzigen Integrationsmodus.
 Ein separater "generischer MQTT-Modus" ist nicht vorgesehen.
 MQTT wird nur als technischer Transport fuer die HA-Discovery genutzt.
@@ -9,6 +11,12 @@ MQTT wird nur als technischer Transport fuer die HA-Discovery genutzt.
 - In Home Assistant ist die MQTT-Integration eingerichtet.
 - Ein laufender MQTT-Broker ist erreichbar (z. B. Mosquitto).
 - ESP32 und Home Assistant sind im selben Netzwerk.
+
+## HTTPS und HACS
+
+Die HACS-Integration fragt die lokale REST-API ab. Im HTTP-Recovery-Modus verwendet sie Port 80. Sobald ein gültiges TLS-Zertifikat aktiviert ist, in Home Assistant Port 443 und `HTTPS` auswählen.
+
+Das selbstsignierte Fallback verschlüsselt die Verbindung, wird aber von Home Assistant standardmäßig nicht als vertrauenswürdig akzeptiert. Für HACS sollte ein öffentlich vertrauenswürdiges Let's-Encrypt-Zertifikat verwendet werden.
 
 ## Geraet konfigurieren
 

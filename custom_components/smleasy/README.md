@@ -34,13 +34,15 @@ Diese Integration liest den Status deines Smartmeter-Geraets ueber HTTP (`/api/s
 
 ## Konfiguration
 
-- Host/IP: IP deines Smartmeters
-- Port: Standard 80
-- HTTPS: nur aktivieren, wenn dein Geraet TLS anbietet
+- Host/IP: LAN-IP oder DNS-Name deines Smartmeters
+- Port: 80 im HTTP-Recovery-Modus, 443 mit aktivem TLS-Zertifikat
+- HTTPS: aktivieren, wenn ein TLS-Zertifikat installiert ist
 - Scan-Intervall: mindestens 5 Sekunden
 
 ## Hinweise
 
-- Die Integration nutzt nur das lokale HTTP-API des Geraets.
+- Die Integration nutzt nur die lokale REST-API des Geraets.
+- Fuer HTTPS muss Home Assistant dem Zertifikat vertrauen. Das selbstsignierte Fallback wird standardmaessig abgelehnt; nutze fuer HACS ein oeffentlich vertrautes Let's-Encrypt-Zertifikat.
+- Beim Let's-Encrypt HTTP-01-Verfahren wird Port 80 ausschliesslich fuer die Challenge verwendet, waehrend Dashboard und API ueber HTTPS-Port 443 laufen.
 - Keine Cloud-Abhaengigkeit.
 - Diagnostics findest du in Home Assistant unter dem Geraet/der Integration.

@@ -12,6 +12,7 @@ struct Request {
     std::string email;
     std::string account_key_pem;
     std::string account_url;
+    bool terms_accepted{false};
 };
 
 struct Result {

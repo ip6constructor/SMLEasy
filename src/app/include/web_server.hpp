@@ -11,6 +11,9 @@ public:
     esp_err_t start(uint16_t port = 80);
     void      stop();
     [[nodiscard]] bool is_running() const { return server_ != nullptr; }
+    [[nodiscard]] bool is_https() const { return server_is_https_; }
+    esp_err_t start_acme_challenge_listener();
+    void stop_acme_challenge_listener();
 
 private:
     WebServer() = default;

@@ -517,8 +517,50 @@ static bool generate_self_signed_fallback(app::TlsConfig& cfg)
     return result == 0;
 }
 
+struct TlsFallbackTaskContext {
+    app::TlsConfig* config;
+    SemaphoreHandle_t completed;
+    bool succeeded;
+};
+
+static void tls_fallback_generation_task(void* arg)
+{
+    auto* context = static_cast<TlsFallbackTaskContext*>(arg);
+    context->succeeded = generate_self_signed_fallback(*context->config);
+    xSemaphoreGive(context->completed);
+    vTaskDelete(nullptr);
+}
+
+static bool generate_self_signed_fallback_with_stack(app::TlsConfig& cfg)
+{
+    SemaphoreHandle_t completed = xSemaphoreCreateBinary();
+    if (!completed) return false;
+    TlsFallbackTaskContext context{&cfg, completed, false};
+    if (xTaskCreate(tls_fallback_generation_task, "tls_cert_gen", 8192,
+                    &context, 4, nullptr) != pdPASS) {
+        vSemaphoreDelete(completed);
+        return false;
+    }
+    xSemaphoreTake(completed, portMAX_DELAY);
+    vSemaphoreDelete(completed);
+    return context.succeeded;
+}
+
 static void acme_issue_task(void*)
 {
+    auto& web_server = app::WebServer::get();
+    const bool restore_http_recovery = !web_server.is_https();
+    if (restore_http_recovery) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        web_server.stop();
+        if (web_server.start_acme_challenge_listener() != ESP_OK) {
+            web_server.stop_acme_challenge_listener();
+            web_server.start(80);
+            s_acme_issuance_state.store(3);
+            vTaskDelete(nullptr);
+            return;
+        }
+    }
     app::TlsConfig cfg;
     app::ConfigStore::get().load_tls(cfg);
     acme_client::Request request;
@@ -529,6 +571,7 @@ static void acme_issue_task(void*)
     request.email = cfg.email;
     request.account_key_pem = cfg.acme_account_key_pem;
     request.account_url = cfg.acme_account_url;
+    request.terms_accepted = cfg.acme_terms_accepted;
     acme_client::Result result;
     const esp_err_t err = acme_client::issue_http01(request, result);
     if (!result.account_key_pem.empty()) cfg.acme_account_key_pem = result.account_key_pem;
@@ -548,6 +591,11 @@ static void acme_issue_task(void*)
         app::ConfigStore::get().save_tls(cfg);
     ESP_LOGE(TAG, "ACME HTTP-01 issuance failed: %s", esp_err_to_name(err));
     app::AppState::get().push_log("E", TAG, "Let's Encrypt issuance failed");
+    if (restore_http_recovery) {
+        web_server.stop_acme_challenge_listener();
+        if (web_server.start(80) != ESP_OK)
+            ESP_LOGE(TAG, "failed to restore HTTP recovery dashboard after ACME error");
+    }
     s_acme_issuance_state.store(3);
     vTaskDelete(nullptr);
 }
@@ -562,8 +610,9 @@ static void acme_renewal_task(void*)
         if (cfg.mode != "letsencrypt" || !app::WifiManager::get().is_sta_connected()) continue;
         const time_t now = time(nullptr);
         if (now < 1700000000) continue;
+        if (cfg.last_issued_epoch <= 0) continue;
         const int64_t interval_seconds = static_cast<int64_t>(cfg.renewal_interval_days) * 86400;
-        if (cfg.last_issued_epoch > 0 && now < cfg.last_issued_epoch + interval_seconds) continue;
+        if (now < cfg.last_issued_epoch + interval_seconds) continue;
         int expected = s_acme_issuance_state.load();
         if (expected == 1 || !s_acme_issuance_state.compare_exchange_strong(expected, 1)) continue;
         if (xTaskCreate(acme_issue_task, "acme_issue", 16384, nullptr, 5, nullptr) != pdPASS)
@@ -589,37 +638,57 @@ esp_err_t WebServer::start(uint16_t port)
         if (xTaskCreate(acme_renewal_task, "acme_renew", 4096, nullptr, 4, nullptr) != pdPASS)
             s_acme_scheduler_started.store(false);
     }
-    bool imported_certificate = valid_tls_pem_pair(tls);
+    const bool imported_certificate = valid_tls_pem_pair(tls);
     TlsConfig fallback_tls;
     fallback_tls.certificate_pem = tls.fallback_certificate_pem;
     fallback_tls.private_key_pem = tls.fallback_private_key_pem;
-    if (!imported_certificate && !valid_tls_pem_pair(fallback_tls)) {
-        if (!generate_self_signed_fallback(tls)) {
-            ESP_LOGE(TAG, "could not create TLS fallback certificate");
+    bool use_https = imported_certificate;
+    if (!use_https && tls.self_signed_enabled) {
+        if (!valid_tls_pem_pair(fallback_tls) && !generate_self_signed_fallback_with_stack(tls)) {
+            ESP_LOGE(TAG, "could not create requested self-signed certificate");
             return ESP_FAIL;
         }
-    }
-    if (!imported_certificate) {
-        tls.certificate_pem = tls.fallback_certificate_pem;
-        tls.private_key_pem = tls.fallback_private_key_pem;
+        fallback_tls.certificate_pem = tls.fallback_certificate_pem;
+        fallback_tls.private_key_pem = tls.fallback_private_key_pem;
+        use_https = valid_tls_pem_pair(fallback_tls);
     }
 
-    httpd_ssl_config_t ssl_cfg = HTTPD_SSL_CONFIG_DEFAULT();
-    ssl_cfg.httpd.max_uri_handlers = 40;
-    ssl_cfg.httpd.stack_size = 16384;
-    ssl_cfg.httpd.recv_wait_timeout = 60;
-    ssl_cfg.httpd.send_wait_timeout = 60;
-    ssl_cfg.httpd.open_fn = dashboard_network_filter;
-    ssl_cfg.port_secure = 443;
-    ssl_cfg.cacert_pem = reinterpret_cast<const uint8_t*>(tls.certificate_pem.c_str());
-    ssl_cfg.cacert_len = tls.certificate_pem.size() + 1;
-    ssl_cfg.prvtkey_pem = reinterpret_cast<const uint8_t*>(tls.private_key_pem.c_str());
-    ssl_cfg.prvtkey_len = tls.private_key_pem.size() + 1;
-    if (httpd_ssl_start(&server_, &ssl_cfg) != ESP_OK) {
-        ESP_LOGE(TAG, "HTTPS dashboard failed to start");
-        return ESP_FAIL;
+    if (use_https) {
+        if (!imported_certificate) {
+            tls.certificate_pem = tls.fallback_certificate_pem;
+            tls.private_key_pem = tls.fallback_private_key_pem;
+        }
+        httpd_ssl_config_t ssl_cfg = HTTPD_SSL_CONFIG_DEFAULT();
+        ssl_cfg.httpd.max_uri_handlers = 40;
+        ssl_cfg.httpd.stack_size = 16384;
+        ssl_cfg.httpd.recv_wait_timeout = 60;
+        ssl_cfg.httpd.send_wait_timeout = 60;
+        ssl_cfg.httpd.open_fn = dashboard_network_filter;
+        ssl_cfg.port_secure = 443;
+        ssl_cfg.cacert_pem = reinterpret_cast<const uint8_t*>(tls.certificate_pem.c_str());
+        ssl_cfg.cacert_len = tls.certificate_pem.size() + 1;
+        ssl_cfg.prvtkey_pem = reinterpret_cast<const uint8_t*>(tls.private_key_pem.c_str());
+        ssl_cfg.prvtkey_len = tls.private_key_pem.size() + 1;
+        if (httpd_ssl_start(&server_, &ssl_cfg) != ESP_OK) {
+            ESP_LOGE(TAG, "HTTPS dashboard failed to start");
+            return ESP_FAIL;
+        }
+        server_is_https_ = true;
+    } else {
+        httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
+        http_cfg.server_port = port;
+        http_cfg.max_uri_handlers = 40;
+        http_cfg.stack_size = 8192;
+        http_cfg.lru_purge_enable = true;
+        http_cfg.recv_wait_timeout = 60;
+        http_cfg.send_wait_timeout = 60;
+        http_cfg.open_fn = dashboard_network_filter;
+        if (httpd_start(&server_, &http_cfg) != ESP_OK) {
+            ESP_LOGE(TAG, "HTTP recovery dashboard failed to start");
+            return ESP_FAIL;
+        }
+        server_is_https_ = false;
     }
-    server_is_https_ = true;
 
     const httpd_uri_t routes[] = {
         { "/",                    HTTP_GET,  handle_root,          nullptr },
@@ -660,34 +729,43 @@ esp_err_t WebServer::start(uint16_t port)
     };
     for (const auto& r : routes) httpd_register_uri_handler(server_, &r);
 
-    if (tls.mode == "letsencrypt") {
+    if (use_https && tls.mode == "letsencrypt") start_acme_challenge_listener();
+
+    ESP_LOGI(TAG, "%s dashboard started on port %u%s",
+             server_is_https_ ? "HTTPS" : "HTTP", server_is_https_ ? 443 : port,
+             use_https && tls.mode == "letsencrypt" ? "; isolated HTTP-01 listener on port 80" : "");
+    return ESP_OK;
+}
+
+esp_err_t WebServer::start_acme_challenge_listener()
+{
+    if (!challenge_server_) {
         httpd_config_t challenge_cfg = HTTPD_DEFAULT_CONFIG();
         challenge_cfg.server_port = 80;
         challenge_cfg.ctrl_port = 32769;
         challenge_cfg.max_uri_handlers = 1;
         challenge_cfg.stack_size = 4096;
         challenge_cfg.uri_match_fn = httpd_uri_match_wildcard;
-        if (httpd_start(&challenge_server_, &challenge_cfg) == ESP_OK) {
-            const httpd_uri_t challenge_route = {
-                "/.well-known/acme-challenge/*", HTTP_GET, handle_acme_challenge, nullptr
-            };
-            httpd_register_uri_handler(challenge_server_, &challenge_route);
-            s_ipv6_challenge_running.store(true);
-            if (xTaskCreate(ipv6_acme_challenge_task, "acme_ipv6", 4096, nullptr, 4, nullptr) != pdPASS) {
-                s_ipv6_challenge_running.store(false);
-                ESP_LOGE(TAG, "could not start IPv6 ACME listener task");
-            }
-        } else {
+        if (httpd_start(&challenge_server_, &challenge_cfg) != ESP_OK) {
+            challenge_server_ = nullptr;
             ESP_LOGE(TAG, "ACME HTTP-01 listener failed to start on port 80");
+            return ESP_FAIL;
         }
+        const httpd_uri_t challenge_route = {
+            "/.well-known/acme-challenge/*", HTTP_GET, handle_acme_challenge, nullptr
+        };
+        httpd_register_uri_handler(challenge_server_, &challenge_route);
     }
-
-    ESP_LOGI(TAG, "HTTPS dashboard started on port 443%s",
-             tls.mode == "letsencrypt" ? "; isolated ACME HTTP-01 listener on port 80" : "");
+    if (!s_ipv6_challenge_running.exchange(true) &&
+        xTaskCreate(ipv6_acme_challenge_task, "acme_ipv6", 4096, nullptr, 4, nullptr) != pdPASS) {
+        s_ipv6_challenge_running.store(false);
+        ESP_LOGE(TAG, "could not start IPv6 ACME listener task");
+    }
     return ESP_OK;
 }
 
-void WebServer::stop() {
+void WebServer::stop_acme_challenge_listener()
+{
     s_ipv6_challenge_running.store(false);
     const int ipv6_fd = s_ipv6_challenge_fd.exchange(-1);
     if (ipv6_fd >= 0) {
@@ -698,6 +776,10 @@ void WebServer::stop() {
         httpd_stop(challenge_server_);
         challenge_server_ = nullptr;
     }
+}
+
+void WebServer::stop() {
+    stop_acme_challenge_listener();
     if (server_) {
         if (server_is_https_) httpd_ssl_stop(server_);
         else httpd_stop(server_);
@@ -1256,7 +1338,9 @@ esp_err_t WebServer::handle_tls_config_get(httpd_req_t* req)
     cJSON_AddStringToObject(root, "fqdn", cfg.fqdn.c_str());
     cJSON_AddStringToObject(root, "email", cfg.email.c_str());
     cJSON_AddNumberToObject(root, "renewal_interval_days", cfg.renewal_interval_days);
+    cJSON_AddBoolToObject(root, "acme_terms_accepted", cfg.acme_terms_accepted);
     cJSON_AddBoolToObject(root, "acme_staging", cfg.acme_staging);
+    cJSON_AddBoolToObject(root, "self_signed_enabled", cfg.self_signed_enabled);
     cJSON_AddBoolToObject(root, "has_certificate", !cfg.certificate_pem.empty());
     cJSON_AddBoolToObject(root, "has_fallback_certificate", !cfg.fallback_certificate_pem.empty());
     char* text = cJSON_PrintUnformatted(root);
@@ -1289,6 +1373,9 @@ esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
     const char* certificate = get_string("certificate_pem");
     const char* private_key = get_string("private_key_pem");
     cJSON* staging = cJSON_GetObjectItem(json, "acme_staging");
+    cJSON* terms = cJSON_GetObjectItem(json, "acme_terms_accepted");
+    const bool terms_accepted = cJSON_IsTrue(terms);
+    cJSON* self_signed = cJSON_GetObjectItem(json, "self_signed_enabled");
     const std::string certificate_value = certificate ? certificate : "";
     const std::string private_key_value = private_key ? private_key : "";
     cJSON* interval = cJSON_GetObjectItem(json, "renewal_interval_days");
@@ -1300,16 +1387,27 @@ esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
     TlsConfig cfg;
     ConfigStore::get().load_tls(cfg);
     const std::string previous_fqdn = cfg.fqdn;
+    const bool previous_staging = cfg.acme_staging;
     cfg.mode = mode;
     cfg.fqdn = fqdn;
     cfg.email = email;
     cfg.renewal_interval_days = static_cast<uint16_t>(interval->valueint);
     if (staging) cfg.acme_staging = cJSON_IsTrue(staging);
+    if (terms) cfg.acme_terms_accepted = terms_accepted;
+    if (self_signed) cfg.self_signed_enabled = cJSON_IsTrue(self_signed);
+    const bool fqdn_changed = cfg.fqdn != previous_fqdn;
+    const bool acme_environment_changed = cfg.acme_staging != previous_staging;
     cJSON_Delete(json);
 
-    if (cfg.fqdn != previous_fqdn) {
+    if (fqdn_changed) {
         cfg.fallback_certificate_pem.clear();
         cfg.fallback_private_key_pem.clear();
+    }
+    if (acme_environment_changed) cfg.acme_account_url.clear();
+    if ((fqdn_changed || acme_environment_changed) && certificate_value.empty()) {
+        cfg.certificate_pem.clear();
+        cfg.private_key_pem.clear();
+        cfg.last_issued_epoch = 0;
     }
 
     if (!valid_fqdn(cfg.fqdn) || !valid_email(cfg.email) ||
@@ -1328,6 +1426,10 @@ esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
     }
     if (cfg.mode == "letsencrypt" && (cfg.fqdn.empty() || cfg.email.empty())) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Let's Encrypt requires FQDN and email");
+        return ESP_FAIL;
+    }
+    if (cfg.mode == "letsencrypt" && !cfg.acme_terms_accepted) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Let's Encrypt terms must be accepted");
         return ESP_FAIL;
     }
     if (!ConfigStore::get().save_tls(cfg)) return send_json(req, "{\"ok\":false}");
@@ -1365,9 +1467,13 @@ esp_err_t WebServer::handle_acme_request(httpd_req_t* req)
     REQUIRE_AUTH(req);
     TlsConfig cfg;
     ConfigStore::get().load_tls(cfg);
-    if (cfg.mode != "letsencrypt" || !WebServer::get().challenge_server_) {
+    if (cfg.mode != "letsencrypt") {
         httpd_resp_set_status(req, "409 Conflict");
         return httpd_resp_send(req, "Let's Encrypt mode and HTTP-01 listener are required", HTTPD_RESP_USE_STRLEN);
+    }
+    if (!cfg.acme_terms_accepted) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Let's Encrypt terms must be accepted");
+        return ESP_FAIL;
     }
     int expected = s_acme_issuance_state.load();
     if (expected == 1 || !s_acme_issuance_state.compare_exchange_strong(expected, 1)) {

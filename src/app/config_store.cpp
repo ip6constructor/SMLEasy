@@ -214,9 +214,15 @@ bool ConfigStore::load_tls(TlsConfig& out)
     nvs_get_str(h, "fb_key", out.fallback_private_key_pem);
     nvs_get_str(h, "acme_key", out.acme_account_key_pem);
     nvs_get_str(h, "acme_url", out.acme_account_url);
+    uint8_t terms = out.acme_terms_accepted ? 1 : 0;
+    nvs_get_u8(h, "acme_terms", terms);
+    out.acme_terms_accepted = terms != 0;
     uint8_t staging = out.acme_staging ? 1 : 0;
     nvs_get_u8(h, "acme_staging", staging);
     out.acme_staging = staging != 0;
+    uint8_t self_signed = out.self_signed_enabled ? 1 : 0;
+    nvs_get_u8(h, "self_signed", self_signed);
+    out.self_signed_enabled = self_signed != 0;
     nvs_get_u16(h, "renew_days", out.renewal_interval_days);
     nvs_get_i64(h, "issued_at", &out.last_issued_epoch);
     nvs_close(h);
@@ -242,7 +248,9 @@ bool ConfigStore::save_tls(const TlsConfig& cfg)
     if (err == ESP_OK) err = nvs_set_str(h, "fb_key", cfg.fallback_private_key_pem.c_str());
     if (err == ESP_OK) err = nvs_set_str(h, "acme_key", cfg.acme_account_key_pem.c_str());
     if (err == ESP_OK) err = nvs_set_str(h, "acme_url", cfg.acme_account_url.c_str());
+    if (err == ESP_OK) err = nvs_set_u8(h, "acme_terms", cfg.acme_terms_accepted ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, "acme_staging", cfg.acme_staging ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, "self_signed", cfg.self_signed_enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u16(h, "renew_days", cfg.renewal_interval_days);
     if (err == ESP_OK) err = nvs_set_i64(h, "issued_at", cfg.last_issued_epoch);
     if (err == ESP_OK) err = nvs_commit(h);

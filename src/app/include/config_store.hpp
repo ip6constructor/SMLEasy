@@ -54,7 +54,9 @@ struct TlsConfig {
     std::string fallback_private_key_pem{};
     std::string acme_account_key_pem{};
     std::string acme_account_url{};
+    bool acme_terms_accepted{false};
     bool acme_staging{true};
+    bool self_signed_enabled{false};
     uint16_t renewal_interval_days{60};
     int64_t last_issued_epoch{0};
 };

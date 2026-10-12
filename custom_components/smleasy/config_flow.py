@@ -5,10 +5,11 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SmartmeterApi, SmartmeterApiError
-from .const import CONF_SCAN_INTERVAL, CONF_USE_SSL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import CONF_SCAN_INTERVAL, CONF_USE_SSL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN, PUSH_VALUES
 
 
 def _schema(host: str = "", port: int = DEFAULT_PORT, use_ssl: bool = False, scan_interval: int = DEFAULT_SCAN_INTERVAL) -> vol.Schema:
@@ -63,15 +64,31 @@ class SmartmeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class SmartmeterOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+        # Recent HA versions expose config_entry as a read-only property.
+        try:
+            self.config_entry = config_entry
+        except Exception:
+            self._entry = config_entry
+
+    @property
+    def _config_entry(self) -> config_entries.ConfigEntry:
+        return getattr(self, "_entry", None) or self.config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
-            return self.async_create_entry(data={CONF_SCAN_INTERVAL: max(5, int(user_input[CONF_SCAN_INTERVAL]))})
+            data = {k: v for k, v in user_input.items() if v not in (None, "")}
+            data[CONF_SCAN_INTERVAL] = max(5, int(user_input[CONF_SCAN_INTERVAL]))
+            return self.async_create_entry(data=data)
 
-        current = self.config_entry.options.get(
+        current = self._config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
-        schema = vol.Schema({vol.Required(CONF_SCAN_INTERVAL, default=current): int})
+        fields: dict[Any, Any] = {vol.Required(CONF_SCAN_INTERVAL, default=current): int}
+        for name in PUSH_VALUES:
+            key = f"push_{name}"
+            existing = self._config_entry.options.get(key)
+            marker = vol.Optional(key, description={"suggested_value": existing})
+            fields[marker] = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+        schema = vol.Schema(fields)
         return self.async_show_form(step_id="init", data_schema=schema)

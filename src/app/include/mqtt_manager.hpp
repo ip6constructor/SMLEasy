@@ -1,6 +1,8 @@
 #pragma once
 #include <atomic>
+#include <mutex>
 #include <string>
+#include <vector>
 // mqtt_client.h is included only in mqtt_manager.cpp to keep this header lightweight.
 // Forward-declare the handle type so this header compiles without the mqtt component.
 struct esp_mqtt_client;
@@ -39,9 +41,21 @@ public:
 
     bool is_connected() const { return _connected.load(); }
 
+    /// Called for every message on a topic registered with set_extra_topics().
+    using MessageCallback = void (*)(const std::string& topic, const std::string& payload);
+
+    /// Subscribes to additional (read-only) topics on the HA broker, e.g. values published
+    /// by Home Assistant automations. Re-subscribed automatically after reconnects.
+    void set_extra_topics(const std::vector<std::string>& topics, MessageCallback callback);
+
+    /// Topic prefix (with trailing slash) under which Home Assistant pushes values to this device.
+    static std::string input_topic_base();
+
 private:
     MqttManager() = default;
     MqttManager(const MqttManager&) = delete;
+
+    void subscribe_extra();
 
     /// Build a device-ID slug from device_name (lowercase, spaces → underscores).
     static std::string make_device_id(const std::string& name);
@@ -75,6 +89,9 @@ private:
     HaConfig                 _cfg;
     std::atomic<bool>        _connected{false};
     bool                     _discovery_sent{false};
+    std::mutex               _extra_mutex;
+    std::vector<std::string> _extra_topics;
+    MessageCallback          _on_message{nullptr};
 };
 
 } // namespace app

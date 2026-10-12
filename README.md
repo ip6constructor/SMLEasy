@@ -54,7 +54,7 @@ The OTA image is produced at `.pio/build/esp32c3_optical_meter/firmware.bin`. Up
 
 The GitHub Actions workflow builds the ESP32-C3 PlatformIO environment when a `v*` tag is pushed. The tag must match `build_version.txt`; the workflow publishes `SMLEasy-<version>.bin` to the release. The dashboard OTA picker only accepts assets from this repository with that exact naming scheme.
 
-The current published firmware is **v2.5.6**, with the OTA asset [`SMLEasy-2.5.6.bin`](https://github.com/ip6constructor/SMLEasy/releases/download/v2.5.6/SMLEasy-2.5.6.bin). In the device configuration, open **OTA-Update**, load GitHub versions, select **v2.5.6**, and install it. Older GitHub release entries have been removed; the corresponding source tags remain in the repository.
+The current published firmware is **v3.0.0**, with the OTA asset [`SMLEasy-3.0.0.bin`](https://github.com/ip6constructor/SMLEasy/releases/download/v3.0.0/SMLEasy-3.0.0.bin). In the device configuration, open **OTA-Update**, load GitHub versions, select **v3.0.0**, and install it. Older GitHub release entries have been removed; the corresponding source tags remain in the repository.
 
 ### Meter Profiles
 
@@ -94,6 +94,15 @@ First login: username `admin`, password `P@assword26`. Change the password immed
 - `components/sml/`: SML reader and parser
 - `custom_components/smleasy/`: Home Assistant HACS integration
 - `partitions_4mb_ota.csv`: dual-slot OTA partition layout
+
+## Development target design
+
+The next development phases, acceptance gates, and AI/KI working instructions
+are documented in [AGENTS.md](AGENTS.md) and the
+[target design](docs/ZIEL-DESIGN.md). The supporting documents cover
+[IPv4/IPv6 investigation and hardware tests](docs/IPV6-PRUEFPLAN.md) and
+[eFuse provisioning, device keys, and pairing](docs/SCHLUESSEL-UND-PAIRING.md).
+These are planned capabilities, not features enabled in the current firmware.
 
 ## License
 

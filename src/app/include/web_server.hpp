@@ -11,9 +11,34 @@ public:
     esp_err_t start(uint16_t port = 80);
     void      stop();
     [[nodiscard]] bool is_running() const { return server_ != nullptr; }
+    [[nodiscard]] bool is_https_running() const { return https_server_ != nullptr; }
+    /// Starts (or with restart=true re-starts) the HTTPS listener on port 443 in a
+    /// background task. Failures never affect the HTTP dashboard on port 80.
+    void      start_https_async(bool restart = false);
+    /// ACME HTTP-01: swaps the dashboard on port 80 for a challenge-only listener.
+    esp_err_t start_acme_challenge_listener();
+    void      stop_acme_challenge_listener();
+    void      stop_http();
+    void      stop_https();
 
 private:
     WebServer() = default;
+    static void register_routes(httpd_handle_t server);
+    static void https_task(void* restart);
+    esp_err_t start_https();
+    static esp_err_t handle_tls_config_get(httpd_req_t*);
+    static esp_err_t handle_tls_config_save(httpd_req_t*);
+    static esp_err_t handle_acme_challenge(httpd_req_t*);
+    static esp_err_t handle_acme_request(httpd_req_t*);
+    static esp_err_t handle_acme_check(httpd_req_t*);
+    static esp_err_t handle_acme_status(httpd_req_t*);
+    static esp_err_t handle_tls_page(httpd_req_t*);
+    static esp_err_t handle_ext_page(httpd_req_t*);
+    static esp_err_t handle_ext_config_get(httpd_req_t*);
+    static esp_err_t handle_ext_config_save(httpd_req_t*);
+    static esp_err_t handle_ext_values(httpd_req_t*);
+    static esp_err_t handle_ext_refresh(httpd_req_t*);
+    static esp_err_t handle_ext_automation(httpd_req_t*);
     static esp_err_t handle_root(httpd_req_t*);
     static esp_err_t handle_config_page(httpd_req_t*);
     static esp_err_t handle_style_css(httpd_req_t*);
@@ -21,6 +46,7 @@ private:
     static esp_err_t handle_status(httpd_req_t*);
     static esp_err_t handle_log(httpd_req_t*);
     static esp_err_t handle_history(httpd_req_t*);
+    static esp_err_t handle_stats(httpd_req_t*);
     static esp_err_t handle_wifi_scan(httpd_req_t*);
     static esp_err_t handle_config_get(httpd_req_t*);
     static esp_err_t handle_config_save(httpd_req_t*);
@@ -49,6 +75,8 @@ private:
     static esp_err_t handle_favicon(httpd_req_t*);   ///< 204 No Content for /favicon.ico
 
     httpd_handle_t server_{nullptr};
+    httpd_handle_t https_server_{nullptr};
+    httpd_handle_t challenge_server_{nullptr};
 };
 
 } // namespace app

@@ -38,9 +38,13 @@ html{scroll-behavior:smooth}body{font-family:"Segoe UI",system-ui,sans-serif;col
 .register-meter{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;color:var(--text-primary);background:rgba(22,140,255,.045)}.register-brand{margin:0 3px 10px;color:var(--text-secondary);font-size:.62rem;letter-spacing:.08em}.register-window{border-color:var(--border);background:rgba(255,255,255,.82)}.register-label{color:var(--text-secondary)}.register-reading{border-color:var(--border-strong);color:var(--text-primary);background:#fff}.register-unit{color:var(--text-secondary)}
 .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:760px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:430px){.kpi-grid{grid-template-columns:1fr}}
 .grid>.hero-card{grid-column:1/span 6;grid-row:1}.grid>.meter-card{grid-column:7/span 6;grid-row:1}
-.sidebar-product{margin-top:8px}
-.sidebar-values{display:grid;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:.68rem;font-variant-numeric:tabular-nums;color:var(--text-secondary)}
-.sidebar-values span{min-width:0;overflow-wrap:anywhere}
+.network-addresses{flex-direction:column;gap:2px;padding:0 8px 28px}
+.network-address-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:0 6px;width:100%;text-align:center}
+.network-address-row .lbl{color:var(--text-muted);font-size:.76rem;font-weight:400;letter-spacing:0;text-transform:none;white-space:nowrap}
+.side-conn{margin-top:8px;display:flex;flex-direction:column;gap:2px;font-size:.74rem}.side-conn .kv{display:flex;gap:6px;justify-content:space-between}.side-conn .val{color:var(--text-secondary);text-align:right;word-break:break-all}a[data-cfg-tab].active{background:var(--primary,#168cff);color:#fff}
+.network-ip-list{display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:baseline;min-width:0;color:var(--text-muted);font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:.76rem;font-variant-numeric:tabular-nums}
+.network-ip-list span{min-width:0;overflow-wrap:anywhere}
+.network-ip-separator{white-space:pre}
 .continuous-control{display:inline-flex;align-items:center;gap:12px;min-height:42px;padding:0 14px;border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);background:var(--bg-card);font-size:.86rem;font-weight:650;cursor:pointer}
 .continuous-switch{position:relative;display:inline-flex;width:42px;height:24px;flex:0 0 42px}
 .continuous-switch input{position:absolute;width:1px;height:1px;opacity:0}
@@ -51,6 +55,10 @@ html{scroll-behavior:smooth}body{font-family:"Segoe UI",system-ui,sans-serif;col
 .continuous-switch input:focus-visible+.continuous-switch-track{outline:3px solid rgba(22,140,255,.3);outline-offset:2px}
 .continuous-switch input:disabled+.continuous-switch-track{opacity:.55}
 @media(max-width:1100px){.grid>.hero-card,.grid>.meter-card{grid-column:1/-1;grid-row:auto}}
+.btn:disabled{color:var(--text-muted);background:#e6ebf0;border-color:var(--border);box-shadow:none;cursor:not-allowed;filter:none;transform:none}.acme-section{margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(22,140,255,.03)}.acme-section h3{margin:0 0 6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}
+.check-list{margin:8px 0}.check-row{display:grid;grid-template-columns:28px 1fr;gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.84rem}.check-icon{font-weight:700;text-align:center}.check-detail{grid-column:2;color:var(--text-secondary);font-size:.76rem;overflow-wrap:anywhere}.check-row.pass .check-icon{color:var(--success)}.check-row.fail .check-icon{color:var(--danger)}.check-row.warn .check-icon{color:var(--warning)}.check-row.running .check-icon{color:var(--primary)}.check-row.pending .check-icon,.check-row.skipped .check-icon{color:var(--text-muted)}
+.ext-row{display:grid;grid-template-columns:1.3fr .9fr 1.6fr .5fr .9fr 1fr;gap:8px;margin-bottom:8px}.ext-row input,.ext-row select{min-width:0}.ext-head{color:var(--text-muted);font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}@media(max-width:760px){.ext-row{grid-template-columns:1fr 1fr}.ext-head{display:none}}
+.ext-card{grid-column:1/-1}.ext-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.ext-tile{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.7)}.ext-tile-label{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}.ext-tile-value{margin-top:8px;font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.45rem;font-weight:650;font-variant-numeric:tabular-nums}.ext-tile-age{margin-top:6px;font-size:.68rem;color:var(--text-muted)}.ext-bar{height:6px;margin-top:8px;border-radius:6px;background:var(--border);overflow:hidden}.ext-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light))}.ext-stale .ext-tile-value{color:var(--text-muted)}.ext-error{border-color:var(--danger)}.ext-error .ext-tile-value{color:var(--text-muted)}.ext-waiting .ext-tile-value{color:var(--text-muted)}
 )rawcss";
 
 static const char kAppJs[] = R"rawjs(
@@ -98,7 +106,11 @@ const UI_TEXT = {
   'Zählerzeit': ['Meter time', 'Zählerzeit', 'Metertijd', 'Heure du compteur', 'Czas licznika'],
   'Verbindung': ['Connection', 'Verbindung', 'Verbinding', 'Connexion', 'Połączenie'],
   'IPv4': ['IPv4', 'IPv4', 'IPv4', 'IPv4', 'IPv4'],
+  'IPv6': ['IPv6', 'IPv6', 'IPv6', 'IPv6', 'IPv6'],
+  'Nicht verfügbar': ['Not available', 'Nicht verfügbar', 'Niet beschikbaar', 'Indisponible', 'Niedostępny'],
   'WLAN': ['Wi-Fi', 'WLAN', 'Wifi', 'Wi-Fi', 'Wi-Fi'],
+  'Allgemein': ['General', 'Allgemein', 'Algemeen', 'Général', 'Ogólne'],
+  'Zähler': ['Meter', 'Zähler', 'Meter', 'Compteur', 'Licznik'],
   'Uptime': ['Uptime', 'Laufzeit', 'Uptime', 'Disponibilité', 'Czas pracy'],
   'Verbrauch heute': ['Consumption today', 'Verbrauch heute', 'Verbruik vandaag', 'Consommation du jour', 'Zużycie dzisiaj'],
   'Importierte Energie': ['Imported energy', 'Importierte Energie', 'Afgenomen energie', 'Énergie soutirée', 'Energia pobrana'],
@@ -150,11 +162,101 @@ const UI_TEXT = {
   'Sprache für die Oberfläche': ['Interface language', 'Sprache für die Oberfläche', 'Taal van de interface', 'Langue de l’interface', 'Język interfejsu'],
   'Zugriff auf das Zähler-Frontend': ['Meter interface access', 'Zugriff auf das Zähler-Frontend', 'Toegang tot de meterinterface', 'Accès à l’interface du compteur', 'Dostęp do interfejsu licznika'],
   'Zusätzliche erlaubte CIDR-Netze': ['Additional allowed CIDR networks', 'Zusätzliche erlaubte CIDR-Netze', 'Extra toegestane CIDR-netwerken', 'Réseaux CIDR autorisés supplémentaires', 'Dodatkowe dozwolone sieci CIDR'],
-  'Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.': ['One IPv4 CIDR network per line. Private IPv4 networks are always allowed.', 'Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.', 'Eén IPv4-CIDR-netwerk per regel. Privé-IPv4-netwerken zijn altijd toegestaan.', 'Un réseau CIDR IPv4 par ligne. Les réseaux IPv4 privés sont toujours autorisés.', 'Jedna sieć IPv4 CIDR w wierszu. Prywatne sieci IPv4 są zawsze dozwolone.'],
+  'IPv4- oder IPv6-CIDR-Netze pro Zeile. Standardmäßig erlaubt: private IPv4-Netze, IPv6-ULA (fd95…), Link-Local (fe80::/10) und das eigene globale IPv6-/64-Präfix des ESP, auch wenn der Router es erst später zuweist. Andere globale Netze müssen hier explizit freigegeben werden.': ['One IPv4 or IPv6 CIDR network per line. Allowed by default: private IPv4 networks, IPv6 ULA (fd95…), link-local (fe80::/10) and the ESP\'s own global IPv6 /64 prefix, even if the router assigns it later. Other global networks must be explicitly allowed here.', 'IPv4- oder IPv6-CIDR-Netze pro Zeile. Standardmäßig erlaubt: private IPv4-Netze, IPv6-ULA (fd95…), Link-Local (fe80::/10) und das eigene globale IPv6-/64-Präfix des ESP, auch wenn der Router es erst später zuweist. Andere globale Netze müssen hier explizit freigegeben werden.', 'Eén IPv4- of IPv6-CIDR-netwerk per regel. Standaard toegestaan: privé-IPv4-netwerken, IPv6-ULA (fd95…), link-local (fe80::/10) en het eigen globale IPv6-/64-prefix van de ESP, ook als de router dit later toewijst. Andere globale netwerken moeten hier expliciet worden toegestaan.', 'Un réseau CIDR IPv4 ou IPv6 par ligne. Autorisés par défaut : réseaux IPv4 privés, ULA IPv6 (fd95…), link-local (fe80::/10) et le préfixe IPv6 global /64 propre à l\'ESP, même si le routeur l\'attribue plus tard. Les autres réseaux globaux doivent être explicitement autorisés ici.', 'Jedna sieć IPv4 lub IPv6 CIDR w wierszu. Domyślnie dozwolone: prywatne sieci IPv4, IPv6 ULA (fd95…), link-local (fe80::/10) oraz własny globalny prefiks IPv6 /64 ESP, także gdy router przydzieli go później. Inne sieci globalne trzeba tu jawnie dopuścić.'],
   'Beispiel: 192.168.1.0/24': ['Example: 192.168.1.0/24', 'Beispiel: 192.168.1.0/24', 'Voorbeeld: 192.168.1.0/24', 'Exemple : 192.168.1.0/24', 'Przykład: 192.168.1.0/24'],
+  'Beispiele: 192.168.1.0/24, 2a00:6020:a105:c900::/64': ['Examples: 192.168.1.0/24, 2a00:6020:a105:c900::/64', 'Beispiele: 192.168.1.0/24, 2a00:6020:a105:c900::/64', 'Voorbeelden: 192.168.1.0/24, 2a00:6020:a105:c900::/64', 'Exemples : 192.168.1.0/24, 2a00:6020:a105:c900::/64', 'Przykłady: 192.168.1.0/24, 2a00:6020:a105:c900::/64'],
   'Netzwerke speichern': ['Save networks', 'Netzwerke speichern', 'Netwerken opslaan', 'Enregistrer les réseaux', 'Zapisz sieci'],
   'Netzwerkfilter gespeichert.': ['Network filter saved.', 'Netzwerkfilter gespeichert.', 'Netwerkfilter opgeslagen.', 'Filtre réseau enregistré.', 'Zapisano filtr sieci.'],
   'Netzwerkfilter konnte nicht gespeichert werden.': ['Could not save network filter.', 'Netzwerkfilter konnte nicht gespeichert werden.', 'Netwerkfilter kon niet worden opgeslagen.', 'Impossible d’enregistrer le filtre réseau.', 'Nie udało się zapisać filtra sieci.'],
+  'HTTPS / TLS': ['HTTPS / TLS', 'HTTPS / TLS', 'HTTPS / TLS', 'HTTPS / TLS', 'HTTPS / TLS'],
+  'Hostname (FQDN)': ['Hostname (FQDN)', 'Hostname (FQDN)', 'Hostnaam (FQDN)', 'Nom d’hôte (FQDN)', 'Nazwa hosta (FQDN)'],
+  'Zertifikat (PEM, optional)': ['Certificate (PEM, optional)', 'Zertifikat (PEM, optional)', 'Certificaat (PEM, optioneel)', 'Certificat (PEM, facultatif)', 'Certyfikat (PEM, opcjonalnie)'],
+  'Privater Schlüssel (PEM, optional)': ['Private key (PEM, optional)', 'Privater Schlüssel (PEM, optional)', 'Privésleutel (PEM, optioneel)', 'Clé privée (PEM, facultatif)', 'Klucz prywatny (PEM, opcjonalnie)'],
+  'Eigenes Zertifikat entfernen (Self-Signed verwenden)': ['Remove own certificate (use self-signed)', 'Eigenes Zertifikat entfernen (Self-Signed verwenden)', 'Eigen certificaat verwijderen (zelfondertekend gebruiken)', 'Supprimer le certificat propre (utiliser l’auto-signé)', 'Usuń własny certyfikat (użyj samopodpisanego)'],
+  'HTTPS speichern': ['Save HTTPS', 'HTTPS speichern', 'HTTPS opslaan', 'Enregistrer HTTPS', 'Zapisz HTTPS'],
+  'HTTPS läuft parallel zu HTTP auf Port 443. Ohne eigenes Zertifikat erzeugt das Gerät ein Self-Signed-Zertifikat; der Browser zeigt dafür eine Warnung. Zertifikat und privater Schlüssel müssen zusammenpassen.': ['HTTPS runs next to HTTP on port 443. Without your own certificate the device creates a self-signed certificate, for which the browser shows a warning. Certificate and private key must match.', 'HTTPS läuft parallel zu HTTP auf Port 443. Ohne eigenes Zertifikat erzeugt das Gerät ein Self-Signed-Zertifikat; der Browser zeigt dafür eine Warnung. Zertifikat und privater Schlüssel müssen zusammenpassen.', 'HTTPS draait naast HTTP op poort 443. Zonder eigen certificaat maakt het apparaat een zelfondertekend certificaat aan, waarvoor de browser een waarschuwing toont. Certificaat en privésleutel moeten bij elkaar passen.', 'HTTPS fonctionne en parallèle de HTTP sur le port 443. Sans certificat propre, l’appareil crée un certificat auto-signé, pour lequel le navigateur affiche un avertissement. Le certificat et la clé privée doivent correspondre.', 'HTTPS działa równolegle do HTTP na porcie 443. Bez własnego certyfikatu urządzenie tworzy certyfikat samopodpisany, dla którego przeglądarka wyświetla ostrzeżenie. Certyfikat i klucz prywatny muszą do siebie pasować.'],
+  'HTTPS aktiv (Port 443)': ['HTTPS active (port 443)', 'HTTPS aktiv (Port 443)', 'HTTPS actief (poort 443)', 'HTTPS actif (port 443)', 'HTTPS aktywny (port 443)'],
+  'HTTPS nicht aktiv': ['HTTPS not active', 'HTTPS nicht aktiv', 'HTTPS niet actief', 'HTTPS inactif', 'HTTPS nieaktywny'],
+  'Zertifikat: eigenes': ['Certificate: own', 'Zertifikat: eigenes', 'Certificaat: eigen', 'Certificat : propre', 'Certyfikat: własny'],
+  'Zertifikat: Self-Signed': ['Certificate: self-signed', 'Zertifikat: Self-Signed', 'Certificaat: zelfondertekend', 'Certificat : auto-signé', 'Certyfikat: samopodpisany'],
+  'HTTPS-Einstellungen gespeichert. Der HTTPS-Server startet neu.': ['HTTPS settings saved. The HTTPS server is restarting.', 'HTTPS-Einstellungen gespeichert. Der HTTPS-Server startet neu.', 'HTTPS-instellingen opgeslagen. De HTTPS-server herstart.', 'Paramètres HTTPS enregistrés. Le serveur HTTPS redémarre.', 'Zapisano ustawienia HTTPS. Serwer HTTPS uruchamia się ponownie.'],
+  'HTTPS-Einstellungen konnten nicht gespeichert werden.': ['Could not save HTTPS settings.', 'HTTPS-Einstellungen konnten nicht gespeichert werden.', 'HTTPS-instellingen konden niet worden opgeslagen.', 'Impossible d’enregistrer les paramètres HTTPS.', 'Nie udało się zapisać ustawień HTTPS.'],
+  'Zertifikatsquelle': ['Certificate source', 'Zertifikatsquelle', 'Certificaatbron', 'Source du certificat', 'Źródło certyfikatu'],
+  'Manuell / Self-Signed': ['Manual / self-signed', 'Manuell / Self-Signed', 'Handmatig / zelfondertekend', 'Manuel / auto-signé', 'Ręcznie / samopodpisany'],
+  'Let\'s Encrypt (ACME HTTP-01)': ['Let\'s Encrypt (ACME HTTP-01)', 'Let\'s Encrypt (ACME HTTP-01)', 'Let\'s Encrypt (ACME HTTP-01)', 'Let\'s Encrypt (ACME HTTP-01)', 'Let\'s Encrypt (ACME HTTP-01)'],
+  'E-Mail für Let\'s Encrypt': ['Email for Let\'s Encrypt', 'E-Mail für Let\'s Encrypt', 'E-mail voor Let\'s Encrypt', 'E-mail pour Let\'s Encrypt', 'E-mail dla Let\'s Encrypt'],
+  'Nutzungsbedingungen von Let\'s Encrypt akzeptieren': ['Accept the Let\'s Encrypt terms of service', 'Nutzungsbedingungen von Let\'s Encrypt akzeptieren', 'Gebruiksvoorwaarden van Let\'s Encrypt accepteren', 'Accepter les conditions d’utilisation de Let\'s Encrypt', 'Zaakceptuj warunki korzystania z Let\'s Encrypt'],
+  'Staging-Umgebung (Test, Zertifikat nicht vertrauenswürdig)': ['Staging environment (test, certificate not trusted)', 'Staging-Umgebung (Test, Zertifikat nicht vertrauenswürdig)', 'Staging-omgeving (test, certificaat niet vertrouwd)', 'Environnement de test (staging, certificat non approuvé)', 'Środowisko testowe (staging, certyfikat niezaufany)'],
+  'Erneuerung nach (Tagen)': ['Renew after (days)', 'Erneuerung nach (Tagen)', 'Vernieuwen na (dagen)', 'Renouveler après (jours)', 'Odnów po (dniach)'],
+  'Let\'s Encrypt prüft den Hostnamen über Port 80 (HTTP-01). Der Hostname muss auf dieses Gerät zeigen und Port 80 muss aus dem Internet erreichbar sein, bei IPv6-only per AAAA-Eintrag und Firewall-Freigabe. Zuerst die Staging-Umgebung testen.': ['Let\'s Encrypt validates the hostname over port 80 (HTTP-01). The hostname must point to this device and port 80 must be reachable from the internet, for IPv6-only via an AAAA record and a firewall rule. Test the staging environment first.', 'Let\'s Encrypt prüft den Hostnamen über Port 80 (HTTP-01). Der Hostname muss auf dieses Gerät zeigen und Port 80 muss aus dem Internet erreichbar sein, bei IPv6-only per AAAA-Eintrag und Firewall-Freigabe. Zuerst die Staging-Umgebung testen.', 'Let\'s Encrypt controleert de hostnaam via poort 80 (HTTP-01). De hostnaam moet naar dit apparaat wijzen en poort 80 moet vanaf internet bereikbaar zijn, bij alleen IPv6 via een AAAA-record en firewallregel. Test eerst de staging-omgeving.', 'Let\'s Encrypt valide le nom d’hôte via le port 80 (HTTP-01). Le nom d’hôte doit pointer vers cet appareil et le port 80 doit être joignable depuis Internet, en IPv6 seul via un enregistrement AAAA et une règle de pare-feu. Testez d’abord l’environnement de test.', 'Let\'s Encrypt weryfikuje nazwę hosta przez port 80 (HTTP-01). Nazwa hosta musi wskazywać to urządzenie, a port 80 musi być osiągalny z internetu, przy samym IPv6 przez rekord AAAA i regułę zapory. Najpierw przetestuj środowisko testowe.'],
+  'Zertifikat jetzt anfordern': ['Request certificate now', 'Zertifikat jetzt anfordern', 'Certificaat nu aanvragen', 'Demander le certificat maintenant', 'Zamów certyfikat teraz'],
+  'Zertifikat: Let\'s Encrypt': ['Certificate: Let\'s Encrypt', 'Zertifikat: Let\'s Encrypt', 'Certificaat: Let\'s Encrypt', 'Certificat : Let\'s Encrypt', 'Certyfikat: Let\'s Encrypt'],
+  'Zertifikat wird angefordert …': ['Requesting certificate …', 'Zertifikat wird angefordert …', 'Certificaat wordt aangevraagd …', 'Demande du certificat en cours …', 'Zamawianie certyfikatu …'],
+  'Zertifikat ausgestellt. HTTPS wird neu gestartet.': ['Certificate issued. HTTPS is restarting.', 'Zertifikat ausgestellt. HTTPS wird neu gestartet.', 'Certificaat uitgegeven. HTTPS herstart.', 'Certificat émis. HTTPS redémarre.', 'Certyfikat wystawiony. HTTPS uruchamia się ponownie.'],
+  'Anforderung fehlgeschlagen': ['Request failed', 'Anforderung fehlgeschlagen', 'Aanvraag mislukt', 'Échec de la demande', 'Zamówienie nie powiodło się'],
+  'HTTPS / Zertifikate': ['HTTPS / Certificates', 'HTTPS / Zertifikate', 'HTTPS / Certificaten', 'HTTPS / Certificats', 'HTTPS / Certyfikaty'],
+  'SMLEasy — HTTPS / Zertifikate': ['SMLEasy — HTTPS / Certificates', 'SMLEasy — HTTPS / Zertifikate', 'SMLEasy — HTTPS / Certificaten', 'SMLEasy — HTTPS / Certificats', 'SMLEasy — HTTPS / Certyfikaty'],
+  '1. Nutzungsbedingungen': ['1. Terms of service', '1. Nutzungsbedingungen', '1. Gebruiksvoorwaarden', '1. Conditions d’utilisation', '1. Warunki korzystania'],
+  'Mit dem Anfordern eines Zertifikats stimmst du den Nutzungsbedingungen von Let\'s Encrypt zu. Das Gerät legt dafür ein Konto bei Let\'s Encrypt an.': ['By requesting a certificate you agree to the Let\'s Encrypt terms of service. The device creates an account with Let\'s Encrypt for this.', 'Mit dem Anfordern eines Zertifikats stimmst du den Nutzungsbedingungen von Let\'s Encrypt zu. Das Gerät legt dafür ein Konto bei Let\'s Encrypt an.', 'Door een certificaat aan te vragen ga je akkoord met de gebruiksvoorwaarden van Let\'s Encrypt. Het apparaat maakt hiervoor een account bij Let\'s Encrypt aan.', 'En demandant un certificat, vous acceptez les conditions d’utilisation de Let\'s Encrypt. L’appareil crée pour cela un compte chez Let\'s Encrypt.', 'Zamawiając certyfikat, akceptujesz warunki korzystania z Let\'s Encrypt. Urządzenie zakłada w tym celu konto w Let\'s Encrypt.'],
+  'Nutzungsbedingungen lesen': ['Read the terms of service', 'Nutzungsbedingungen lesen', 'Gebruiksvoorwaarden lezen', 'Lire les conditions d’utilisation', 'Przeczytaj warunki korzystania'],
+  '2. Angaben': ['2. Details', '2. Angaben', '2. Gegevens', '2. Informations', '2. Dane'],
+  '3. Tests': ['3. Checks', '3. Tests', '3. Tests', '3. Tests', '3. Testy'],
+  'Vor der Anforderung prüft das Gerät Internetzugang, DNS und die Erreichbarkeit von außen. Die Erreichbarkeit wird mit einer Testvalidierung in der Staging-Umgebung von Let\'s Encrypt bewiesen; dabei wird kein Zertifikat ausgestellt.': ['Before the request the device checks internet access, DNS and reachability from outside. Reachability is proven with a test validation in the Let\'s Encrypt staging environment; no certificate is issued.', 'Vor der Anforderung prüft das Gerät Internetzugang, DNS und die Erreichbarkeit von außen. Die Erreichbarkeit wird mit einer Testvalidierung in der Staging-Umgebung von Let\'s Encrypt bewiesen; dabei wird kein Zertifikat ausgestellt.', 'Voor de aanvraag controleert het apparaat internettoegang, DNS en bereikbaarheid van buitenaf. De bereikbaarheid wordt bewezen met een testvalidatie in de staging-omgeving van Let\'s Encrypt; er wordt geen certificaat uitgegeven.', 'Avant la demande, l’appareil vérifie l’accès Internet, le DNS et l’accessibilité depuis l’extérieur. L’accessibilité est prouvée par une validation de test dans l’environnement staging de Let\'s Encrypt ; aucun certificat n’est émis.', 'Przed zamówieniem urządzenie sprawdza dostęp do internetu, DNS i osiągalność z zewnątrz. Osiągalność potwierdza testowa walidacja w środowisku staging Let\'s Encrypt; certyfikat nie jest wystawiany.'],
+  'Tests starten': ['Start checks', 'Tests starten', 'Tests starten', 'Lancer les tests', 'Uruchom testy'],
+  '4. Zertifikat anfordern': ['4. Request certificate', '4. Zertifikat anfordern', '4. Certificaat aanvragen', '4. Demander le certificat', '4. Zamów certyfikat'],
+  'Internetzugang und Uhrzeit': ['Internet access and clock', 'Internetzugang und Uhrzeit', 'Internettoegang en tijd', 'Accès Internet et heure', 'Dostęp do internetu i zegar'],
+  'DNS: Hostname zeigt auf dieses Gerät': ['DNS: hostname points to this device', 'DNS: Hostname zeigt auf dieses Gerät', 'DNS: hostnaam wijst naar dit apparaat', 'DNS : le nom d’hôte pointe vers cet appareil', 'DNS: nazwa hosta wskazuje to urządzenie'],
+  'Erreichbarkeit von außen über Port 80 (HTTP)': ['Reachable from outside on port 80 (HTTP)', 'Erreichbarkeit von außen über Port 80 (HTTP)', 'Bereikbaar van buitenaf via poort 80 (HTTP)', 'Accessible de l’extérieur via le port 80 (HTTP)', 'Osiągalność z zewnątrz przez port 80 (HTTP)'],
+  'Zuerst die Nutzungsbedingungen akzeptieren.': ['Accept the terms of service first.', 'Zuerst die Nutzungsbedingungen akzeptieren.', 'Accepteer eerst de gebruiksvoorwaarden.', 'Acceptez d’abord les conditions d’utilisation.', 'Najpierw zaakceptuj warunki korzystania.'],
+  'Gültigen Hostnamen und E-Mail-Adresse eintragen.': ['Enter a valid hostname and email address.', 'Gültigen Hostnamen und E-Mail-Adresse eintragen.', 'Vul een geldige hostnaam en e-mailadres in.', 'Saisissez un nom d’hôte et une adresse e-mail valides.', 'Wpisz poprawną nazwę hosta i adres e-mail.'],
+  'Erst nach bestandenen Tests freigegeben.': ['Only enabled after the checks have passed.', 'Erst nach bestandenen Tests freigegeben.', 'Pas beschikbaar nadat de tests zijn geslaagd.', 'Disponible uniquement après la réussite des tests.', 'Dostępne dopiero po pomyślnych testach.'],
+  'Tests bestanden: Die Anforderung ist freigegeben (1 Stunde gültig).': ['Checks passed: the request is enabled (valid for 1 hour).', 'Tests bestanden: Die Anforderung ist freigegeben (1 Stunde gültig).', 'Tests geslaagd: de aanvraag is vrijgegeven (1 uur geldig).', 'Tests réussis : la demande est autorisée (valable 1 heure).', 'Testy zaliczone: zamówienie jest odblokowane (ważne 1 godzinę).'],
+  'Tests laufen …': ['Checks running …', 'Tests laufen …', 'Tests worden uitgevoerd …', 'Tests en cours …', 'Testy w toku …'],
+  'Alle Tests bestanden. Das Zertifikat kann jetzt angefordert werden.': ['All checks passed. The certificate can now be requested.', 'Alle Tests bestanden. Das Zertifikat kann jetzt angefordert werden.', 'Alle tests geslaagd. Het certificaat kan nu worden aangevraagd.', 'Tous les tests sont réussis. Le certificat peut maintenant être demandé.', 'Wszystkie testy zaliczone. Można teraz zamówić certyfikat.'],
+  'Mindestens ein Test ist fehlgeschlagen. Bitte die Hinweise beachten und die Tests wiederholen.': ['At least one check failed. Please follow the hints and repeat the checks.', 'Mindestens ein Test ist fehlgeschlagen. Bitte die Hinweise beachten und die Tests wiederholen.', 'Minstens één test is mislukt. Volg de aanwijzingen en herhaal de tests.', 'Au moins un test a échoué. Suivez les indications et répétez les tests.', 'Co najmniej jeden test nie powiódł się. Zastosuj wskazówki i powtórz testy.'],
+  'Tests konnten nicht gestartet werden.': ['Checks could not be started.', 'Tests konnten nicht gestartet werden.', 'Tests konden niet worden gestart.', 'Les tests n’ont pas pu être lancés.', 'Nie udało się uruchomić testów.'],
+  'Externe Daten': ['External data', 'Externe Daten', 'Externe gegevens', 'Données externes', 'Dane zewnętrzne'],
+  'SMLEasy — Externe Daten': ['SMLEasy — External data', 'SMLEasy — Externe Daten', 'SMLEasy — Externe gegevens', 'SMLEasy — Données externes', 'SMLEasy — Dane zewnętrzne'],
+  'Externe Daten (Home Assistant)': ['External data (Home Assistant)', 'Externe Daten (Home Assistant)', 'Externe gegevens (Home Assistant)', 'Données externes (Home Assistant)', 'Dane zewnętrzne (Home Assistant)'],
+  'Werte aus Home Assistant anzeigen': ['Show values from Home Assistant', 'Werte aus Home Assistant anzeigen', 'Waarden uit Home Assistant tonen', 'Afficher les valeurs de Home Assistant', 'Pokaż wartości z Home Assistant'],
+  'REST-Abfrage': ['REST query', 'REST-Abfrage', 'REST-opvraag', 'Requête REST', 'Zapytanie REST'],
+  'Home-Assistant-URL': ['Home Assistant URL', 'Home-Assistant-URL', 'Home Assistant-URL', 'URL de Home Assistant', 'Adres URL Home Assistant'],
+  'Zugriffstoken (Long-Lived Access Token)': ['Access token (long-lived access token)', 'Zugriffstoken (Long-Lived Access Token)', 'Toegangstoken (long-lived access token)', 'Jeton d’accès (jeton longue durée)', 'Token dostępu (długoterminowy)'],
+  'Leer lassen, um das gespeicherte Token zu behalten': ['Leave empty to keep the stored token', 'Leer lassen, um das gespeicherte Token zu behalten', 'Leeg laten om het opgeslagen token te behouden', 'Laisser vide pour conserver le jeton enregistré', 'Zostaw puste, aby zachować zapisany token'],
+  'Gesetzt – leer lassen, um es zu behalten': ['Set – leave empty to keep it', 'Gesetzt – leer lassen, um es zu behalten', 'Ingesteld – leeg laten om te behouden', 'Défini – laisser vide pour le conserver', 'Ustawiony – zostaw puste, aby zachować'],
+  'Gespeichertes Token entfernen': ['Remove stored token', 'Gespeichertes Token entfernen', 'Opgeslagen token verwijderen', 'Supprimer le jeton enregistré', 'Usuń zapisany token'],
+  'Abfrageintervall (Sekunden)': ['Polling interval (seconds)', 'Abfrageintervall (Sekunden)', 'Opvraaginterval (seconden)', 'Intervalle d’interrogation (secondes)', 'Interwał odpytywania (sekundy)'],
+  'Anzuzeigende Werte (bis zu 8)': ['Values to show (up to 8)', 'Anzuzeigende Werte (bis zu 8)', 'Weer te geven waarden (maximaal 8)', 'Valeurs à afficher (jusqu’à 8)', 'Wartości do wyświetlenia (do 8)'],
+  'Bezeichnung': ['Label', 'Bezeichnung', 'Naam', 'Libellé', 'Nazwa'],
+  'Quelle': ['Source', 'Quelle', 'Bron', 'Source', 'Źródło'],
+  'Entity-ID / Topic': ['Entity ID / topic', 'Entity-ID / Topic', 'Entity-ID / topic', 'ID d’entité / topic', 'ID encji / temat'],
+  'Einheit': ['Unit', 'Einheit', 'Eenheid', 'Unité', 'Jednostka'],
+  'JSON-Schlüssel (MQTT)': ['JSON key (MQTT)', 'JSON-Schlüssel (MQTT)', 'JSON-sleutel (MQTT)', 'Clé JSON (MQTT)', 'Klucz JSON (MQTT)'],
+  'REST (Entity-ID)': ['REST (entity ID)', 'REST (Entity-ID)', 'REST (entity-ID)', 'REST (ID d’entité)', 'REST (ID encji)'],
+  'MQTT (Topic)': ['MQTT (topic)', 'MQTT (Topic)', 'MQTT (topic)', 'MQTT (topic)', 'MQTT (temat)'],
+  'PV-Batterie Ladestand': ['PV battery charge', 'PV-Batterie Ladestand', 'PV-batterij laadstand', 'Charge de la batterie PV', 'Poziom naładowania baterii PV'],
+  'PV-Leistung gesamt': ['PV power total', 'PV-Leistung gesamt', 'PV-vermogen totaal', 'Puissance PV totale', 'Moc PV łącznie'],
+  'Wallbox gesamt': ['Wallbox total', 'Wallbox gesamt', 'Wallbox totaal', 'Wallbox total', 'Wallbox łącznie'],
+  'Hausverbrauch': ['House consumption', 'Hausverbrauch', 'Huisverbruik', 'Consommation de la maison', 'Zużycie domu'],
+  'REST: Das Gerät fragt Home Assistant über die REST-API ab. Ein Token erzeugst du in Home Assistant unter Profil → Sicherheit → Langlebige Zugriffstoken. MQTT: Das Gerät abonniert ein Topic am Broker der Home-Assistant-Integration (Einstellungen → Home Assistant); eine Automation in Home Assistant muss den Wert dort veröffentlichen. Bei JSON-Nachrichten gibt der Schlüssel das Feld an, zum Beispiel battery.soc.': ['REST: the device queries Home Assistant through its REST API. Create a token in Home Assistant under Profile → Security → Long-lived access tokens. MQTT: the device subscribes to a topic on the broker of the Home Assistant integration (Settings → Home Assistant); an automation in Home Assistant must publish the value there. For JSON messages the key names the field, for example battery.soc.', 'REST: Das Gerät fragt Home Assistant über die REST-API ab. Ein Token erzeugst du in Home Assistant unter Profil → Sicherheit → Langlebige Zugriffstoken. MQTT: Das Gerät abonniert ein Topic am Broker der Home-Assistant-Integration (Einstellungen → Home Assistant); eine Automation in Home Assistant muss den Wert dort veröffentlichen. Bei JSON-Nachrichten gibt der Schlüssel das Feld an, zum Beispiel battery.soc.', 'REST: het apparaat vraagt Home Assistant op via de REST-API. Een token maak je in Home Assistant onder Profiel → Beveiliging → Langlevende toegangstokens. MQTT: het apparaat abonneert zich op een topic bij de broker van de Home Assistant-integratie (Instellingen → Home Assistant); een automatisering in Home Assistant moet de waarde daar publiceren. Bij JSON-berichten geeft de sleutel het veld aan, bijvoorbeeld battery.soc.', 'REST : l’appareil interroge Home Assistant via l’API REST. Créez un jeton dans Home Assistant sous Profil → Sécurité → Jetons d’accès longue durée. MQTT : l’appareil s’abonne à un topic sur le broker de l’intégration Home Assistant (Paramètres → Home Assistant) ; une automatisation de Home Assistant doit y publier la valeur. Pour les messages JSON, la clé désigne le champ, par exemple battery.soc.', 'REST: urządzenie odpytuje Home Assistant przez API REST. Token utworzysz w Home Assistant w Profil → Zabezpieczenia → Długoterminowe tokeny dostępu. MQTT: urządzenie subskrybuje temat na brokerze integracji Home Assistant (Ustawienia → Home Assistant); automatyzacja w Home Assistant musi tam publikować wartość. W wiadomościach JSON klucz wskazuje pole, na przykład battery.soc.'],
+  'Externe Daten speichern': ['Save external data', 'Externe Daten speichern', 'Externe gegevens opslaan', 'Enregistrer les données externes', 'Zapisz dane zewnętrzne'],
+  'Jetzt abrufen': ['Fetch now', 'Jetzt abrufen', 'Nu ophalen', 'Interroger maintenant', 'Pobierz teraz'],
+  'Aktuelle Werte': ['Current values', 'Aktuelle Werte', 'Actuele waarden', 'Valeurs actuelles', 'Bieżące wartości'],
+  'Keine Werte konfiguriert.': ['No values configured.', 'Keine Werte konfiguriert.', 'Geen waarden ingesteld.', 'Aucune valeur configurée.', 'Brak skonfigurowanych wartości.'],
+  'ok': ['ok', 'ok', 'ok', 'ok', 'ok'],
+  'veraltet': ['stale', 'veraltet', 'verouderd', 'périmé', 'nieaktualne'],
+  'Fehler': ['Error', 'Fehler', 'Fout', 'Erreur', 'Błąd'],
+  'wartet': ['waiting', 'wartet', 'wachten', 'en attente', 'oczekuje'],
+  'MQTT ist ausgeschaltet (Home-Assistant-Integration aktivieren, um MQTT-Werte zu nutzen).': ['MQTT is off (enable the Home Assistant integration to use MQTT values).', 'MQTT ist ausgeschaltet (Home-Assistant-Integration aktivieren, um MQTT-Werte zu nutzen).', 'MQTT staat uit (schakel de Home Assistant-integratie in om MQTT-waarden te gebruiken).', 'MQTT est désactivé (activez l’intégration Home Assistant pour utiliser les valeurs MQTT).', 'MQTT jest wyłączony (włącz integrację Home Assistant, aby używać wartości MQTT).'],
+  'MQTT-Broker verbunden.': ['MQTT broker connected.', 'MQTT-Broker verbunden.', 'MQTT-broker verbonden.', 'Broker MQTT connecté.', 'Broker MQTT połączony.'],
+  'MQTT-Broker nicht verbunden.': ['MQTT broker not connected.', 'MQTT-Broker nicht verbunden.', 'MQTT-broker niet verbonden.', 'Broker MQTT non connecté.', 'Broker MQTT niepołączony.'],
+  'Externe Daten gespeichert.': ['External data saved.', 'Externe Daten gespeichert.', 'Externe gegevens opgeslagen.', 'Données externes enregistrées.', 'Zapisano dane zewnętrzne.'],
+  'Externe Daten konnten nicht gespeichert werden.': ['External data could not be saved.', 'Externe Daten konnten nicht gespeichert werden.', 'Externe gegevens konden niet worden opgeslagen.', 'Impossible d’enregistrer les données externes.', 'Nie udało się zapisać danych zewnętrznych.'],
+  'Haus & Energie': ['Home & energy', 'Haus & Energie', 'Huis & energie', 'Maison & énergie', 'Dom i energia'],
+  'Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).': ['Live log is only visible over HTTPS (port 80 is in use during validation).', 'Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).', 'Livelogboek alleen zichtbaar via HTTPS (poort 80 is tijdens de controle in gebruik).', 'Journal en direct visible uniquement en HTTPS (le port 80 est occupé pendant la validation).', 'Dziennik na żywo jest widoczny tylko przez HTTPS (port 80 jest zajęty podczas weryfikacji).'],
+  'Produktivumgebung ohne Staging-Test: Fehlversuche zählen gegen die Rate-Limits von Let\'s Encrypt. Trotzdem fortfahren?': ['Production environment without a staging test: failed attempts count against the Let\'s Encrypt rate limits. Continue anyway?', 'Produktivumgebung ohne Staging-Test: Fehlversuche zählen gegen die Rate-Limits von Let\'s Encrypt. Trotzdem fortfahren?', 'Productieomgeving zonder staging-test: mislukte pogingen tellen mee voor de limieten van Let\'s Encrypt. Toch doorgaan?', 'Environnement de production sans test staging : les échecs comptent dans les limites de Let\'s Encrypt. Continuer quand même ?', 'Środowisko produkcyjne bez testu staging: nieudane próby wliczają się do limitów Let\'s Encrypt. Kontynuować mimo to?'],
+  'Zertifikat jetzt bei Let\'s Encrypt anfordern? Port 80 muss aus dem Internet erreichbar sein; das Dashboard ist währenddessen nur per HTTPS erreichbar.': ['Request the certificate from Let\'s Encrypt now? Port 80 must be reachable from the internet; meanwhile the dashboard is only available over HTTPS.', 'Zertifikat jetzt bei Let\'s Encrypt anfordern? Port 80 muss aus dem Internet erreichbar sein; das Dashboard ist währenddessen nur per HTTPS erreichbar.', 'Certificaat nu bij Let\'s Encrypt aanvragen? Poort 80 moet vanaf internet bereikbaar zijn; het dashboard is intussen alleen via HTTPS bereikbaar.', 'Demander maintenant le certificat à Let\'s Encrypt ? Le port 80 doit être joignable depuis Internet ; entre-temps, le tableau de bord n’est accessible qu’en HTTPS.', 'Zamówić teraz certyfikat w Let\'s Encrypt? Port 80 musi być osiągalny z internetu; w tym czasie panel jest dostępny tylko przez HTTPS.'],
+  'Anforderung konnte nicht gestartet werden. Zuerst Einstellungen speichern (Hostname, E-Mail, Bedingungen).': ['Request could not be started. Save the settings first (hostname, email, terms).', 'Anforderung konnte nicht gestartet werden. Zuerst Einstellungen speichern (Hostname, E-Mail, Bedingungen).', 'Aanvraag kon niet worden gestart. Sla eerst de instellingen op (hostnaam, e-mail, voorwaarden).', 'La demande n’a pas pu être lancée. Enregistrez d’abord les paramètres (nom d’hôte, e-mail, conditions).', 'Nie udało się rozpocząć zamówienia. Najpierw zapisz ustawienia (nazwa hosta, e-mail, warunki).'],
   'Browser (automatisch)': ['Browser (automatic)', 'Browser (automatisch)', 'Browser (automatisch)', 'Navigateur (automatique)', 'Przeglądarka (automatycznie)'],
   'English': ['English', 'English', 'Engels', 'Anglais', 'Angielski'],
   'Deutsch': ['German', 'Deutsch', 'Duits', 'Allemand', 'Niemiecki'],
@@ -479,6 +581,529 @@ async function saveAccessNetworks(event) {
   alert(localizedText(result.ok ? 'Netzwerkfilter gespeichert.' : 'Netzwerkfilter konnte nicht gespeichert werden.'));
 }
 
+function tlsModeChanged() {
+  const mode = document.getElementById('tls-mode');
+  const acme = document.getElementById('tls-acme-fields');
+  const manual = document.getElementById('tls-manual-fields');
+  const letsEncrypt = !!mode && mode.value === 'letsencrypt';
+  if (acme) acme.hidden = !letsEncrypt;
+  if (manual) manual.hidden = letsEncrypt;
+  updateAcmeGate();
+}
+
+let acmeStatus = null;
+let tlsCertInfo = null;
+let acmePollTimer = null;
+
+const ACME_CHECK_LABELS = {
+  internet: 'Internetzugang und Uhrzeit',
+  dns: 'DNS: Hostname zeigt auf dieses Gerät',
+  http: 'Erreichbarkeit von außen über Port 80 (HTTP)'
+};
+const ACME_CHECK_ICONS = { pass: '✔', fail: '✖', warn: '⚠', running: '…', pending: '○', skipped: '–' };
+
+function tlsFormValue(id) {
+  const element = document.getElementById(id);
+  return element ? element.value.trim() : '';
+}
+
+function tlsFormChecked(id) {
+  const element = document.getElementById(id);
+  return !!(element && element.checked);
+}
+
+function acmeBusy() {
+  return !!acmeStatus && (acmeStatus.busy || acmeStatus.state === 'requesting' || acmeStatus.checks_state === 'running');
+}
+
+function acmeChecksPassed() {
+  return !!acmeStatus && acmeStatus.checks_state === 'passed' &&
+    acmeStatus.checks_fqdn === tlsFormValue('tls-fqdn') &&
+    acmeStatus.checks_age_s >= 0 && acmeStatus.checks_age_s <= 3600;
+}
+
+function updateAcmeGate() {
+  const checkButton = document.getElementById('acme-check-btn');
+  const requestButton = document.getElementById('acme-request-btn');
+  const hint = document.getElementById('acme-gate-hint');
+  if (!checkButton || !requestButton) return;
+  const termsOk = tlsFormChecked('tls-terms');
+  const fqdnOk = /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(tlsFormValue('tls-fqdn'));
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tlsFormValue('tls-email'));
+  const ready = termsOk && fqdnOk && emailOk && !acmeBusy();
+  checkButton.disabled = !ready;
+  requestButton.disabled = !(ready && acmeChecksPassed());
+  if (hint) {
+    hint.textContent = !termsOk ? localizedText('Zuerst die Nutzungsbedingungen akzeptieren.')
+      : !(fqdnOk && emailOk) ? localizedText('Gültigen Hostnamen und E-Mail-Adresse eintragen.')
+      : !acmeChecksPassed() ? localizedText('Erst nach bestandenen Tests freigegeben.')
+      : localizedText('Tests bestanden: Die Anforderung ist freigegeben (1 Stunde gültig).');
+  }
+}
+
+function renderAcmeChecks(status) {
+  const list = document.getElementById('acme-checks');
+  if (!list) return;
+  const checks = status.checks_state === 'idle' || !Array.isArray(status.checks) ? [] : status.checks;
+  list.replaceChildren();
+  checks.forEach(check => {
+    const row = document.createElement('div');
+    row.className = 'check-row ' + (check.state || 'pending');
+    const icon = document.createElement('span');
+    icon.className = 'check-icon';
+    icon.textContent = ACME_CHECK_ICONS[check.state] || ACME_CHECK_ICONS.pending;
+    const label = document.createElement('span');
+    label.textContent = localizedText(ACME_CHECK_LABELS[check.id] || check.id);
+    row.append(icon, label);
+    if (check.detail) {
+      const detail = document.createElement('span');
+      detail.className = 'check-detail';
+      detail.textContent = check.detail;
+      row.appendChild(detail);
+    }
+    list.appendChild(row);
+  });
+}
+
+function renderAcmeLog(lines) {
+  const box = document.getElementById('acme-log');
+  if (!box) return;
+  const list = Array.isArray(lines) ? lines : [];
+  box.hidden = list.length === 0;
+  if (box.hidden) return;
+  box.textContent = list.join('\n');
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderAcmeStatus(status) {
+  acmeStatus = status;
+  if (status.state === 'issued') status.log = [];
+  renderAcmeChecks(status);
+  renderAcmeLog(status.log);
+  const link = document.getElementById('acme-terms-link');
+  if (link && /^https:\/\//.test(status.terms_url || '')) link.href = status.terms_url;
+  const line = document.getElementById('acme-status');
+  if (line) {
+    line.textContent = status.state === 'requesting' ? localizedText('Zertifikat wird angefordert …')
+      : status.checks_state === 'running' ? localizedText('Tests laufen …')
+      : status.state === 'issued' ? localizedText('Zertifikat ausgestellt. HTTPS wird neu gestartet.')
+      : status.state === 'failed' ? localizedText('Anforderung fehlgeschlagen') + (status.error ? ' (' + status.error + ')' : '')
+      : status.checks_state === 'passed' ? localizedText('Alle Tests bestanden. Das Zertifikat kann jetzt angefordert werden.')
+      : status.checks_state === 'failed' ? localizedText('Mindestens ein Test ist fehlgeschlagen. Bitte die Hinweise beachten und die Tests wiederholen.')
+      : '';
+  }
+  updateAcmeGate();
+}
+
+async function refreshAcmeStatus() {
+  try {
+    const response = await fetch('/api/acme/status');
+    if (!response.ok) return null;
+    const status = await response.json();
+    renderAcmeStatus(status);
+    return status;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function pollAcmeStatus() {
+  const status = await refreshAcmeStatus();
+  // While port 80 is swapped for the validation listener a page loaded over HTTP cannot poll; keep trying.
+  if (status && !acmeBusy()) {
+    clearInterval(acmePollTimer);
+    acmePollTimer = null;
+    if (status.state === 'issued') {
+      acmeStatus = null;
+      renderAcmeChecks({});
+      renderAcmeLog([]);
+      const line = document.getElementById('acme-status');
+      if (line) line.textContent = '';
+      updateAcmeGate();
+      setTimeout(loadTlsConfig, 3000);
+    }
+  }
+}
+
+function startAcmePolling() {
+  if (!acmePollTimer) acmePollTimer = setInterval(pollAcmeStatus, 2000);
+}
+
+async function loadTlsConfig() {
+  try {
+    const response = await fetch('/api/config/tls');
+    if (!response.ok) return;
+    const config = await response.json();
+    tlsCertInfo = config;
+    const editing = id => document.activeElement === document.getElementById(id);
+    const setValue = (id, value) => {
+      const element = document.getElementById(id);
+      if (element && !editing(id)) element.value = value;
+    };
+    const setChecked = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.checked = !!value;
+    };
+    setValue('tls-fqdn', config.fqdn || '');
+    setValue('tls-mode', config.mode === 'letsencrypt' ? 'letsencrypt' : 'manual');
+    setValue('tls-email', config.email || '');
+    setValue('tls-interval', config.renewal_interval_days || 60);
+    setChecked('tls-terms', config.acme_terms_accepted);
+    setChecked('tls-staging', config.acme_staging);
+    const status = document.getElementById('tls-status');
+    if (status) {
+      const source = config.certificate_source === 'letsencrypt' ? 'Zertifikat: Let\'s Encrypt'
+        : config.certificate_source === 'manual' ? 'Zertifikat: eigenes' : 'Zertifikat: Self-Signed';
+      let text = localizedText(config.https_active ? 'HTTPS aktiv (Port 443)' : 'HTTPS nicht aktiv') +
+        ' · ' + localizedText(source);
+      if (config.last_issued_epoch > 0) text += ' · ' + new Date(config.last_issued_epoch * 1000).toLocaleDateString();
+      status.textContent = text;
+    }
+    const acme = await refreshAcmeStatus();
+    tlsModeChanged();
+    if (acme && acmeBusy()) startAcmePolling();
+  } catch (_) {}
+}
+
+function tlsFormPayload() {
+  return {
+    mode: tlsFormValue('tls-mode') || 'manual',
+    fqdn: tlsFormValue('tls-fqdn'),
+    email: tlsFormValue('tls-email'),
+    acme_terms_accepted: tlsFormChecked('tls-terms'),
+    acme_staging: tlsFormChecked('tls-staging'),
+    renewal_interval_days: parseInt(tlsFormValue('tls-interval'), 10) || 60,
+    certificate_pem: tlsFormValue('tls-cert'),
+    private_key_pem: tlsFormValue('tls-key'),
+    clear_certificate: tlsFormChecked('tls-clear')
+  };
+}
+
+async function postTlsConfig() {
+  try {
+    const response = await fetch('/api/config/tls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tlsFormPayload())
+    });
+    if (response.ok) return await response.json();
+  } catch (_) {}
+  return { ok: false };
+}
+
+async function saveTlsConfig(event) {
+  event.preventDefault();
+  const result = await postTlsConfig();
+  alert(localizedText(result.ok ? 'HTTPS-Einstellungen gespeichert. Der HTTPS-Server startet neu.' : 'HTTPS-Einstellungen konnten nicht gespeichert werden.'));
+  if (result.ok) {
+    ['tls-cert', 'tls-key'].forEach(id => { const element = document.getElementById(id); if (element) element.value = ''; });
+    const clear = document.getElementById('tls-clear');
+    if (clear) clear.checked = false;
+    setTimeout(loadTlsConfig, 3000);
+  }
+}
+
+async function runAcmeChecks() {
+  const line = document.getElementById('acme-status');
+  const saved = await postTlsConfig();
+  if (!saved.ok) {
+    if (line) line.textContent = localizedText('HTTPS-Einstellungen konnten nicht gespeichert werden.');
+    return;
+  }
+  let ok = false;
+  let reason = '';
+  try {
+    const response = await fetch('/api/acme/check', { method: 'POST' });
+    ok = response.ok;
+    if (!ok) reason = (await response.json()).reason || '';
+  } catch (_) {}
+  if (!ok) {
+    if (line) line.textContent = localizedText('Tests konnten nicht gestartet werden.') + (reason ? ' (' + reason + ')' : '');
+    return;
+  }
+  if (line) {
+    line.textContent = localizedText('Tests laufen …') +
+      (location.protocol === 'http:' ? ' ' + localizedText('Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).') : '');
+  }
+  acmeStatus = Object.assign({}, acmeStatus || {}, { checks_state: 'running' });
+  updateAcmeGate();
+  startAcmePolling();
+}
+
+async function requestAcmeCertificate() {
+  const staging = document.getElementById('tls-staging');
+  if (staging && !staging.checked &&
+      !confirm(localizedText('Produktivumgebung ohne Staging-Test: Fehlversuche zählen gegen die Rate-Limits von Let\'s Encrypt. Trotzdem fortfahren?'))) return;
+  const info = tlsCertInfo;
+  const fqdn = tlsFormValue('tls-fqdn').toLowerCase();
+  if (info && info.certificate_source === 'letsencrypt' && !info.cert_staging &&
+      info.cert_days_left >= 30 && (info.cert_cn || '').toLowerCase() === fqdn &&
+      !confirm(localizedText('Für "') + info.cert_cn + localizedText('" ist bereits ein gültiges Let\'s-Encrypt-Zertifikat vorhanden (noch ') +
+        info.cert_days_left + localizedText(' Tage gültig). Bei einer Neuausstellung wird das aktuelle Zertifikat jetzt entfernt und die HTTPS-Verbindung des Browsers bricht kurz ab. Neu ausstellen?'))) return;
+  const line = document.getElementById('acme-status');
+  const saved = await postTlsConfig();
+  if (!saved.ok) {
+    if (line) line.textContent = localizedText('HTTPS-Einstellungen konnten nicht gespeichert werden.');
+    return;
+  }
+  let ok = false;
+  let reason = '';
+  try {
+    const response = await fetch('/api/acme/request', { method: 'POST' });
+    ok = response.ok;
+    if (!ok) reason = (await response.json()).reason || '';
+  } catch (_) {}
+  if (!ok) {
+    if (line) line.textContent = localizedText('Anforderung konnte nicht gestartet werden. Zuerst Einstellungen speichern (Hostname, E-Mail, Bedingungen).') + (reason ? ' (' + reason + ')' : '');
+    return;
+  }
+  if (line) {
+    line.textContent = localizedText('Zertifikat wird angefordert …') +
+      (location.protocol === 'http:' ? ' ' + localizedText('Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).') : '');
+  }
+  acmeStatus = Object.assign({}, acmeStatus || {}, { state: 'requesting' });
+  updateAcmeGate();
+  startAcmePolling();
+}
+
+const EXT_PRESETS = [
+  { label: 'PV-Batterie Ladestand', ref: 'sensor.battery_state_of_charge', push: 'battery_soc' },
+  { label: 'PV-Leistung gesamt', ref: 'sensor.pv_power_total', push: 'pv_power', role: 'pv' },
+  { label: 'Wallbox gesamt', ref: 'sensor.wallbox_power_total', push: 'wallbox_power' },
+  { label: 'Hausverbrauch', ref: 'sensor.house_power', push: 'house_power' },
+  { label: 'Batterie-Leistung', ref: 'sensor.battery_power', push: 'battery_power', role: 'battery' }
+];
+const EXT_STATE_TEXT = { ok: 'ok', stale: 'veraltet', error: 'Fehler', waiting: 'wartet' };
+let extLiveTimer = null;
+
+function extInput(className, value, placeholder, maxLength) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = className;
+  input.maxLength = maxLength;
+  input.value = value || '';
+  if (placeholder) input.placeholder = placeholder;
+  return input;
+}
+
+function renderExtRows(slots) {
+  const box = document.getElementById('ext-rows');
+  if (!box) return;
+  box.replaceChildren();
+  for (let index = 0; index < 8; index++) {
+    const slot = slots[index] || {};
+    const preset = EXT_PRESETS[index] || { label: '', ref: '', push: '' };
+    const row = document.createElement('div');
+    row.className = 'ext-row';
+    const source = document.createElement('select');
+    source.className = 'ext-source';
+    [['push', 'HA sendet (Kurzname)'], ['rest', 'REST (Entity-ID)'], ['mqtt', 'MQTT (Topic)']].forEach(([value, text]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      source.appendChild(option);
+    });
+    source.value = slot.source === 'mqtt' || slot.source === 'rest' ? slot.source : 'push';
+    row.append(
+      extInput('ext-label', slot.label, preset.label, 40),
+      source,
+      extInput('ext-ref', slot.ref, preset.push || preset.ref, 128),
+      extInput('ext-unit', slot.unit, '', 12),
+      extInput('ext-key', slot.key, '', 40)
+    );
+    const role = document.createElement('select');
+    role.className = 'ext-role';
+    [['', 'Nur anzeigen'], ['pv', 'PV-Leistung (W)'], ['battery', 'Batterie (+ = laden)'], ['battery_neg', 'Batterie (+ = entladen)']].forEach(([value, text]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      role.appendChild(option);
+    });
+    role.value = (slot.ref || slot.label) ? (slot.role || '') : (preset.role || '');
+    row.appendChild(role);
+    box.appendChild(row);
+  }
+}
+
+function extFormPayload() {
+  const value = id => {
+    const element = document.getElementById(id);
+    return element ? element.value.trim() : '';
+  };
+  const checked = id => {
+    const element = document.getElementById(id);
+    return !!(element && element.checked);
+  };
+  const slots = Array.from(document.querySelectorAll('#ext-rows .ext-row')).map(row => ({
+    label: row.querySelector('.ext-label').value.trim(),
+    source: row.querySelector('.ext-source').value,
+    ref: row.querySelector('.ext-ref').value.trim(),
+    unit: row.querySelector('.ext-unit').value.trim(),
+    key: row.querySelector('.ext-key').value.trim(),
+    role: row.querySelector('.ext-role').value
+  })).filter(slot => slot.ref || slot.label);
+  return {
+    enabled: checked('ext-enabled'),
+    ha_url: value('ext-url'),
+    ha_token: value('ext-token'),
+    clear_token: checked('ext-clear-token'),
+    poll_s: parseInt(value('ext-poll'), 10) || 30,
+    slots: slots
+  };
+}
+
+function formatExtValue(value) {
+  const magnitude = Math.abs(value);
+  const digits = magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2;
+  return value.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+function formatExtAge(seconds) {
+  if (seconds < 0) return '—';
+  return seconds < 90 ? seconds + ' s' : Math.round(seconds / 60) + ' min';
+}
+
+function renderExtLive(data) {
+  const list = document.getElementById('ext-live');
+  if (!list) return;
+  list.replaceChildren();
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (!items.length) {
+    list.textContent = localizedText('Keine Werte konfiguriert.');
+    return;
+  }
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'check-row ' + (item.state === 'ok' ? 'pass' : item.state === 'error' ? 'fail' : item.state === 'stale' ? 'warn' : 'pending');
+    const icon = document.createElement('span');
+    icon.className = 'check-icon';
+    icon.textContent = item.state === 'ok' ? '✔' : item.state === 'error' ? '✖' : item.state === 'stale' ? '⚠' : '…';
+    const label = document.createElement('span');
+    const valueText = typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
+    label.textContent = item.label + ': ' + valueText + ' · ' + localizedText(EXT_STATE_TEXT[item.state] || item.state) +
+      (item.age_s >= 0 ? ' · ' + formatExtAge(item.age_s) : '');
+    row.append(icon, label);
+    if (item.error) {
+      const detail = document.createElement('span');
+      detail.className = 'check-detail';
+      detail.textContent = item.error;
+      row.appendChild(detail);
+    }
+    list.appendChild(row);
+  });
+}
+
+async function loadExtLive() {
+  try {
+    const response = await fetch('/api/ext/values');
+    if (response.ok) renderExtLive(await response.json());
+  } catch (_) {}
+}
+
+async function loadExtConfig() {
+  try {
+    const response = await fetch('/api/config/ext');
+    if (!response.ok) return;
+    const config = await response.json();
+    const setValue = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.value = value;
+    };
+    const enabled = document.getElementById('ext-enabled');
+    if (enabled) enabled.checked = !!config.enabled;
+    setValue('ext-url', config.ha_url || '');
+    setValue('ext-poll', config.poll_s || 30);
+    const token = document.getElementById('ext-token');
+    if (token) token.placeholder = config.token_set ? localizedText('Gesetzt – leer lassen, um es zu behalten') : '';
+    renderExtRows(Array.isArray(config.slots) ? config.slots : []);
+    const status = document.getElementById('ext-status');
+    if (status) {
+      status.textContent = !config.mqtt_enabled ? localizedText('MQTT ist ausgeschaltet (Home-Assistant-Integration aktivieren, um MQTT-Werte zu nutzen).')
+        : config.mqtt_connected ? localizedText('MQTT-Broker verbunden.') : localizedText('MQTT-Broker nicht verbunden.');
+    }
+    loadExtLive();
+    if (!extLiveTimer) extLiveTimer = setInterval(loadExtLive, 3000);
+  } catch (_) {}
+}
+
+async function saveExtConfig(event) {
+  event.preventDefault();
+  let result = { ok: false };
+  try {
+    const response = await fetch('/api/config/ext', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(extFormPayload())
+    });
+    result = await response.json();
+  } catch (_) {}
+  alert(result.ok ? localizedText('Externe Daten gespeichert.')
+    : localizedText('Externe Daten konnten nicht gespeichert werden.') + (result.reason ? '\n' + result.reason : ''));
+  if (result.ok) {
+    const token = document.getElementById('ext-token');
+    if (token) token.value = '';
+    const clear = document.getElementById('ext-clear-token');
+    if (clear) clear.checked = false;
+    loadExtConfig();
+    setTimeout(loadExtLive, 3000);
+  }
+}
+
+async function showExtAutomation() {
+  const box = document.getElementById('ext-yaml');
+  if (!box) return;
+  try {
+    const response = await fetch('/api/ext/automation.yaml');
+    box.textContent = response.ok ? await response.text() : localizedText('Automation konnte nicht erzeugt werden.');
+    box.hidden = false;
+    if (response.ok && navigator.clipboard) navigator.clipboard.writeText(box.textContent).catch(() => {});
+  } catch (_) {}
+}
+
+async function refreshExtNow() {
+  try { await fetch('/api/ext/refresh', { method: 'POST' }); } catch (_) {}
+  setTimeout(loadExtLive, 2500);
+}
+
+async function fetchExt() {
+  const card = document.getElementById('ext-card');
+  const grid = document.getElementById('ext-items');
+  if (!card || !grid) return;
+  try {
+    const response = await fetch('/api/ext/values');
+    if (!response.ok) return;
+    const data = await response.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    card.hidden = !(data.enabled && items.length);
+    grid.replaceChildren();
+    items.forEach(item => {
+      const tile = document.createElement('div');
+      tile.className = 'ext-tile ext-' + item.state;
+      if (item.error) tile.title = item.error;
+      const label = document.createElement('div');
+      label.className = 'ext-tile-label';
+      label.textContent = item.label;
+      const value = document.createElement('div');
+      value.className = 'ext-tile-value';
+      value.textContent = typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
+      tile.append(label, value);
+      if (typeof item.value === 'number' && item.unit === '%' && item.value >= 0 && item.value <= 100) {
+        const bar = document.createElement('div');
+        bar.className = 'ext-bar';
+        const fill = document.createElement('i');
+        fill.style.width = item.value + '%';
+        bar.appendChild(fill);
+        tile.appendChild(bar);
+      }
+      const age = document.createElement('div');
+      age.className = 'ext-tile-age';
+      age.textContent = item.state === 'error' ? localizedText('Fehler') : formatExtAge(item.age_s);
+      tile.appendChild(age);
+      grid.appendChild(tile);
+    });
+  } catch (_) {}
+}
+
 function _startReconnect() {
   if (_offline) return;                  // already in reconnect mode
   _offline = true;
@@ -596,6 +1221,25 @@ function kv(id, val) {
   if (el) el.textContent = (val == null || val === '') ? '—' : val;
 }
 
+function renderNetworkAddresses(element, addresses) {
+  element.replaceChildren();
+  if (!addresses.length) {
+    element.textContent = localizedText('Nicht verfügbar');
+    return;
+  }
+  addresses.forEach((address, index) => {
+    if (index) {
+      const separator = document.createElement('span');
+      separator.className = 'network-ip-separator';
+      separator.textContent = ' | ';
+      element.appendChild(separator);
+    }
+    const value = document.createElement('span');
+    value.textContent = address;
+    element.appendChild(value);
+  });
+}
+
 function setRegisterValue(id, valueWh, hasValue) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -625,21 +1269,6 @@ function setConnectionStatus(online) {
   });
 }
 
-function moveConnectionInfoToSidebar() {
-  const card = document.querySelector('.connection-card');
-  const version = document.getElementById('fw-ver-footer');
-  if (!card || !version) return;
-  const values = document.createElement('div');
-  values.className = 'sidebar-values';
-  card.querySelectorAll('.kv .val').forEach(value => values.appendChild(value));
-  const product = version.parentElement;
-  product.classList.add('sidebar-product');
-  product.after(values);
-  card.remove();
-}
-
-moveConnectionInfoToSidebar();
-
 function updateControlButtons(state) {
   const continuous = state.continuous === true;
   const running = state.job_state === 'Running';
@@ -655,6 +1284,67 @@ function updateControlButtons(state) {
     continuousToggle.disabled = controlRequestPending || (running && !continuous);
   }
   if (continuousState) continuousState.textContent = localizedText(continuous ? 'Aktiv' : 'Inaktiv');
+}
+
+let statsData = null;
+let statsView = 'days';
+
+function setStatsView(view) {
+  statsView = view;
+  renderStats();
+}
+
+function statsLabel(view, key) {
+  const text = String(key);
+  if (view === 'months') return text.slice(4, 6) + '/' + text.slice(0, 4);
+  const date = text.slice(6, 8) + '.' + text.slice(4, 6) + '.' + text.slice(0, 4);
+  return view === 'weeks' ? 'KW ab ' + date : date;
+}
+
+function renderStats() {
+  const table = document.getElementById('stats-table');
+  if (!table || !statsData) return;
+  const rows = (statsData[statsView] || []).slice().reverse();
+  const hasPv = rows.some(r => r.pv > 0 || r.bc > 0 || r.bd > 0);
+  const kwh = wh => (wh / 1000).toFixed(2);
+  const money = m => (m / 1000).toFixed(2);
+  const cols = ['Zeitraum', 'Bezug kWh', 'Einspeisung kWh'];
+  if (hasPv) cols.push('PV kWh', 'Batterie laden/entladen kWh', 'Haus kWh', 'Eigenanteil %');
+  cols.push('Netto ' + (statsData.currency || 'EUR'));
+  if (hasPv) cols.push('Ersparnis ' + (statsData.currency || 'EUR'));
+  const head = table.tHead;
+  head.replaceChildren();
+  const hr = head.insertRow();
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = localizedText(c); hr.appendChild(th); });
+  const body = table.tBodies[0];
+  body.replaceChildren();
+  rows.forEach(r => {
+    const house = Math.max(0, r.i - r.e + r.pv - r.bc + r.bd);
+    const pvDirect = Math.max(0, r.pv - r.e - r.bc);
+    const grid = Math.max(0, house - pvDirect - r.bd);
+    const own = house > 0 ? Math.round(100 * (house - grid) / house) : 0;
+    const cells = [statsLabel(statsView, r.k) + (r.p ? ' *' : ''), kwh(r.i), kwh(r.e)];
+    if (hasPv) cells.push(kwh(r.pv), kwh(r.bc) + ' / ' + kwh(r.bd), kwh(house), String(own));
+    cells.push(money(r.c));
+    if (hasPv) cells.push(money(r.s));
+    const tr = body.insertRow();
+    cells.forEach((c, i) => { const td = tr.insertCell(); td.textContent = c; if (i) td.className = 'value'; });
+  });
+  document.querySelectorAll('[data-stats-view]').forEach(b => {
+    b.className = 'btn ' + (b.dataset.statsView === statsView ? 'btn-blue' : 'btn-gray');
+  });
+  const note = document.getElementById('stats-note');
+  if (note) note.textContent = localizedText('* laufender Zeitraum. Haus = Bezug - Einspeisung + PV - Batterie laden + Batterie entladen. Eigenanteil = Anteil des Hausverbrauchs aus PV und Batterie. Ersparnis = PV-Eigenverbrauch x Bezugspreis. Kosten gelten mit dem Tarif zum Zeitpunkt des Tagesabschlusses.');
+}
+
+async function loadStats() {
+  if (!document.getElementById('stats-table')) return;
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) return;
+    statsData = await r.json();
+    renderStats();
+  } catch (e) {}
 }
 
 async function fetchStatus() {
@@ -743,16 +1433,22 @@ async function fetchStatus() {
         el.style.color = d.last_login_ok ? 'var(--lc-green,#0f0)' : 'var(--lc-orange,#f80)';
       }
     }
-    kv('wifi-ip', d.ip); kv('wifi-ssid', d.ssid);
-    // Show both IPs if both modes active
+    document.querySelectorAll('[data-tls-link]').forEach(el => { el.hidden = !d.tls_supported; });
+    document.querySelectorAll('[data-ext-link]').forEach(el => { el.hidden = !d.ext_supported; });
+    if (d.ext_supported) fetchExt();
+    const ipv4 = [];
     if (d.ip_sta && d.ip_ap) {
-      kv('wifi-ip',   'STA: ' + d.ip_sta + '  |  AP: ' + d.ip_ap);
+      ipv4.push('STA: ' + d.ip_sta, 'AP: ' + d.ip_ap);
       kv('wifi-ssid', d.ssid_sta + '  |  AP: ' + d.ssid_ap);
     } else if (d.ip_sta) {
-      kv('wifi-ip', d.ip_sta); kv('wifi-ssid', d.ssid_sta);
+      ipv4.push(d.ip_sta); kv('wifi-ssid', d.ssid_sta);
     } else if (d.ip_ap) {
-      kv('wifi-ip', d.ip_ap); kv('wifi-ssid', 'AP: ' + d.ssid_ap);
+      ipv4.push('AP: ' + d.ip_ap); kv('wifi-ssid', 'AP: ' + d.ssid_ap);
     }
+    const ipv4El = document.getElementById('wifi-ip');
+    if (ipv4El) renderNetworkAddresses(ipv4El, ipv4);
+    const ipv6El = document.getElementById('wifi-ip6');
+    if (ipv6El) renderNetworkAddresses(ipv6El, Array.isArray(d.ip6_addresses) ? d.ip6_addresses : []);
     if (d.uptime_s != null) {
       let t = Math.floor(d.uptime_s);
       const s = t % 60; t = Math.floor(t / 60);
@@ -1753,6 +2449,7 @@ async function loadConfig() {
 let githubOtaTimer = null;
 
 async function loadGithubVersions() {
+  if (window.GITHUB_OTA_ENABLED === false) return;
   const select = document.getElementById('github-ota-select');
   const status = document.getElementById('github-ota-result');
   const loadButton = document.getElementById('github-ota-load');
@@ -1790,6 +2487,7 @@ async function loadGithubVersions() {
 }
 
 async function installGithubVersion() {
+  if (window.GITHUB_OTA_ENABLED === false) return;
   const select = document.getElementById('github-ota-select');
   const status = document.getElementById('github-ota-result');
   const installButton = document.getElementById('github-ota-install');
@@ -1870,8 +2568,12 @@ function startOta(file) {
 document.addEventListener('DOMContentLoaded', () => {
   initUiLanguage();
   renderProfileOptions();
-  if (document.getElementById('github-ota-select')) loadGithubVersions();
+  const githubOtaPanel = document.getElementById('github-ota-panel');
+  if (githubOtaPanel && window.GITHUB_OTA_ENABLED === false) githubOtaPanel.hidden = true;
+  if (window.GITHUB_OTA_ENABLED !== false && document.getElementById('github-ota-select')) loadGithubVersions();
   if (document.getElementById('access-networks-form')) loadAccessNetworks();
+  if (document.getElementById('tls-form')) loadTlsConfig();
+  if (document.getElementById('ext-form')) loadExtConfig();
   const otaForm = document.getElementById('ota-form');
   if (otaForm) {
     otaForm.addEventListener('submit', (e) => {
@@ -1886,6 +2588,8 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchStatus();
   fetchHistory();
   fetchLog();
+  loadStats();
+  setInterval(loadStats, 60000);
   statusTimer = setInterval(fetchStatus, 5000);
   setInterval(fetchHistory, 30000);
   logTimer    = setInterval(fetchLog, 30000);
@@ -1896,20 +2600,21 @@ static const char kIndexHtml[] = R"rawhtml(<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SMLEasy Dashboard</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" type="image/svg+xml"></head>
 <body><div class="app">
 <aside class="sidebar"><div class="brand">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="smlGh" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#132238" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40M8 55 A42 42 0 0 0 40 91.5M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGh)" stroke-width="9" stroke-linecap="round"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGh)"/></svg>)rawsvg" R"rawhtml(<div>EasySML<small>Smart energy</small></div></div>
-<div class="nav-title">Übersicht</div><a class="nav-item active" href="#dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></a><a class="nav-item" href="#meter-values"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8V5"/></svg><span>Zählerwerte</span></a><a class="nav-item" href="#history"><svg viewBox="0 0 24 24"><path d="M4 18 9 12l4 3 7-9"/><path d="M4 4v14h17"/></svg><span>Verlauf</span></a><div class="nav-title" style="margin-top:24px">Konfiguration</div><a class="nav-item" href="/config"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.3a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 18l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12H1.5a2 2 0 1 1 0-4h.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.2.5v-.1a2 2 0 1 1 4 0v.2A2 2 0 0 0 16.6 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 20.8 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3Z"/></svg><span>Verbindung & Einstellungen</span></a><div class="sidebar-footer"><div class="status"><i class="status-dot"></i><span>Verbunden</span></div><div style="margin-top:8px">EasySML <span id="fw-ver-footer">v1.0</span></div></div></aside>
+<div class="nav-title">Übersicht</div><a class="nav-item active" href="#dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></a><a class="nav-item" href="#meter-values"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8V5"/></svg><span>Zählerwerte</span></a><a class="nav-item" href="#history"><svg viewBox="0 0 24 24"><path d="M4 18 9 12l4 3 7-9"/><path d="M4 4v14h17"/></svg><span>Verlauf</span></a><div class="nav-title" style="margin-top:24px">Konfiguration</div><a class="nav-item" href="/config#general"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.3a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 18l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12H1.5a2 2 0 1 1 0-4h.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.2.5v-.1a2 2 0 1 1 4 0v.2A2 2 0 0 0 16.6 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 20.8 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3Z"/></svg><span>Allgemein</span></a><a class="nav-item" href="/config#meter"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg><span>Zähler</span></a><a class="nav-item" href="/config#wifi"><svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg><span>WLAN</span></a><a class="nav-item" href="/config#firmware"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg><span>Firmware</span></a><a class="nav-item" href="/tls" data-tls-link hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>HTTPS / Zertifikate</span></a><a class="nav-item" href="/ext" data-ext-link hidden><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="M8 15l3-4 3 2 4-6"/></svg><span>Externe Daten</span></a><div class="sidebar-footer"><div class="status"><i class="status-dot"></i><span>Verbunden</span></div><div style="margin-top:8px">EasySML <span id="fw-ver-footer">v1.0</span></div><div class="side-conn"><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></div></div></aside>
 <div class="workspace"><header class="topbar"><div><div class="eyebrow">Smart meter / Übersicht</div><h1>Dashboard</h1></div><div class="topbar-meta"><span id="fw-ver">—</span><span id="status-pill" class="status"><i class="status-dot"></i>Idle</span></div></header>
 <main id="dashboard" class="main-content"><div class="page-intro"><div><div class="eyebrow">Live monitoring</div><h2>Verbrauch auf einen Blick</h2><p>Aktuelle Messwerte und Energiefluss deines Zählers.</p></div></div>
 <section class="grid">
 <article class="card hero-card"><h2>Aktuelle Leistung</h2><div class="metric-value" id="current-power">—<span class="metric-unit">W</span></div><div class="metric-sub" id="power-kilowatt">— kW netto</div></article>
 <article class="card meter-card register-card"><div class="register-heading"><h2>Zählerstände</h2><span class="register-live">Zähler Live</span></div><div class="register-subtitle">Bezug und Einspeisung als Zählwerke</div><div class="register-meter"><div class="register-brand"><span>ZÄHLWERKE · OBIS 1.8.0 / 2.8.0</span></div><div class="register-displays"><div class="register-window"><div class="register-label">1.8.0 / BEZUG GESAMT</div><span class="register-reading" id="m-fwh">—</span><div class="register-unit">kWh</div></div><div class="register-window"><div class="register-label">2.8.0 / EINSPEISUNG GESAMT</div><span class="register-reading" id="m-rwh">—</span><div class="register-unit">kWh</div></div></div></div><div class="register-time"><span>Zählerzeit</span><span class="val" id="m-time">—</span></div></article>
-<article class="card connection-card"><h2>Verbindung</h2><div class="status"><i class="status-dot"></i><span>—</span></div><div class="kv" style="margin-top:20px"><span class="lbl">IPv4</span><span class="val" id="wifi-ip">—</span></div><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></article>
 <div class="kpi-grid"><article class="card kpi-card"><div class="label">Verbrauch heute</div><div class="kpi-value" id="today-import">—</div><div class="kpi-change positive">Importierte Energie</div></article><article class="card kpi-card"><div class="label">Einspeisung heute</div><div class="kpi-value" id="today-export">—</div><div class="kpi-change">Exportierte Energie</div></article><article class="card kpi-card"><div class="label">Nettokosten heute</div><div class="kpi-value" id="cost-today">—</div><div class="kpi-change" id="cost-breakdown">Bezug minus Einspeisevergütung</div></article></div>
+<article class="card ext-card" id="ext-card" hidden><h2>Haus & Energie</h2><div class="ext-grid" id="ext-items"></div></article>
 <article id="history" class="card chart-card"><h2>Leistungsverlauf <span style="float:right;font-weight:400;letter-spacing:0;text-transform:none">Letzte Messpunkte</span></h2><div class="chart-wrap"><svg viewBox="0 0 800 220" preserveAspectRatio="none" aria-label="Leistungsverlauf"><path class="chart-grid" d="M0 20H800M0 75H800M0 130H800M0 185H800"/><path id="history-area" class="chart-area" d="M0 185L0 185L800 185Z"/><polyline id="history-line" class="chart-line" points="0,185 800,185"/></svg></div></article>
 <article class="card split-card"><h2>Verbrauchsaufteilung</h2><div class="donut" aria-label="Verbrauchsaufteilung"></div><div class="legend"><span><b><i style="background:var(--primary)"></i>Bezug heute</b><strong id="legend-import">—</strong></span><span><b><i style="background:#8bdcf4"></i>Monat gesamt</b><strong id="legend-month">—</strong></span></div></article>
 <article id="meter-values" class="card table-card"><h2>Aktuelle Zählerwerte</h2><table class="data-table"><thead><tr><th>OBIS</th><th>Beschreibung</th><th style="text-align:right">Wert</th><th>Einheit</th></tr></thead><tbody><tr><td>1.8.0</td><td>Bezug gesamt</td><td class="value" id="table-import">—</td><td>kWh</td></tr><tr><td>2.8.0</td><td>Einspeisung gesamt</td><td class="value" id="table-export">—</td><td>kWh</td></tr><tr><td>16.7.0</td><td>Aktuelle Leistung</td><td class="value" id="table-power">—</td><td>W</td></tr><tr><td>31.7.0</td><td>Strom L1</td><td class="value" id="table-current-l1">—</td><td>A</td></tr><tr><td>51.7.0</td><td>Strom L2</td><td class="value" id="table-current-l2">—</td><td>A</td></tr><tr><td>71.7.0</td><td>Strom L3</td><td class="value" id="table-current-l3">—</td><td>A</td></tr></tbody></table></article>
 <article class="card system-card"><h2>Systemstatus</h2><div class="system-list"><div class="kv"><span class="lbl">Hersteller</span><span class="val" id="m-mfr">—</span></div><div class="kv"><span class="lbl">Modell</span><span class="val" id="m-model">—</span></div><div class="kv"><span class="lbl">Firmware</span><span class="val" id="m-fw">—</span></div><div class="kv"><span class="lbl">Seriennr.</span><span class="val" id="m-ser">—</span></div><div class="kv"><span class="lbl">Login</span><span class="val" id="last-login-ok">—</span></div><div class="kv"><span class="lbl">Alarme</span><span class="val" id="m-alarm">Keine</span></div></div></article>
+<article class="card stats-card" style="grid-column:1/-1"><h2>Statistik <span class="stats-tabs"><button class="btn btn-gray" data-stats-view="days" onclick="setStatsView('days')">Tage</button> <button class="btn btn-gray" data-stats-view="weeks" onclick="setStatsView('weeks')">Wochen</button> <button class="btn btn-gray" data-stats-view="months" onclick="setStatsView('months')">Monate</button></span></h2><div style="overflow-x:auto"><table class="data-table" id="stats-table"><thead></thead><tbody></tbody></table></div><div class="metric-sub" id="stats-note" style="margin-top:10px"></div></article>
 <article class="card control-card"><h2>Steuerung</h2><div class="card-inner"><div class="btn-row"><button class="btn btn-blue" onclick="doStart()">&#9654; Einmal auslesen</button><label class="continuous-control"><span>Dauerlesen</span><span class="continuous-switch"><input id="continuous-toggle" type="checkbox" role="switch" checked onchange="setContinuousReading(this.checked)"><span class="continuous-switch-track"></span></span></label><button class="btn btn-gray" onclick="doResetCounters()">Zähler reset</button><button class="btn btn-gray" onclick="doReboot()">Neustart</button></div><div class="control-meta"><div class="kv"><span class="lbl">Firmware</span><span class="val" id="fw-ver-ctrl">—</span></div><a href="/config" class="btn btn-gray">Konfiguration</a></div></div></article>
-</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.6/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.6">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer></main></div></div><script src="/app.js"></script></body></html>
+</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.0.0/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.0.0">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer><div class="overview-info network-addresses" aria-label="Netzwerkadressen"><div class="network-address-row"><span class="lbl">IP-V4: </span><span class="network-ip-list" id="wifi-ip">—</span></div><div class="network-address-row"><span class="lbl">IP-V6: </span><span class="network-ip-list" id="wifi-ip6">—</span></div></div></main></div></div><script src="/app.js"></script></body></html>
 )rawhtml";
 
 static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
@@ -1926,14 +2631,17 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGc)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGc)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGc)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGc)"/></svg>)rawsvg" R"rawhtml(</div>
   <div class="lcars-header-bar">
     <h1>SMLEasy &mdash; Konfiguration</h1>
-    <a href="https://github.com/ip6constructor/SMLEasy/tree/v2.5.6" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
-    <a href="https://github.com/ip6constructor/SMLEasy/blob/v2.5.6/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.0.0" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.0.0/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
+    <a href="#general" class="btn btn-gray" data-cfg-tab="general" style="text-decoration:none">Allgemein</a><a href="#meter" class="btn btn-gray" data-cfg-tab="meter" style="text-decoration:none">Zähler</a><a href="#wifi" class="btn btn-gray" data-cfg-tab="wifi" style="text-decoration:none">WLAN</a><a href="#firmware" class="btn btn-gray" data-cfg-tab="firmware" style="text-decoration:none">Firmware</a>
+    <a href="/tls" class="btn btn-gray" data-tls-link hidden style="text-decoration:none">HTTPS / Zertifikate</a>
+    <a href="/ext" class="btn btn-gray" data-ext-link hidden style="text-decoration:none">Externe Daten</a>
     <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
   </div>
 </header>
 <p class="overview-info" style="padding:8px 16px">GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.</p>
 <main>
-  <div class="card peach">
+  <div class="card peach" data-section="general">
     <h2 class="tan">Sprache</h2>
     <div class="card-inner">
       <label for="ui-language-select">Sprache für die Oberfläche</label>
@@ -1949,21 +2657,21 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
     </div>
   </div>
 
-  <div class="card peach">
+  <div class="card peach" data-section="general">
     <h2 class="tan">Zugriff auf das Zähler-Frontend</h2>
     <div class="card-inner">
       <form id="access-networks-form" onsubmit="saveAccessNetworks(event)">
         <label for="allowed-networks">Zusätzliche erlaubte CIDR-Netze</label>
         <textarea id="allowed-networks" rows="4" maxlength="512" placeholder="192.168.1.0/24&#10;2a00:6020:a105:c900::/64"></textarea>
-        <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">Ein IPv4-CIDR-Netz pro Zeile. Private IPv4-Netze sind immer erlaubt.</p>
-        <p style="margin-top:4px;color:var(--lc-dim);font-size:.74rem">Beispiel: 192.168.1.0/24</p>
+        <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">IPv4- oder IPv6-CIDR-Netze pro Zeile. Standardmäßig erlaubt: private IPv4-Netze, IPv6-ULA (fd95…), Link-Local (fe80::/10) und das eigene globale IPv6-/64-Präfix des ESP, auch wenn der Router es erst später zuweist. Andere globale Netze müssen hier explizit freigegeben werden.</p>
+        <p style="margin-top:4px;color:var(--lc-dim);font-size:.74rem">Beispiele: 192.168.1.0/24, 2a00:6020:a105:c900::/64</p>
         <div class="save-row"><button class="btn btn-blue" type="submit">Netzwerke speichern</button></div>
       </form>
     </div>
   </div>
 
   <!-- Meter config -->
-  <div class="card peach">
+  <div class="card peach" data-section="meter">
     <h2 class="tan">Zähler-Konfiguration</h2>
     <div class="card-inner">
     <form id="meter-form" onsubmit="saveMeter(event)">
@@ -2045,7 +2753,7 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
     </div>
   </div>
 
-  <div class="card peach">
+  <div class="card peach" data-section="meter">
     <h2 class="tan">Tagesstart-Zählerstände</h2>
     <div class="card-inner">
       <p style="margin-bottom:10px;color:var(--lc-dim);font-size:.82rem">Tageswerte werden aus diesen Ständen berechnet und im Gerätespeicher gesichert.</p>
@@ -2065,7 +2773,7 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   </div>
 
   <!-- WiFi config -->
-  <div class="card peach">
+  <div class="card peach" data-section="wifi">
     <h2 class="tan">WLAN-Konfiguration</h2>
     <div class="card-inner">
     <form id="wifi-form" onsubmit="saveWifi(event)">
@@ -2089,16 +2797,18 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   </div>
 
   <!-- OTA -->
-  <div class="card orange" style="grid-column:1/-1">
+  <div class="card orange" style="grid-column:1/-1" data-section="firmware">
     <h2 class="orange">OTA-Update (Firmware)</h2>
     <div class="card-inner">
-    <label for="github-ota-select">Verfügbare GitHub-Versionen</label>
-    <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-      <select id="github-ota-select" style="flex:1;min-width:220px"></select>
-      <button class="btn btn-gray" id="github-ota-load" type="button" onclick="loadGithubVersions()">GitHub-Versionen laden</button>
-      <button class="btn btn-blue" id="github-ota-install" type="button" onclick="installGithubVersion()">Ausgewählte Version installieren</button>
+    <div id="github-ota-panel">
+      <label for="github-ota-select">Verfügbare GitHub-Versionen</label>
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <select id="github-ota-select" style="flex:1;min-width:220px"></select>
+        <button class="btn btn-gray" id="github-ota-load" type="button" onclick="loadGithubVersions()">GitHub-Versionen laden</button>
+        <button class="btn btn-blue" id="github-ota-install" type="button" onclick="installGithubVersion()">Ausgewählte Version installieren</button>
+      </div>
+      <div id="github-ota-result" style="margin-top:8px;font-size:.82rem;color:var(--primary-dark)"></div>
     </div>
-    <div id="github-ota-result" style="margin-top:8px;font-size:.82rem;color:var(--primary-dark)"></div>
     <div class="lcars-bar" style="margin:14px 0"></div>
     <p style="font-size:.82rem;color:var(--lc-dim);margin-bottom:10px">
       <strong style="color:var(--lc-peach)">Hinweis an den Admin:</strong>
@@ -2111,6 +2821,157 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
       <div id="ota-result"></div>
       <div class="save-row"><button class="btn btn-blue" id="ota-btn" type="button" onclick="startOta(document.getElementById('ota-file').files[0])">Flashen</button></div>
     </form>
+    </div>
+  </div>
+</main>
+<script>(function(){const names=['general','meter','wifi','firmware'];function show(){let s=(location.hash||'').slice(1);if(names.indexOf(s)<0)s='general';document.querySelectorAll('[data-section]').forEach(function(c){c.style.display=c.dataset.section===s?'':'none';});document.querySelectorAll('[data-cfg-tab]').forEach(function(a){a.classList.toggle('active',a.dataset.cfgTab===s);});}window.addEventListener('hashchange',show);show();})();</script>
+<script src="/app.js"></script>
+</body>
+</html>
+)rawhtml";
+static const char kTlsHtml[] = R"rawhtml(<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMLEasy — HTTPS / Zertifikate</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
+</head>
+<body>
+<header>
+  <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGt" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGt)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGt)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGt)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGt)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGt)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGt)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGt)"/></svg>)rawsvg" R"rawhtml(</div>
+  <div class="lcars-header-bar">
+    <h1>SMLEasy &mdash; HTTPS / Zertifikate</h1>
+    <a href="/config" class="btn btn-gray" style="text-decoration:none">Konfiguration</a>
+    <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
+  </div>
+</header>
+<p class="overview-info" style="padding:8px 16px">GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.</p>
+<main>
+  <div class="card peach" id="tls-card">
+    <h2 class="tan">HTTPS / Zertifikate</h2>
+    <div class="card-inner">
+      <form id="tls-form" onsubmit="saveTlsConfig(event)">
+        <p id="tls-status" style="color:var(--lc-dim);font-size:.82rem">—</p>
+        <label for="tls-mode">Zertifikatsquelle</label>
+        <select id="tls-mode" onchange="tlsModeChanged()">
+          <option value="manual">Manuell / Self-Signed</option>
+          <option value="letsencrypt">Let's Encrypt (ACME HTTP-01)</option>
+        </select>
+        <label for="tls-fqdn">Hostname (FQDN)</label>
+        <input type="text" id="tls-fqdn" maxlength="253" placeholder="smarthome.example.de" oninput="updateAcmeGate()">
+
+        <div id="tls-acme-fields" hidden>
+          <div class="acme-section">
+            <h3>1. Nutzungsbedingungen</h3>
+            <p style="color:var(--lc-dim);font-size:.78rem">Mit dem Anfordern eines Zertifikats stimmst du den Nutzungsbedingungen von Let's Encrypt zu. Das Gerät legt dafür ein Konto bei Let's Encrypt an.</p>
+            <p style="margin:6px 0"><a id="acme-terms-link" href="https://letsencrypt.org/repository/" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen lesen</a></p>
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="tls-terms" style="width:auto" onchange="updateAcmeGate()"> Nutzungsbedingungen von Let's Encrypt akzeptieren</label>
+          </div>
+
+          <div class="acme-section">
+            <h3>2. Angaben</h3>
+            <label for="tls-email">E-Mail für Let's Encrypt</label>
+            <input type="text" id="tls-email" maxlength="254" placeholder="name@example.de" oninput="updateAcmeGate()">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="tls-staging" style="width:auto"> Staging-Umgebung (Test, Zertifikat nicht vertrauenswürdig)</label>
+            <label for="tls-interval">Erneuerung nach (Tagen)</label>
+            <input type="number" id="tls-interval" min="1" max="60" value="60">
+          </div>
+
+          <div class="acme-section">
+            <h3>3. Tests</h3>
+            <p style="color:var(--lc-dim);font-size:.78rem">Vor der Anforderung prüft das Gerät Internetzugang, DNS und die Erreichbarkeit von außen. Die Erreichbarkeit wird mit einer Testvalidierung in der Staging-Umgebung von Let's Encrypt bewiesen; dabei wird kein Zertifikat ausgestellt.</p>
+            <div id="acme-checks" class="check-list"></div>
+            <div class="save-row"><button class="btn btn-gray" type="button" id="acme-check-btn" onclick="runAcmeChecks()" disabled>Tests starten</button></div>
+          </div>
+
+          <div class="acme-section">
+            <h3>4. Zertifikat anfordern</h3>
+            <div class="save-row"><button class="btn btn-blue" type="button" id="acme-request-btn" onclick="requestAcmeCertificate()" disabled>Zertifikat jetzt anfordern</button></div>
+            <p id="acme-gate-hint" style="margin-top:8px;color:var(--lc-dim);font-size:.78rem"></p>
+            <p id="acme-status" style="margin-top:8px;color:var(--lc-dim);font-size:.82rem"></p>
+            <pre id="acme-log" hidden style="max-height:220px;overflow:auto;margin-top:6px;padding:10px;background:#f8fbfe;border:1px solid var(--border);border-radius:8px;font:.74rem/1.5 'Cascadia Code','JetBrains Mono',monospace;white-space:pre-wrap;word-break:break-word"></pre>
+          </div>
+        </div>
+
+        <div id="tls-manual-fields">
+          <label for="tls-cert">Zertifikat (PEM, optional)</label>
+          <textarea id="tls-cert" rows="4" maxlength="3800" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+          <label for="tls-key">Privater Schlüssel (PEM, optional)</label>
+          <textarea id="tls-key" rows="4" maxlength="3800" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="tls-clear" style="width:auto"> Eigenes Zertifikat entfernen (Self-Signed verwenden)</label>
+          <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">HTTPS läuft parallel zu HTTP auf Port 443. Ohne eigenes Zertifikat erzeugt das Gerät ein Self-Signed-Zertifikat; der Browser zeigt dafür eine Warnung. Zertifikat und privater Schlüssel müssen zusammenpassen.</p>
+        </div>
+        <div class="save-row"><button class="btn btn-blue" type="submit">HTTPS speichern</button></div>
+      </form>
+    </div>
+  </div>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
+)rawhtml";
+
+static const char kExtHtml[] = R"rawhtml(<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMLEasy — Externe Daten</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
+</head>
+<body>
+<header>
+  <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGe" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGe)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGe)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGe)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGe)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGe)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGe)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGe)"/></svg>)rawsvg" R"rawhtml(</div>
+  <div class="lcars-header-bar">
+    <h1>SMLEasy &mdash; Externe Daten</h1>
+    <a href="/config" class="btn btn-gray" style="text-decoration:none">Konfiguration</a>
+    <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
+  </div>
+</header>
+<p class="overview-info" style="padding:8px 16px">GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.</p>
+<main>
+  <div class="card peach" id="ext-card-settings">
+    <h2 class="tan">Externe Daten (Home Assistant)</h2>
+    <div class="card-inner">
+      <form id="ext-form" onsubmit="saveExtConfig(event)">
+        <p id="ext-status" style="color:var(--lc-dim);font-size:.82rem">—</p>
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="ext-enabled" style="width:auto"> Werte aus Home Assistant anzeigen</label>
+
+        <div class="acme-section">
+          <h3>REST-Abfrage (nur nötig, wenn Werte nicht von HA gesendet werden)</h3>
+          <label for="ext-url">Home-Assistant-URL</label>
+          <input type="text" id="ext-url" maxlength="200" placeholder="http://homeassistant.local:8123">
+          <label for="ext-token">Zugriffstoken (Long-Lived Access Token)</label>
+          <input type="password" id="ext-token" maxlength="512" autocomplete="off" placeholder="Leer lassen, um das gespeicherte Token zu behalten">
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="ext-clear-token" style="width:auto"> Gespeichertes Token entfernen</label>
+          <label for="ext-poll">Abfrageintervall (Sekunden)</label>
+          <input type="number" id="ext-poll" min="10" max="600" value="30">
+        </div>
+
+        <div class="acme-section">
+          <h3>Anzuzeigende Werte (bis zu 8)</h3>
+          <div class="ext-row ext-head"><span>Bezeichnung</span><span>Quelle</span><span>Kurzname / Entity-ID / Topic</span><span>Einheit</span><span>JSON-Schlüssel (MQTT)</span><span>Rolle für Statistik</span></div>
+          <div id="ext-rows"></div>
+          <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">HA sendet (empfohlen): Du vergibst nur einen Kurznamen (a-z, 0-9, _). Das Gerät lauscht auf ha_meter/&lt;Gerät&gt;/in/&lt;Kurzname&gt;. Mit „Home-Assistant-Automation erzeugen“ erhältst du ein YAML, in dem du in HA nur die Entität je Kurzname einträgst; Token und URL werden nicht gebraucht (MQTT-Integration muss aktiv sein). REST: Das Gerät fragt Home Assistant über die REST-API ab. Ein Token erzeugst du in Home Assistant unter Profil → Sicherheit → Langlebige Zugriffstoken. MQTT: Das Gerät abonniert ein Topic am Broker der Home-Assistant-Integration (Einstellungen → Home Assistant); eine Automation in Home Assistant muss den Wert dort veröffentlichen. Bei JSON-Nachrichten gibt der Schlüssel das Feld an, zum Beispiel battery.soc. Rolle für Statistik: Werte mit der Rolle PV oder Batterie (Leistung in W oder kW) werden über die Zeit zu Wh aufsummiert und fließen in die Tages-, Wochen- und Monatsstatistik ein (Hausverbrauch, Eigenanteil, Ersparnis).</p>
+        </div>
+
+        <div class="save-row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-blue" type="submit">Externe Daten speichern</button>
+          <button class="btn btn-gray" type="button" onclick="refreshExtNow()">Jetzt abrufen</button>
+          <button class="btn btn-gray" type="button" onclick="showExtAutomation()">Home-Assistant-Automation erzeugen</button>
+        </div>
+        <pre id="ext-yaml" hidden style="max-height:320px;overflow:auto;margin-top:8px;padding:10px;background:#f8fbfe;border:1px solid var(--border);border-radius:8px;font:.74rem/1.5 'Cascadia Code','JetBrains Mono',monospace;white-space:pre"></pre>
+      </form>
+    </div>
+  </div>
+
+  <div class="card peach">
+    <h2 class="tan">Aktuelle Werte</h2>
+    <div class="card-inner">
+      <div id="ext-live" class="check-list"></div>
     </div>
   </div>
 </main>

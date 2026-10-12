@@ -1,5 +1,7 @@
 #pragma once
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace app {
 
@@ -21,6 +23,9 @@ public:
     [[nodiscard]] bool        is_sta_connected() const { return sta_connected_; }
     [[nodiscard]] bool        is_ap_active()     const { return ap_active_; }
     [[nodiscard]] std::string get_ip()           const { return ip_; }
+    [[nodiscard]] std::string get_ip6()          const;
+    [[nodiscard]] std::vector<std::string> get_ip6_addresses() const;
+    [[nodiscard]] bool is_in_local_ip6_prefix(const uint8_t* peer_address) const;
     [[nodiscard]] std::string ap_ssid()          const { return ap_ssid_; }
     [[nodiscard]] std::string sta_ssid()         const { return sta_ssid_; }
 

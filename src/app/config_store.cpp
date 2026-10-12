@@ -211,11 +211,77 @@ bool ConfigStore::save_ui(const UiConfig& cfg)
     return set_err == ESP_OK && networks_err == ESP_OK && commit_err == ESP_OK;
 }
 
+bool ConfigStore::load_tls(TlsConfig& out)
+{
+    nvs_handle_t h;
+    if (nvs_open(kNsTls, NVS_READONLY, &h) != ESP_OK) return false;
+    nvs_get_str(h, "mode", out.mode);
+    nvs_get_str(h, "fqdn", out.fqdn);
+    nvs_get_str(h, "email", out.email);
+    nvs_get_str(h, "cert", out.certificate_pem);
+    nvs_get_str(h, "privkey", out.private_key_pem);
+    nvs_get_str(h, "fb_cert", out.fallback_certificate_pem);
+    nvs_get_str(h, "fb_key", out.fallback_private_key_pem);
+    nvs_get_str(h, "acme_key", out.acme_account_key_pem);
+    nvs_get_str(h, "acme_url", out.acme_account_url);
+    uint8_t terms = out.acme_terms_accepted ? 1 : 0;
+    nvs_get_u8(h, "acme_terms", terms);
+    out.acme_terms_accepted = terms != 0;
+    uint8_t staging = out.acme_staging ? 1 : 0;
+    nvs_get_u8(h, "acme_staging", staging);
+    out.acme_staging = staging != 0;
+    uint8_t self_signed = out.self_signed_enabled ? 1 : 0;
+    nvs_get_u8(h, "self_signed", self_signed);
+    out.self_signed_enabled = self_signed != 0;
+    nvs_get_u16(h, "renew_days", out.renewal_interval_days);
+    nvs_get_i64(h, "issued_at", &out.last_issued_epoch);
+    nvs_close(h);
+    return true;
+}
+
+bool ConfigStore::save_tls(const TlsConfig& cfg)
+{
+    if (cfg.mode != "manual" && cfg.mode != "letsencrypt") return false;
+    if (cfg.fqdn.size() > 253 || cfg.email.size() > 254 ||
+        cfg.certificate_pem.size() > 3800 || cfg.private_key_pem.size() > 3800 ||
+        cfg.fallback_certificate_pem.size() > 3800 || cfg.fallback_private_key_pem.size() > 3800 ||
+        cfg.acme_account_key_pem.size() > 3800 || cfg.acme_account_url.size() > 512 ||
+        cfg.renewal_interval_days < 1 || cfg.renewal_interval_days > 60) {
+        ESP_LOGE(TAG, "TLS config rejected: cert=%u key=%u fb_cert=%u fb_key=%u acme_key=%u bytes",
+                 static_cast<unsigned>(cfg.certificate_pem.size()),
+                 static_cast<unsigned>(cfg.private_key_pem.size()),
+                 static_cast<unsigned>(cfg.fallback_certificate_pem.size()),
+                 static_cast<unsigned>(cfg.fallback_private_key_pem.size()),
+                 static_cast<unsigned>(cfg.acme_account_key_pem.size()));
+        return false;
+    }
+    nvs_handle_t h;
+    if (nvs_open(kNsTls, NVS_READWRITE, &h) != ESP_OK) return false;
+    esp_err_t err = nvs_set_str(h, "mode", cfg.mode.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fqdn", cfg.fqdn.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "email", cfg.email.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "cert", cfg.certificate_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "privkey", cfg.private_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fb_cert", cfg.fallback_certificate_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "fb_key", cfg.fallback_private_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "acme_key", cfg.acme_account_key_pem.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "acme_url", cfg.acme_account_url.c_str());
+    if (err == ESP_OK) err = nvs_set_u8(h, "acme_terms", cfg.acme_terms_accepted ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, "acme_staging", cfg.acme_staging ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u8(h, "self_signed", cfg.self_signed_enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_u16(h, "renew_days", cfg.renewal_interval_days);
+    if (err == ESP_OK) err = nvs_set_i64(h, "issued_at", cfg.last_issued_epoch);
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err != ESP_OK) ESP_LOGE(TAG, "saving TLS config failed: %s", esp_err_to_name(err));
+    return err == ESP_OK;
+}
+
 bool ConfigStore::reset_all_config()
 {
     bool ok = true;
     constexpr const char* namespaces[] = {
-        kNsWifi, kNsAuth, kNsUi, kNsTls, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff,
+        kNsWifi, kNsAuth, kNsUi, kNsTls, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff, kNsExt,
     };
 
     for (const char* name : namespaces) {
@@ -241,6 +307,131 @@ bool ConfigStore::reset_all_config()
         }
     }
     return ok;
+}
+
+// ── ExtDataConfig (values read from Home Assistant) ──────────────────────────
+
+static bool clean_text(const std::string& value, size_t max_size)
+{
+    if (value.size() > max_size) return false;
+    for (unsigned char ch : value) {
+        if (ch < 0x20 || ch == 0x7f) return false;
+    }
+    return true;
+}
+
+// Slots are stored as one string: fields separated by TAB, slots by LF.
+static std::string encode_slots(const std::vector<ExtSlot>& slots)
+{
+    std::string out;
+    for (const auto& slot : slots) {
+        out += slot.label + '\t' + slot.source + '\t' + slot.ref + '\t' + slot.unit + '\t' + slot.key + '\t' + slot.role + '\n';
+    }
+    return out;
+}
+
+static std::vector<ExtSlot> decode_slots(const std::string& text)
+{
+    std::vector<ExtSlot> slots;
+    size_t line_start = 0;
+    while (line_start < text.size() && slots.size() < ExtDataConfig::kMaxSlots) {
+        size_t line_end = text.find('\n', line_start);
+        if (line_end == std::string::npos) line_end = text.size();
+        const std::string line = text.substr(line_start, line_end - line_start);
+        std::string fields[6];
+        size_t field = 0, start = 0;
+        for (size_t i = 0; i <= line.size() && field < 6; ++i) {
+            if (i == line.size() || line[i] == '\t') {
+                fields[field++] = line.substr(start, i - start);
+                start = i + 1;
+            }
+        }
+        if (field >= 5) {
+            ExtSlot slot;
+            slot.label = fields[0];
+            slot.source = fields[1];
+            slot.ref = fields[2];
+            slot.unit = fields[3];
+            slot.key = fields[4];
+            slot.role = fields[5];
+            slots.push_back(slot);
+        }
+        line_start = line_end + 1;
+    }
+    return slots;
+}
+
+// Fixed short names pushed by the Home Assistant integration; no manual setup needed.
+static std::vector<ExtSlot> default_push_slots()
+{
+    struct Def { const char* label; const char* ref; const char* role; };
+    static const Def defs[] = {
+        {"PV-Leistung gesamt", "pv_power", "pv"},
+        {"Batterie-Leistung", "battery_power", "battery"},
+        {"PV-Batterie Ladestand", "battery_soc", ""},
+        {"Wallbox gesamt", "wallbox_power", ""},
+        {"Hausverbrauch", "house_power", ""},
+    };
+    std::vector<ExtSlot> slots;
+    for (const auto& def : defs) {
+        ExtSlot slot;
+        slot.label = def.label;
+        slot.source = "push";
+        slot.ref = def.ref;
+        slot.role = def.role;
+        slots.push_back(slot);
+    }
+    return slots;
+}
+
+bool ConfigStore::load_ext(ExtDataConfig& out)
+{
+    nvs_handle_t h;
+    if (nvs_open(kNsExt, NVS_READONLY, &h) != ESP_OK) {
+        out.enabled = true;
+        out.slots = default_push_slots();
+        return false;
+    }
+    uint8_t enabled = 1; // Home Assistant push values are on by default
+    nvs_get_u8(h, "en", enabled);
+    out.enabled = enabled != 0;
+    nvs_get_str(h, "url", out.ha_url);
+    nvs_get_str(h, "token", out.ha_token);
+    nvs_get_u16(h, "poll", out.poll_s);
+    std::string slots;
+    if (nvs_get_str(h, "slots", slots)) out.slots = decode_slots(slots);
+    nvs_close(h);
+    if (out.slots.empty()) out.slots = default_push_slots();
+    return true;
+}
+
+bool ConfigStore::save_ext(const ExtDataConfig& cfg)
+{
+    if (!clean_text(cfg.ha_url, 200) || !clean_text(cfg.ha_token, 512) ||
+        cfg.poll_s < 10 || cfg.poll_s > 600 || cfg.slots.size() > ExtDataConfig::kMaxSlots) {
+        ESP_LOGE(TAG, "external data config rejected");
+        return false;
+    }
+    for (const auto& slot : cfg.slots) {
+        if (!clean_text(slot.label, 40) || !clean_text(slot.ref, 128) || !clean_text(slot.unit, 12) ||
+            !clean_text(slot.key, 40) ||
+            (slot.role != "" && slot.role != "pv" && slot.role != "battery" && slot.role != "battery_neg") ||
+            (slot.source != "rest" && slot.source != "mqtt" && slot.source != "push")) {
+            ESP_LOGE(TAG, "external data slot rejected");
+            return false;
+        }
+    }
+    nvs_handle_t h;
+    if (nvs_open(kNsExt, NVS_READWRITE, &h) != ESP_OK) return false;
+    esp_err_t err = nvs_set_u8(h, "en", cfg.enabled ? 1 : 0);
+    if (err == ESP_OK) err = nvs_set_str(h, "url", cfg.ha_url.c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "token", cfg.ha_token.c_str());
+    if (err == ESP_OK) err = nvs_set_u16(h, "poll", cfg.poll_s);
+    if (err == ESP_OK) err = nvs_set_str(h, "slots", encode_slots(cfg.slots).c_str());
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    if (err != ESP_OK) ESP_LOGE(TAG, "saving external data config failed: %s", esp_err_to_name(err));
+    return err == ESP_OK;
 }
 
 // ── HaConfig ──────────────────────────────────────────────────────────────────

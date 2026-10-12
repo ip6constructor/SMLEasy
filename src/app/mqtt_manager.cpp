@@ -3,7 +3,11 @@
 #include "mqtt_client.h"   // included here (not in header) so header compiles without mqtt component
 #include "wifi_manager.hpp"
 #include "app_state.hpp"
+#include "esp_idf_version.h"
 #include "esp_ota_ops.h"
+#if ESP_IDF_VERSION_MAJOR >= 6
+#include "esp_app_desc.h"
+#endif
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "cJSON.h"
@@ -31,14 +35,29 @@ void MqttManager::event_handler(void*            handler_args,
 {
     auto* self = static_cast<MqttManager*>(handler_args);
     auto* ev   = static_cast<esp_mqtt_event_handle_t>(event_data);
-    (void)ev;
 
     switch (static_cast<esp_mqtt_event_id_t>(event_id)) {
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "HA transport connected to %s", self->_cfg.broker_uri.c_str());
             self->_connected.store(true);
             self->_discovery_sent = false; // re-send discovery on reconnect
+            self->subscribe_extra();
             break;
+        case MQTT_EVENT_DATA: {
+            // Only complete (unfragmented) messages are interesting for sensor values.
+            if (!ev || ev->current_data_offset != 0 || ev->total_data_len != ev->data_len ||
+                ev->topic_len <= 0 || ev->data_len > 2048) break;
+            MessageCallback callback;
+            {
+                std::lock_guard<std::mutex> lock(self->_extra_mutex);
+                callback = self->_on_message;
+            }
+            if (callback) {
+                callback(std::string(ev->topic, static_cast<size_t>(ev->topic_len)),
+                         std::string(ev->data, static_cast<size_t>(ev->data_len)));
+            }
+            break;
+        }
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGW(TAG, "HA transport disconnected — will auto-reconnect");
             self->_connected.store(false);
@@ -54,6 +73,40 @@ void MqttManager::event_handler(void*            handler_args,
 
 // ── init / stop ───────────────────────────────────────────────────────────────
 
+void MqttManager::subscribe_extra()
+{
+    std::lock_guard<std::mutex> lock(_extra_mutex);
+    if (!_client || !_connected.load()) return;
+    for (const auto& topic : _extra_topics) {
+        esp_mqtt_client_subscribe(_client, topic.c_str(), 0);
+        ESP_LOGI(TAG, "subscribed to %s", topic.c_str());
+    }
+}
+
+void MqttManager::set_extra_topics(const std::vector<std::string>& topics, MessageCallback callback)
+{
+    std::lock_guard<std::mutex> lock(_extra_mutex);
+    if (_client && _connected.load()) {
+        for (const auto& old_topic : _extra_topics) {
+            if (std::find(topics.begin(), topics.end(), old_topic) == topics.end())
+                esp_mqtt_client_unsubscribe(_client, old_topic.c_str());
+        }
+        for (const auto& topic : topics) {
+            if (std::find(_extra_topics.begin(), _extra_topics.end(), topic) == _extra_topics.end())
+                esp_mqtt_client_subscribe(_client, topic.c_str(), 0);
+        }
+    }
+    _extra_topics = topics;
+    _on_message = callback;
+}
+
+std::string MqttManager::input_topic_base()
+{
+    HaConfig ha;
+    ConfigStore::get().load_ha(ha);
+    return std::string("ha_meter/") + make_device_id(ha.device_name) + "/in/";
+}
+
 void MqttManager::init(const HaConfig& cfg)
 {
     _cfg = cfg;
@@ -65,21 +118,37 @@ void MqttManager::init(const HaConfig& cfg)
     stop(); // clean up any previous client
 
     esp_mqtt_client_config_t mqtt_cfg = {};
+#if ESP_IDF_VERSION_MAJOR >= 6
+    mqtt_cfg.broker.address.uri = _cfg.broker_uri.c_str();
+    if (!_cfg.username.empty())
+        mqtt_cfg.credentials.username = _cfg.username.c_str();
+    if (!_cfg.password.empty())
+        mqtt_cfg.credentials.authentication.password = _cfg.password.c_str();
+#else
     mqtt_cfg.uri = _cfg.broker_uri.c_str();
     if (!_cfg.username.empty())
         mqtt_cfg.username = _cfg.username.c_str();
     if (!_cfg.password.empty())
         mqtt_cfg.password = _cfg.password.c_str();
+#endif
 
     // Last Will & Testament so HA shows "offline" when the device disconnects
     const std::string device_id  = make_device_id(_cfg.device_name);
     const std::string base_topic = std::string("ha_meter/") + device_id;
     const std::string avail_topic = base_topic + "/availability";
+#if ESP_IDF_VERSION_MAJOR >= 6
+    mqtt_cfg.session.last_will.topic = avail_topic.c_str();
+    mqtt_cfg.session.last_will.msg = "offline";
+    mqtt_cfg.session.last_will.msg_len = 7;
+    mqtt_cfg.session.last_will.qos = 1;
+    mqtt_cfg.session.last_will.retain = 1;
+#else
     mqtt_cfg.lwt_topic   = avail_topic.c_str();
     mqtt_cfg.lwt_msg     = "offline";
     mqtt_cfg.lwt_msg_len = 7;
     mqtt_cfg.lwt_qos     = 1;
     mqtt_cfg.lwt_retain  = 1;
+#endif
 
     _client = esp_mqtt_client_init(&mqtt_cfg);
     if (!_client) {
@@ -230,7 +299,11 @@ void MqttManager::publish_discovery(const std::string& device_id,
     cJSON_AddStringToObject(dev, "name",         _cfg.device_name.c_str());
     cJSON_AddStringToObject(dev, "manufacturer", "Michael Kreutzer");
     cJSON_AddStringToObject(dev, "model",        "ESP32 Optical Meter Reader");
+#if ESP_IDF_VERSION_MAJOR >= 6
+    cJSON_AddStringToObject(dev, "sw_version",   esp_app_get_description()->version);
+#else
     cJSON_AddStringToObject(dev, "sw_version",   esp_ota_get_app_description()->version);
+#endif
     const std::string cfg_url = "http://" + WifiManager::get().get_ip();
     cJSON_AddStringToObject(dev, "configuration_url", cfg_url.c_str());
     char* dev_s = cJSON_PrintUnformatted(dev);

@@ -2,7 +2,11 @@
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_idf_version.h"
 #include "esp_ota_ops.h"
+#if ESP_IDF_VERSION_MAJOR >= 6
+#include "esp_app_desc.h"
+#endif
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_mac.h"
@@ -15,6 +19,9 @@
 #include "app_state.hpp"
 #include "config_store.hpp"
 #include "mqtt_manager.hpp"
+#if ESP_IDF_VERSION_MAJOR >= 6
+#include "ext_data.hpp"
+#endif
 
 #include <cstdio>
 #include <cctype>
@@ -128,7 +135,11 @@ static void nvs_init_with_version_check()
     }
 
     // Current firmware version string (set by PROJECT_VER in CMakeLists.txt)
+#if ESP_IDF_VERSION_MAJOR >= 6
+    const char* fw_ver = esp_app_get_description()->version;
+#else
     const char* fw_ver = esp_ota_get_app_description()->version;
+#endif
 
     // Read stored version from NVS namespace "sys"
     nvs_handle_t h;
@@ -257,6 +268,9 @@ extern "C" void app_main()
         app::ConfigStore::get().load_ha(hcfg);
         app::MqttManager::get().init(hcfg);
     }
+#if ESP_IDF_VERSION_MAJOR >= 6
+    app::ExtData::get().start();   // values from Home Assistant (REST / MQTT) for the dashboard
+#endif
 
     ESP_LOGI(TAG, "Boot complete — IP: %s", app::WifiManager::get().get_ip().c_str());
     app::MeterTask::get().start_continuous();

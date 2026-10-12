@@ -1,0 +1,40 @@
+set(APP_DIR "${CMAKE_CURRENT_LIST_DIR}/../app")
+
+idf_component_register(
+    SRCS
+        "${APP_DIR}/main.cpp"
+        "${APP_DIR}/config_store.cpp"
+        "${APP_DIR}/app_state.cpp"
+        "${APP_DIR}/wifi_manager.cpp"
+        "${APP_DIR}/web_server.cpp"
+        "${APP_DIR}/meter_task.cpp"
+        "${APP_DIR}/rtc_log.cpp"
+        "${APP_DIR}/mqtt_manager.cpp"
+        "${APP_DIR}/energy_stats.cpp"
+        "${APP_DIR}/tls_certs.cpp"
+        "${APP_DIR}/ext_data.cpp"
+    INCLUDE_DIRS
+        "${APP_DIR}"
+        "${APP_DIR}/include"
+    REQUIRES
+        sml
+        acme_client
+        esp_http_server
+        esp_https_server
+        mbedtls
+        esp_wifi
+        esp_netif
+        esp_event
+        mdns
+        nvs_flash
+        app_update
+        esp_https_ota
+        esp_http_client
+        esp_driver_gpio
+        esp_driver_uart
+        freertos
+        esp_system
+        lwip
+        cjson
+        mqtt
+)

@@ -13,6 +13,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <array>
 
 static const char* TAG = "WifiMgr";
 
@@ -63,6 +64,23 @@ static void wifi_event_handler(void* arg, esp_event_base_t base,
         snprintf(buf, sizeof(buf), IPSTR, IP2STR(&event->ip_info.ip));
         xEventGroupSetBits(s_wifi_eg, STA_CONNECTED_BIT);
         ESP_LOGI(TAG, "STA IP: %s", buf);
+#if CONFIG_LWIP_IPV6
+        esp_netif_t* netif = event->esp_netif;
+        if (netif == esp_netif_get_handle_from_ifkey("WIFI_STA_DEF")) {
+            const esp_err_t err = esp_netif_create_ip6_linklocal(netif);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "IPv6 link-local setup failed after IPv4: %s",
+                         esp_err_to_name(err));
+            } else {
+                ESP_LOGI(TAG, "IPv6 link-local creation requested");
+            }
+        }
+    } else if (base == IP_EVENT && id == IP_EVENT_GOT_IP6) {
+        auto* event = static_cast<ip_event_got_ip6_t*>(data);
+        if (event->esp_netif == esp_netif_get_handle_from_ifkey("WIFI_STA_DEF")) {
+            ESP_LOGI(TAG, "STA IPv6: " IPV6STR, IPV62STR(event->ip6_info.ip));
+        }
+#endif
     }
 }
 
@@ -71,6 +89,72 @@ namespace app {
 WifiManager& WifiManager::get() {
     static WifiManager inst;
     return inst;
+}
+
+std::string WifiManager::get_ip6() const
+{
+#if CONFIG_LWIP_IPV6
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!netif) return {};
+
+    esp_ip6_addr_t address{};
+    esp_err_t err = esp_netif_get_ip6_global(netif, &address);
+    if (err != ESP_OK) {
+        err = esp_netif_get_ip6_linklocal(netif, &address);
+    }
+    if (err != ESP_OK) return {};
+
+    char buf[48];
+    snprintf(buf, sizeof(buf), IPV6STR, IPV62STR(address));
+    return buf;
+#else
+    return {};
+#endif
+}
+
+std::vector<std::string> WifiManager::get_ip6_addresses() const
+{
+#if CONFIG_LWIP_IPV6
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!netif) return {};
+
+    std::array<esp_ip6_addr_t, CONFIG_LWIP_IPV6_NUM_ADDRESSES> addresses{};
+    const int count = esp_netif_get_all_preferred_ip6(netif, addresses.data());
+    std::vector<std::string> result;
+    result.reserve(static_cast<size_t>(count));
+
+    for (int i = 0; i < count; ++i) {
+        char buf[48];
+        snprintf(buf, sizeof(buf), IPV6STR, IPV62STR(addresses[static_cast<size_t>(i)]));
+        result.emplace_back(buf);
+    }
+    return result;
+#else
+    return {};
+#endif
+}
+
+bool WifiManager::is_in_local_ip6_prefix(const uint8_t* peer_address) const
+{
+#if CONFIG_LWIP_IPV6
+    if (!peer_address || (peer_address[0] & 0xe0u) != 0x20u) return false;
+
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!netif) return false;
+
+    std::array<esp_ip6_addr_t, CONFIG_LWIP_IPV6_NUM_ADDRESSES> addresses{};
+    const int count = esp_netif_get_all_preferred_ip6(netif, addresses.data());
+    for (int i = 0; i < count; ++i) {
+        uint8_t own[sizeof(esp_ip6_addr_t)];
+        memcpy(own, &addresses[static_cast<size_t>(i)], sizeof(own));
+        // Global unicast /64 des eigenen WLAN-Segments
+        if ((own[0] & 0xe0u) == 0x20u && memcmp(own, peer_address, 8) == 0) return true;
+    }
+    return false;
+#else
+    (void)peer_address;
+    return false;
+#endif
 }
 
 bool WifiManager::start()
@@ -85,6 +169,9 @@ bool WifiManager::start()
 
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,  &wifi_event_handler, nullptr);
     esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, &wifi_event_handler, nullptr);
+#if CONFIG_LWIP_IPV6
+    esp_event_handler_register(IP_EVENT,   IP_EVENT_GOT_IP6, &wifi_event_handler, nullptr);
+#endif
 
     // Generate AP SSID from MAC
     uint8_t mac[6];
@@ -129,7 +216,6 @@ bool WifiManager::start_sta(const std::string& ssid, const std::string& pass)
     s_retry = 0;
     if (!esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"))
         esp_netif_create_default_wifi_sta();
-    esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     ensure_wifi_initialized();
     esp_wifi_set_mode(WIFI_MODE_STA);
 

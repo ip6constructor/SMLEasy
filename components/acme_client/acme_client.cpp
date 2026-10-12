@@ -1,3 +1,4 @@
+// ACME (RFC 8555) HTTP-01 client for ESP-IDF 6 / mbedTLS 4 (PSA crypto).
 #include "acme_client.hpp"
 
 #include "cJSON.h"
@@ -7,18 +8,16 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "mbedtls/base64.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/ecdsa.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/md.h"
-#include "mbedtls/oid.h"
 #include "mbedtls/pk.h"
-#include "mbedtls/sha256.h"
 #include "mbedtls/x509_csr.h"
+#include "psa/crypto.h"
 
-#include <algorithm>
 #include <array>
+#include <cstdarg>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <deque>
 #include <strings.h>
 #include <string>
 #include <vector>
@@ -27,9 +26,44 @@ static const char* TAG = "AcmeClient";
 static SemaphoreHandle_t s_challenge_mutex = nullptr;
 static std::string s_challenge_token;
 static std::string s_challenge_response;
+static SemaphoreHandle_t s_log_mutex = nullptr;
+static std::deque<std::string> s_log_lines;
+static constexpr size_t kMaxLogLines = 40;
+static std::string s_last_error;
 
 namespace acme_client {
 namespace {
+
+static void note_v(const char* format, va_list args)
+{
+    char text[220];
+    vsnprintf(text, sizeof(text), format, args);
+    ESP_LOGI(TAG, "%s", text);
+    if (!s_log_mutex) return;
+    char stamp[16];
+    const time_t now = time(nullptr);
+    if (now > 1700000000) {
+        struct tm parts{};
+        gmtime_r(&now, &parts);
+        strftime(stamp, sizeof(stamp), "%H:%M:%SZ", &parts);
+    } else {
+        snprintf(stamp, sizeof(stamp), "+%lus",
+                 static_cast<unsigned long>(xTaskGetTickCount() / configTICK_RATE_HZ));
+    }
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    s_log_lines.push_back(std::string(stamp) + "  " + text);
+    while (s_log_lines.size() > kMaxLogLines) s_log_lines.pop_front();
+    xSemaphoreGive(s_log_mutex);
+}
+
+static void note(const char* format, ...) __attribute__((format(printf, 1, 2)));
+static void note(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    note_v(format, args);
+    va_end(args);
+}
 
 static constexpr char kProductionDirectory[] = "https://acme-v02.api.letsencrypt.org/directory";
 
@@ -40,24 +74,11 @@ struct HttpResponse {
     int status{0};
 };
 
-struct CryptoContext {
-    mbedtls_entropy_context entropy;
-    mbedtls_ctr_drbg_context rng;
-    mbedtls_pk_context account_key;
-    bool initialized{false};
-
-    CryptoContext() {
-        mbedtls_entropy_init(&entropy);
-        mbedtls_ctr_drbg_init(&rng);
-        mbedtls_pk_init(&account_key);
-        const char* personalization = "SMLEasy ACME account";
-        initialized = mbedtls_ctr_drbg_seed(&rng, mbedtls_entropy_func, &entropy,
-            reinterpret_cast<const unsigned char*>(personalization), strlen(personalization)) == 0;
-    }
-    ~CryptoContext() {
-        mbedtls_pk_free(&account_key);
-        mbedtls_ctr_drbg_free(&rng);
-        mbedtls_entropy_free(&entropy);
+// Volatile PSA ECDSA P-256 key used to sign JWS requests.
+struct AccountKey {
+    mbedtls_svc_key_id_t id{MBEDTLS_SVC_KEY_ID_INIT};
+    ~AccountKey() {
+        if (id != MBEDTLS_SVC_KEY_ID_INIT) psa_destroy_key(id);
     }
 };
 
@@ -80,6 +101,7 @@ static esp_err_t http_request(const std::string& url, esp_http_client_method_t m
                               const std::string& body, const char* accept,
                               HttpResponse& response)
 {
+    response = HttpResponse{};
     esp_http_client_config_t config{};
     config.url = url.c_str();
     config.method = method;
@@ -131,72 +153,91 @@ static std::string print_json(cJSON* json)
     return result;
 }
 
-static bool prepare_account_key(CryptoContext& crypto, const std::string& stored_pem,
-                                std::string& output_pem)
+static void set_p256_sign_attributes(psa_key_attributes_t& attributes)
 {
-    if (!crypto.initialized) return false;
-    if (!stored_pem.empty()) {
-        if (mbedtls_pk_parse_key(&crypto.account_key,
-            reinterpret_cast<const unsigned char*>(stored_pem.c_str()), stored_pem.size() + 1,
-            nullptr, 0) != 0) return false;
-        output_pem = stored_pem;
-        return true;
-    }
-    if (mbedtls_pk_setup(&crypto.account_key,
-        mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY)) != 0) return false;
-    if (mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(crypto.account_key),
-        mbedtls_ctr_drbg_random, &crypto.rng) != 0) return false;
-    std::vector<unsigned char> pem(2048, 0);
-    if (mbedtls_pk_write_key_pem(&crypto.account_key, pem.data(), pem.size()) != 0) return false;
-    output_pem = reinterpret_cast<const char*>(pem.data());
-    return true;
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
 }
 
-static bool make_jwk(mbedtls_pk_context& key, std::string& jwk)
+// Loads the stored account key (PEM) or creates a new one; output_pem is what gets stored.
+static bool prepare_account_key(AccountKey& key, const std::string& stored_pem,
+                                std::string& output_pem)
 {
-    const auto* ec = mbedtls_pk_ec(key);
-    if (!ec || ec->grp.id != MBEDTLS_ECP_DP_SECP256R1) return false;
-    std::array<unsigned char, 32> x{}, y{};
-    if (mbedtls_mpi_write_binary(&ec->Q.X, x.data(), x.size()) != 0 ||
-        mbedtls_mpi_write_binary(&ec->Q.Y, y.data(), y.size()) != 0) return false;
+    if (psa_crypto_init() != PSA_SUCCESS) return false;
+    mbedtls_pk_context pk;
+    mbedtls_pk_init(&pk);
+    bool ok = false;
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+
+    if (!stored_pem.empty()) {
+        if (mbedtls_pk_parse_key(&pk, reinterpret_cast<const unsigned char*>(stored_pem.c_str()),
+                                 stored_pem.size() + 1, nullptr, 0) == 0 &&
+            mbedtls_pk_get_psa_attributes(&pk, PSA_KEY_USAGE_SIGN_HASH, &attributes) == 0) {
+            set_p256_sign_attributes(attributes);
+            ok = mbedtls_pk_import_into_psa(&pk, &attributes, &key.id) == 0;
+            if (ok) output_pem = stored_pem;
+        }
+    } else {
+        psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
+        psa_set_key_bits(&attributes, 256);
+        psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_EXPORT);
+        set_p256_sign_attributes(attributes);
+        if (psa_generate_key(&attributes, &key.id) == PSA_SUCCESS &&
+            mbedtls_pk_copy_from_psa(key.id, &pk) == 0) {
+            std::vector<unsigned char> pem(1024, 0);
+            if (mbedtls_pk_write_key_pem(&pk, pem.data(), pem.size()) == 0) {
+                output_pem = reinterpret_cast<const char*>(pem.data());
+                ok = true;
+            }
+        }
+    }
+    psa_reset_key_attributes(&attributes);
+    mbedtls_pk_free(&pk);
+    return ok;
+}
+
+static bool sha256(const std::string& input, std::array<unsigned char, 32>& hash)
+{
+    size_t length = 0;
+    return psa_hash_compute(PSA_ALG_SHA_256,
+                            reinterpret_cast<const unsigned char*>(input.data()), input.size(),
+                            hash.data(), hash.size(), &length) == PSA_SUCCESS && length == hash.size();
+}
+
+static bool make_jwk(const AccountKey& key, std::string& jwk)
+{
+    std::array<unsigned char, 65> pub{};
+    size_t length = 0;
+    if (psa_export_public_key(key.id, pub.data(), pub.size(), &length) != PSA_SUCCESS ||
+        length != pub.size() || pub[0] != 0x04) return false;
     jwk = "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"" +
-          base64url(x.data(), x.size()) + "\",\"y\":\"" +
-          base64url(y.data(), y.size()) + "\"}";
+          base64url(pub.data() + 1, 32) + "\",\"y\":\"" +
+          base64url(pub.data() + 33, 32) + "\"}";
     return true;
 }
 
 static bool make_jwk_thumbprint(const std::string& jwk, std::string& thumbprint)
 {
     std::array<unsigned char, 32> hash{};
-    if (mbedtls_sha256_ret(reinterpret_cast<const unsigned char*>(jwk.data()), jwk.size(),
-                           hash.data(), 0) != 0) return false;
+    if (!sha256(jwk, hash)) return false;
     thumbprint = base64url(hash.data(), hash.size());
     return !thumbprint.empty();
 }
 
-static bool sign_es256(CryptoContext& crypto, const std::string& input, std::string& signature)
+// PSA returns ECDSA signatures as raw r||s, which is exactly the JWS ES256 format.
+static bool sign_es256(const AccountKey& key, const std::string& input, std::string& signature)
 {
-    auto* ec = mbedtls_pk_ec(crypto.account_key);
-    if (!ec || ec->grp.id != MBEDTLS_ECP_DP_SECP256R1) return false;
     std::array<unsigned char, 32> hash{};
-    if (mbedtls_sha256_ret(reinterpret_cast<const unsigned char*>(input.data()), input.size(),
-                           hash.data(), 0) != 0) return false;
-    mbedtls_mpi r, s;
-    mbedtls_mpi_init(&r);
-    mbedtls_mpi_init(&s);
-    const int result = mbedtls_ecdsa_sign(&ec->grp, &r, &s, &ec->d, hash.data(), hash.size(),
-        mbedtls_ctr_drbg_random, &crypto.rng);
+    if (!sha256(input, hash)) return false;
     std::array<unsigned char, 64> raw{};
-    const bool encoded = result == 0 &&
-        mbedtls_mpi_write_binary(&r, raw.data(), 32) == 0 &&
-        mbedtls_mpi_write_binary(&s, raw.data() + 32, 32) == 0;
-    if (encoded) signature = base64url(raw.data(), raw.size());
-    mbedtls_mpi_free(&r);
-    mbedtls_mpi_free(&s);
-    return encoded && !signature.empty();
+    size_t length = 0;
+    if (psa_sign_hash(key.id, PSA_ALG_ECDSA(PSA_ALG_SHA_256), hash.data(), hash.size(),
+                      raw.data(), raw.size(), &length) != PSA_SUCCESS || length != raw.size())
+        return false;
+    signature = base64url(raw.data(), raw.size());
+    return !signature.empty();
 }
 
-static bool make_jws(CryptoContext& crypto, const std::string& jwk, const std::string& kid,
+static bool make_jws(const AccountKey& key, const std::string& jwk, const std::string& kid,
                      const std::string& nonce, const std::string& url,
                      const std::string& payload, std::string& jws)
 {
@@ -215,7 +256,7 @@ static bool make_jws(CryptoContext& crypto, const std::string& jwk, const std::s
     if (protected64.empty()) return false;
     const std::string signing_input = protected64 + "." + payload64;
     std::string signature;
-    if (!sign_es256(crypto, signing_input, signature)) return false;
+    if (!sign_es256(key, signing_input, signature)) return false;
     cJSON* outer = cJSON_CreateObject();
     cJSON_AddStringToObject(outer, "protected", protected64.c_str());
     cJSON_AddStringToObject(outer, "payload", payload64.c_str());
@@ -225,17 +266,24 @@ static bool make_jws(CryptoContext& crypto, const std::string& jwk, const std::s
     return !jws.empty();
 }
 
-static bool send_signed(CryptoContext& crypto, const std::string& jwk, const std::string& kid,
+static bool send_signed(const AccountKey& key, const std::string& jwk, const std::string& kid,
                         std::string& nonce, const std::string& url, const std::string& payload,
                         const char* accept, HttpResponse& reply)
 {
     if (nonce.empty()) return false;
     std::string jws;
-    if (!make_jws(crypto, jwk, kid, nonce, url, payload, jws)) return false;
+    if (!make_jws(key, jwk, kid, nonce, url, payload, jws)) return false;
     if (http_request(url, HTTP_METHOD_POST, jws, accept, reply) != ESP_OK) return false;
     if (!reply.nonce.empty()) nonce = reply.nonce;
     if (reply.status < 200 || reply.status >= 300) {
-        ESP_LOGE(TAG, "ACME request failed with HTTP %d", reply.status);
+        std::string detail = reply.body.substr(0, 160);
+        if (cJSON* error = cJSON_Parse(reply.body.c_str())) {
+            const std::string parsed = json_string(error, "detail");
+            if (!parsed.empty()) detail = parsed.substr(0, 160);
+            cJSON_Delete(error);
+        }
+        note("ACME request failed (HTTP %d): %s", reply.status, detail.c_str());
+        s_last_error = detail;
         return false;
     }
     return true;
@@ -250,57 +298,58 @@ static bool get_nonce(const std::string& url, std::string& nonce)
     return true;
 }
 
-static bool generate_csr(CryptoContext& crypto, const std::string& fqdn,
-                         std::string& private_key_pem, std::string& csr_der_b64)
+// Creates a fresh certificate key pair and a DER CSR (base64url) for the FQDN.
+static bool generate_csr(const std::string& fqdn, std::string& private_key_pem,
+                         std::string& csr_der_b64)
 {
-    mbedtls_pk_context certificate_key;
-    mbedtls_pk_init(&certificate_key);
-    int result = mbedtls_pk_setup(&certificate_key,
-        mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY));
-    if (result == 0) result = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1,
-        mbedtls_pk_ec(certificate_key), mbedtls_ctr_drbg_random, &crypto.rng);
-
+    mbedtls_pk_context key;
     mbedtls_x509write_csr csr;
+    mbedtls_pk_init(&key);
     mbedtls_x509write_csr_init(&csr);
-    mbedtls_x509write_csr_set_key(&csr, &certificate_key);
+
+    int result = psa_crypto_init() == PSA_SUCCESS ? 0 : -1;
+    mbedtls_svc_key_id_t key_id = MBEDTLS_SVC_KEY_ID_INIT;
+    if (result == 0) {
+        psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+        psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
+        psa_set_key_bits(&attributes, 256);
+        psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_EXPORT);
+        set_p256_sign_attributes(attributes);
+        if (psa_generate_key(&attributes, &key_id) != PSA_SUCCESS) result = -2;
+        psa_reset_key_attributes(&attributes);
+    }
+    if (result == 0) result = mbedtls_pk_copy_from_psa(key_id, &key);
+    if (key_id != MBEDTLS_SVC_KEY_ID_INIT) psa_destroy_key(key_id);
+
+    mbedtls_x509write_csr_set_key(&csr, &key);
     mbedtls_x509write_csr_set_md_alg(&csr, MBEDTLS_MD_SHA256);
     const std::string subject = "CN=" + fqdn;
     if (result == 0) result = mbedtls_x509write_csr_set_subject_name(&csr, subject.c_str());
 
-    std::vector<uint8_t> dns_name;
-    dns_name.push_back(0x82);
-    if (fqdn.size() < 128) dns_name.push_back(static_cast<uint8_t>(fqdn.size()));
-    else {
-        dns_name.push_back(0x81);
-        dns_name.push_back(static_cast<uint8_t>(fqdn.size()));
-    }
-    dns_name.insert(dns_name.end(), fqdn.begin(), fqdn.end());
-    std::vector<uint8_t> san_value;
-    san_value.push_back(0x30);
-    if (dns_name.size() < 128) san_value.push_back(static_cast<uint8_t>(dns_name.size()));
-    else {
-        san_value.push_back(0x81);
-        san_value.push_back(static_cast<uint8_t>(dns_name.size()));
-    }
-    san_value.insert(san_value.end(), dns_name.begin(), dns_name.end());
-    if (result == 0) result = mbedtls_x509write_csr_set_extension(&csr,
-        MBEDTLS_OID_SUBJECT_ALT_NAME, MBEDTLS_OID_SIZE(MBEDTLS_OID_SUBJECT_ALT_NAME),
-        san_value.data(), san_value.size());
+    mbedtls_x509_san_list san{};
+    san.node.type = MBEDTLS_X509_SAN_DNS_NAME;
+    san.node.san.unstructured_name.tag = MBEDTLS_ASN1_IA5_STRING;
+    san.node.san.unstructured_name.p =
+        reinterpret_cast<unsigned char*>(const_cast<char*>(fqdn.c_str()));
+    san.node.san.unstructured_name.len = fqdn.size();
+    san.next = nullptr;
+    if (result == 0) result = mbedtls_x509write_csr_set_subject_alternative_name(&csr, &san);
 
-    std::vector<unsigned char> csr_buffer(4096, 0);
+    std::vector<unsigned char> csr_buffer(1024, 0);
     if (result == 0) {
-        const int der_length = mbedtls_x509write_csr_der(&csr, csr_buffer.data(), csr_buffer.size(),
-            mbedtls_ctr_drbg_random, &crypto.rng);
+        // The DER data is written to the end of the buffer; the return value is its length.
+        const int der_length = mbedtls_x509write_csr_der(&csr, csr_buffer.data(), csr_buffer.size());
         if (der_length < 0) result = der_length;
         else csr_der_b64 = base64url(csr_buffer.data() + csr_buffer.size() - der_length,
                                      static_cast<size_t>(der_length));
     }
-    std::vector<unsigned char> key_buffer(2048, 0);
-    if (result == 0) result = mbedtls_pk_write_key_pem(&certificate_key, key_buffer.data(), key_buffer.size());
+    std::vector<unsigned char> key_buffer(1024, 0);
+    if (result == 0) result = mbedtls_pk_write_key_pem(&key, key_buffer.data(), key_buffer.size());
     if (result == 0) private_key_pem = reinterpret_cast<const char*>(key_buffer.data());
 
     mbedtls_x509write_csr_free(&csr);
-    mbedtls_pk_free(&certificate_key);
+    mbedtls_pk_free(&key);
+    if (result != 0) ESP_LOGE(TAG, "CSR generation failed: %d", result);
     return result == 0 && !csr_der_b64.empty() && !private_key_pem.empty();
 }
 
@@ -315,11 +364,95 @@ static void publish_challenge(const std::string& token, const std::string& respo
 
 } // namespace
 
+esp_err_t fetch_directory_info(const std::string& directory_url, DirectoryInfo& info)
+{
+    if (directory_url.rfind("https://", 0) != 0) return ESP_ERR_INVALID_ARG;
+    HttpResponse reply;
+    if (http_request(directory_url, HTTP_METHOD_GET, "", "application/json", reply) != ESP_OK ||
+        reply.status != 200) return ESP_FAIL;
+    cJSON* directory = cJSON_Parse(reply.body.c_str());
+    if (!directory) return ESP_FAIL;
+    const cJSON* meta = cJSON_GetObjectItemCaseSensitive(directory, "meta");
+    info.terms_url = meta ? json_string(meta, "termsOfService") : "";
+    cJSON_Delete(directory);
+    return ESP_OK;
+}
+
+esp_err_t resolve_public(const std::string& name, const char* type, std::vector<std::string>& answers)
+{
+    answers.clear();
+    if (name.empty() || name.size() > 253 || !type) return ESP_ERR_INVALID_ARG;
+    for (char ch : name) {
+        if (!isalnum(static_cast<unsigned char>(ch)) && ch != '.' && ch != '-') return ESP_ERR_INVALID_ARG;
+    }
+    const bool ipv6 = strcmp(type, "AAAA") == 0;
+    if (!ipv6 && strcmp(type, "A") != 0) return ESP_ERR_INVALID_ARG;
+    static const char* const kResolvers[] = {
+        "https://dns.google/resolve?name=", "https://cloudflare-dns.com/dns-query?name="};
+    cJSON* json = nullptr;
+    for (const char* resolver : kResolvers) {
+        HttpResponse reply;
+        const std::string url = std::string(resolver) + name + "&type=" + type;
+        const esp_err_t err = http_request(url, HTTP_METHOD_GET, "", "application/dns-json", reply);
+        if (err == ESP_OK && reply.status == 200) {
+            json = cJSON_Parse(reply.body.c_str());
+            if (json) break;
+        }
+        ESP_LOGW(TAG, "DNS lookup %s %s failed: %s, HTTP %d", resolver, type,
+                 esp_err_to_name(err), reply.status);
+        note("DNS lookup via %s failed (%s, HTTP %d)", resolver, esp_err_to_name(err), reply.status);
+    }
+    if (!json) return ESP_FAIL;
+    const cJSON* list = cJSON_GetObjectItemCaseSensitive(json, "Answer");
+    for (int i = 0; cJSON_IsArray(list) && i < cJSON_GetArraySize(list); ++i) {
+        const cJSON* entry = cJSON_GetArrayItem(list, i);
+        const cJSON* record_type = cJSON_GetObjectItemCaseSensitive(entry, "type");
+        if (cJSON_IsNumber(record_type) && record_type->valueint == (ipv6 ? 28 : 1)) {
+            const std::string data = json_string(entry, "data");
+            if (!data.empty()) answers.push_back(data);
+        }
+    }
+    cJSON_Delete(json);
+    return ESP_OK;
+}
+
+std::string last_error()
+{
+    return s_last_error;
+}
+
 esp_err_t init()
 {
-    if (s_challenge_mutex) return ESP_OK;
+    if (!s_log_mutex) s_log_mutex = xSemaphoreCreateMutex();
+    if (s_challenge_mutex) return s_log_mutex ? ESP_OK : ESP_ERR_NO_MEM;
     s_challenge_mutex = xSemaphoreCreateMutex();
-    return s_challenge_mutex ? ESP_OK : ESP_ERR_NO_MEM;
+    return s_challenge_mutex && s_log_mutex ? ESP_OK : ESP_ERR_NO_MEM;
+}
+
+void add_log(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    note_v(format, args);
+    va_end(args);
+}
+
+void clear_log()
+{
+    if (!s_log_mutex) return;
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    s_log_lines.clear();
+    xSemaphoreGive(s_log_mutex);
+}
+
+std::vector<std::string> get_log()
+{
+    std::vector<std::string> lines;
+    if (!s_log_mutex) return lines;
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    lines.assign(s_log_lines.begin(), s_log_lines.end());
+    xSemaphoreGive(s_log_mutex);
+    return lines;
 }
 
 void clear_http01_challenge()
@@ -346,19 +479,33 @@ esp_err_t issue_http01(const Request& request, Result& result)
     if (init() != ESP_OK || request.fqdn.empty() || request.email.empty() || !request.terms_accepted)
         return ESP_ERR_INVALID_ARG;
 
-    CryptoContext crypto;
-    if (!prepare_account_key(crypto, request.account_key_pem, result.account_key_pem))
+    s_last_error.clear();
+    note("%s for %s (%s)", request.validate_only ? "Validation test" : "Certificate request",
+         request.fqdn.c_str(),
+         request.directory_url.find("staging") != std::string::npos ? "staging" : "production");
+    AccountKey key;
+    // A rehearsal always uses a fresh throwaway account so a cached authorization cannot hide a problem.
+    const std::string stored_key = request.validate_only ? std::string() : request.account_key_pem;
+    if (!prepare_account_key(key, stored_key, result.account_key_pem)) {
+        note("Account key could not be prepared");
         return ESP_FAIL;
+    }
     std::string jwk, thumbprint;
-    if (!make_jwk(crypto.account_key, jwk) || !make_jwk_thumbprint(jwk, thumbprint))
+    if (!make_jwk(key, jwk) || !make_jwk_thumbprint(jwk, thumbprint)) {
+        note("Account key is not an ECDSA P-256 key");
         return ESP_FAIL;
+    }
 
     const std::string directory_url = request.directory_url.empty()
         ? kProductionDirectory : request.directory_url;
     if (directory_url.rfind("https://", 0) != 0) return ESP_ERR_INVALID_ARG;
     HttpResponse reply;
     if (http_request(directory_url, HTTP_METHOD_GET, "", "application/json", reply) != ESP_OK ||
-        reply.status != 200) return ESP_FAIL;
+        reply.status != 200) {
+        note("ACME directory request failed (HTTP %d); check internet access and the clock", reply.status);
+        return ESP_FAIL;
+    }
+    note("ACME directory loaded");
     cJSON* directory = cJSON_Parse(reply.body.c_str());
     if (!directory) return ESP_FAIL;
     const std::string new_nonce_url = json_string(directory, "newNonce");
@@ -368,8 +515,11 @@ esp_err_t issue_http01(const Request& request, Result& result)
     if (new_nonce_url.empty() || new_account_url.empty() || new_order_url.empty()) return ESP_FAIL;
 
     std::string nonce;
-    if (!get_nonce(new_nonce_url, nonce)) return ESP_FAIL;
-    std::string account_url = request.account_url;
+    if (!get_nonce(new_nonce_url, nonce)) {
+        note("Could not obtain an ACME nonce");
+        return ESP_FAIL;
+    }
+    std::string account_url = request.validate_only ? std::string() : request.account_url;
     if (account_url.empty()) {
         cJSON* account_payload = cJSON_CreateObject();
         cJSON* contacts = cJSON_CreateArray();
@@ -379,9 +529,12 @@ esp_err_t issue_http01(const Request& request, Result& result)
         cJSON_AddBoolToObject(account_payload, "termsOfServiceAgreed", request.terms_accepted);
         const std::string payload = print_json(account_payload);
         cJSON_Delete(account_payload);
-        if (!send_signed(crypto, jwk, "", nonce, new_account_url, payload,
+        if (!send_signed(key, jwk, "", nonce, new_account_url, payload,
                          "application/json", reply) || reply.location.empty()) return ESP_FAIL;
         account_url = reply.location;
+        note("ACME account created");
+    } else {
+        note("ACME account reused");
     }
     if (account_url.rfind("https://", 0) != 0) return ESP_FAIL;
     result.account_url = account_url;
@@ -395,9 +548,10 @@ esp_err_t issue_http01(const Request& request, Result& result)
     cJSON_AddItemToObject(order_payload, "identifiers", identifiers);
     const std::string order_body = print_json(order_payload);
     cJSON_Delete(order_payload);
-    if (!send_signed(crypto, jwk, account_url, nonce, new_order_url, order_body,
+    if (!send_signed(key, jwk, account_url, nonce, new_order_url, order_body,
                      "application/json", reply) || reply.location.empty()) return ESP_FAIL;
     const std::string order_url = reply.location;
+    note("Order created");
 
     cJSON* order = cJSON_Parse(reply.body.c_str());
     if (!order) return ESP_FAIL;
@@ -411,7 +565,7 @@ esp_err_t issue_http01(const Request& request, Result& result)
     if (authorization_url.empty() || finalize_url.empty()) return ESP_FAIL;
 
     bool authorization_valid = false;
-    if (!send_signed(crypto, jwk, account_url, nonce, authorization_url, "",
+    if (!send_signed(key, jwk, account_url, nonce, authorization_url, "",
                      "application/json", reply)) return ESP_FAIL;
     cJSON* authorization = cJSON_Parse(reply.body.c_str());
     if (!authorization) return ESP_FAIL;
@@ -431,9 +585,14 @@ esp_err_t issue_http01(const Request& request, Result& result)
             }
         }
         cJSON_Delete(authorization);
-        if (challenge_url.empty() || challenge_token.empty()) return ESP_FAIL;
+        if (challenge_url.empty() || challenge_token.empty()) {
+            note("No http-01 challenge offered");
+            return ESP_FAIL;
+        }
         publish_challenge(challenge_token, challenge_token + "." + thumbprint);
-        const bool challenge_started = send_signed(crypto, jwk, account_url, nonce,
+        note("HTTP-01 challenge published; asking the CA to validate http://%s/.well-known/acme-challenge/...",
+             request.fqdn.c_str());
+        const bool challenge_started = send_signed(key, jwk, account_url, nonce,
             challenge_url, "{}", "application/json", reply);
         if (!challenge_started) {
             clear_http01_challenge();
@@ -441,32 +600,55 @@ esp_err_t issue_http01(const Request& request, Result& result)
         }
         for (int attempt = 0; attempt < 60; ++attempt) {
             vTaskDelay(pdMS_TO_TICKS(2000));
-            if (!send_signed(crypto, jwk, account_url, nonce, authorization_url, "",
+            if (!send_signed(key, jwk, account_url, nonce, authorization_url, "",
                              "application/json", reply)) break;
             authorization = cJSON_Parse(reply.body.c_str());
             if (!authorization) break;
             const std::string status = json_string(authorization, "status");
+            std::string error_detail;
+            const cJSON* check_list = cJSON_GetObjectItemCaseSensitive(authorization, "challenges");
+            for (int i = 0; cJSON_IsArray(check_list) && i < cJSON_GetArraySize(check_list); ++i) {
+                const cJSON* error = cJSON_GetObjectItemCaseSensitive(cJSON_GetArrayItem(check_list, i), "error");
+                if (error) error_detail = json_string(error, "detail");
+            }
             cJSON_Delete(authorization);
             authorization = nullptr;
             if (status == "valid") {
+                note("Validation succeeded");
                 authorization_valid = true;
                 break;
             }
-            if (status == "invalid") break;
+            if (status == "invalid") {
+                s_last_error = error_detail.empty() ? "Validation failed" : error_detail;
+                note("Validation failed: %s", error_detail.empty() ? "no detail from the CA" : error_detail.c_str());
+                note("Check the DNS AAAA record and that port 80 reaches this device from the internet");
+                break;
+            }
+            if (attempt % 3 == 0) note("Waiting for validation (status: %s)", status.c_str());
         }
         clear_http01_challenge();
     } else {
         cJSON_Delete(authorization);
+        note("Domain already validated");
     }
     if (!authorization_valid) return ESP_FAIL;
 
+    if (request.validate_only) {
+        note("Test passed: the CA reached port 80 and validated the hostname");
+        return ESP_OK;
+    }
+
     std::string certificate_key_pem, csr_der_b64;
-    if (!generate_csr(crypto, request.fqdn, certificate_key_pem, csr_der_b64)) return ESP_FAIL;
+    if (!generate_csr(request.fqdn, certificate_key_pem, csr_der_b64)) {
+        note("Certificate signing request could not be created");
+        return ESP_FAIL;
+    }
+    note("Finalizing order");
     cJSON* finalize_payload = cJSON_CreateObject();
     cJSON_AddStringToObject(finalize_payload, "csr", csr_der_b64.c_str());
     const std::string finalize_body = print_json(finalize_payload);
     cJSON_Delete(finalize_payload);
-    if (!send_signed(crypto, jwk, account_url, nonce, finalize_url, finalize_body,
+    if (!send_signed(key, jwk, account_url, nonce, finalize_url, finalize_body,
                      "application/json", reply)) return ESP_FAIL;
 
     std::string certificate_url;
@@ -477,17 +659,27 @@ esp_err_t issue_http01(const Request& request, Result& result)
             certificate_url = json_string(order, "certificate");
             cJSON_Delete(order);
             if (status == "valid" && !certificate_url.empty()) break;
-            if (status == "invalid") return ESP_FAIL;
+            if (status == "invalid") {
+                note("Order became invalid");
+                return ESP_FAIL;
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(2000));
-        if (!send_signed(crypto, jwk, account_url, nonce, order_url, "",
+        if (!send_signed(key, jwk, account_url, nonce, order_url, "",
                          "application/json", reply)) return ESP_FAIL;
     }
-    if (certificate_url.empty()) return ESP_ERR_TIMEOUT;
+    if (certificate_url.empty()) {
+        note("Timed out waiting for the certificate");
+        return ESP_ERR_TIMEOUT;
+    }
 
-    if (!send_signed(crypto, jwk, account_url, nonce, certificate_url, "",
+    if (!send_signed(key, jwk, account_url, nonce, certificate_url, "",
                      "application/pem-certificate-chain", reply)) return ESP_FAIL;
-    if (reply.body.find("BEGIN CERTIFICATE") == std::string::npos) return ESP_FAIL;
+    if (reply.body.find("BEGIN CERTIFICATE") == std::string::npos) {
+        note("Certificate download returned no certificate");
+        return ESP_FAIL;
+    }
+    note("Certificate downloaded (%u bytes)", static_cast<unsigned>(reply.body.size()));
     result.certificate_chain_pem = reply.body;
     result.private_key_pem = certificate_key_pem;
     clear_http01_challenge();

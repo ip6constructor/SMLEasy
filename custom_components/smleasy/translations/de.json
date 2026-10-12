@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Smartmeter V32",
+        "title": "SMLEasy",
         "description": "Verbinde mit dem Smartmeter HTTP-API.",
         "data": {
           "host": "Host oder IP",
@@ -24,8 +24,14 @@
       "init": {
         "title": "Optionen",
         "data": {
-          "scan_interval": "Abfrageintervall (Sekunden)"
-        }
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "push_pv_power": "PV-Leistung",
+          "push_battery_power": "Batterie-Leistung (W/kW)",
+          "push_battery_soc": "Batterie-Ladestand (%)",
+          "push_wallbox_power": "Wallbox-Leistung",
+          "push_house_power": "Hausverbrauch (Leistung)"
+        },
+        "description": "Wähle die Home-Assistant-Sensoren, deren Werte über MQTT an das Gerät gesendet werden. Am Gerät muss unter „Externe Daten“ je Wert die Quelle „HA sendet“ mit dem passenden Kurznamen (pv_power, battery_power, battery_soc, wallbox_power, house_power) eingetragen sein."
       }
     }
   }

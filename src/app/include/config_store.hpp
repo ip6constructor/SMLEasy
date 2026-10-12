@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace app {
 
@@ -49,6 +50,23 @@ struct UiConfig {
     std::string allowed_networks{};
 };
 
+struct TlsConfig {
+    std::string mode{"manual"};
+    std::string fqdn{};
+    std::string email{};
+    std::string certificate_pem{};
+    std::string private_key_pem{};
+    std::string fallback_certificate_pem{};
+    std::string fallback_private_key_pem{};
+    std::string acme_account_key_pem{};
+    std::string acme_account_url{};
+    bool acme_terms_accepted{false};
+    bool acme_staging{true};
+    bool self_signed_enabled{false};
+    uint16_t renewal_interval_days{60};
+    int64_t last_issued_epoch{0};
+};
+
 /// Tariff / pricing config used for cost estimation in the dashboard.
 struct TariffConfig {
     double      price_import_kwh{0.30};  ///< price paid per imported kWh
@@ -66,6 +84,26 @@ struct HaConfig {
     std::string ha_prefix{"homeassistant"};       ///< HA discovery topic prefix
 };
 
+/// One external value shown on the dashboard (read from Home Assistant).
+struct ExtSlot {
+    std::string label{};          ///< Dashboard label, e.g. "PV-Batterie"
+    std::string source{"rest"};   ///< "rest" (HA entity) or "mqtt" (topic)
+    std::string ref{};            ///< entity_id (rest) or topic (mqtt)
+    std::string unit{};           ///< optional; empty = unit reported by Home Assistant
+    std::string key{};            ///< mqtt: optional JSON key (dotted path) inside the payload
+    std::string role{};           ///< "" | "pv" (W, production) | "battery" (W, + = charging) | "battery_neg" (W, + = discharging)
+};
+
+/// Values pulled from Home Assistant (REST API) or its MQTT broker.
+struct ExtDataConfig {
+    static constexpr size_t kMaxSlots = 8;
+    bool        enabled{false};
+    std::string ha_url{};         ///< e.g. http://homeassistant.local:8123
+    std::string ha_token{};       ///< long-lived access token (never sent back to the UI)
+    uint16_t    poll_s{30};       ///< REST polling interval, 10..600 s
+    std::vector<ExtSlot> slots{};
+};
+
 /// Persistent config stored in NVS.
 class ConfigStore {
 public:
@@ -81,10 +119,15 @@ public:
     bool save_web_auth(const WebAuthConfig& cfg);
     bool load_ui(UiConfig& out);
     bool save_ui(const UiConfig& cfg);
+    bool load_tls(TlsConfig& out);
+    bool save_tls(const TlsConfig& cfg);
     bool reset_all_config();
 
     bool load_ha(HaConfig& out);
     bool save_ha(const HaConfig& cfg);
+
+    bool load_ext(ExtDataConfig& out);
+    bool save_ext(const ExtDataConfig& cfg);
 
     bool load_tariff(TariffConfig& out);
     bool save_tariff(const TariffConfig& cfg);
@@ -99,6 +142,7 @@ private:
     static constexpr const char* kNsHa     = "ha_cfg";
     static constexpr const char* kNsMqttLegacy = "mqtt_cfg";
     static constexpr const char* kNsTariff = "tariff_cfg";
+    static constexpr const char* kNsExt    = "ext_cfg";
 };
 
 } // namespace app

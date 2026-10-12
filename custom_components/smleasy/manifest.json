@@ -1,12 +1,13 @@
 {
   "domain": "smleasy",
   "name": "SMLEasy",
-  "version": "2.5.6",
+  "version": "3.0.0",
   "documentation": "https://github.com/ip6constructor/SMLEasy",
   "issue_tracker": "https://github.com/ip6constructor/SMLEasy/issues",
   "codeowners": [
     "@ip6constructor"
   ],
+  "after_dependencies": ["mqtt"],
   "requirements": [],
   "config_flow": true,
   "homeassistant": "2024.6.0",

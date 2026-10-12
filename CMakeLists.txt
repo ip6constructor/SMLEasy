@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/src/app")
+if((DEFINED IDF_TARGET AND IDF_TARGET STREQUAL "esp32s3") OR SMLEASY_IDF6_APP)
+    set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/src/app_s3")
+else()
+    set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/src/app")
+    # ACME needs mbedTLS 4/PSA (IDF 6); the C3 build on IDF 4.4 stays HTTP-only.
+    set(EXCLUDE_COMPONENTS acme_client)
+endif()
 file(READ "${CMAKE_CURRENT_LIST_DIR}/build_version.txt" PROJECT_VER)
 string(STRIP "${PROJECT_VER}" PROJECT_VER)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

@@ -42,7 +42,13 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build ESP32-C3 firmware
-        run: pio run --environment esp32c3_optical_meter
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            pio run --environment esp32c3_optical_meter && exit 0
+            echo "Build attempt $attempt failed, retrying in 90 s"; sleep 90
+          done
+          exit 1
 
       - name: Prepare release asset
         env:

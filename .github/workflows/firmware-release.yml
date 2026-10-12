@@ -81,8 +81,7 @@ jobs:
           cp build/smartmeter.bin "release/SMLEasy-S3-${VERSION}.bin"
           test -s "release/SMLEasy-S3-${VERSION}.bin"
           . "$IDF_PATH/export.sh"
-          cd build
-          python -m esptool --chip esp32s3 merge_bin -o "../release/SMLEasy-S3-${VERSION}-full.bin" @flasher_args.json
+          idf.py merge-bin -o "release/SMLEasy-S3-${VERSION}-full.bin"
 
       - uses: actions/upload-artifact@v4
         with:

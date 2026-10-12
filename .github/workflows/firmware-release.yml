@@ -10,8 +10,10 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-c3:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -50,10 +52,55 @@ jobs:
           cp .pio/build/esp32c3_optical_meter/firmware.bin "release/SMLEasy-${VERSION}.bin"
           test -s "release/SMLEasy-${VERSION}.bin"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-c3
+          path: release/*.bin
+
+  build-s3:
+    runs-on: ubuntu-latest
+    needs: build-c3
+    container: espressif/idf:v6.1
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build ESP32-S3 firmware (ESP-IDF 6.1)
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py set-target esp32s3
+          idf.py build
+
+      - name: Prepare release assets
+        shell: bash
+        env:
+          VERSION: ${{ needs.build-c3.outputs.version }}
+        run: |
+          mkdir -p release
+          cp build/smartmeter.bin "release/SMLEasy-S3-${VERSION}.bin"
+          test -s "release/SMLEasy-S3-${VERSION}.bin"
+          cd build
+          python3 -m esptool --chip esp32s3 merge_bin -o "../release/SMLEasy-S3-${VERSION}-full.bin" @flasher_args.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-s3
+          path: release/*.bin
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build-c3, build-s3]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: SMLEasy v${{ steps.version.outputs.version }}
+          tag_name: v${{ needs.build-c3.outputs.version }}
+          name: SMLEasy v${{ needs.build-c3.outputs.version }}
           generate_release_notes: true
-          files: release/SMLEasy-${{ steps.version.outputs.version }}.bin
+          files: release/*.bin

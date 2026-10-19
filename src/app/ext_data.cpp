@@ -29,6 +29,7 @@ struct SlotState {
     double  value{0};
     std::string unit;
     std::string name;     // friendly_name reported by Home Assistant
+    std::string text;     // value of text roles (car name, charging mode)
     std::string error;
     int64_t updated_us{0};
 };
@@ -63,8 +64,12 @@ bool parse_number(const std::string& text, double& out)
     return true;
 }
 
-// Walks a dotted path ("a.b.c") through JSON objects and reads a number or numeric string.
-bool number_at_path(const cJSON* root, const std::string& path, double& out)
+bool is_text_role(const std::string& role)
+{
+    return role == "car_name" || role == "wb_mode";
+}
+
+const cJSON* node_at_path(const cJSON* root, const std::string& path)
 {
     const cJSON* node = root;
     size_t start = 0;
@@ -72,11 +77,18 @@ bool number_at_path(const cJSON* root, const std::string& path, double& out)
         size_t dot = path.find('.', start);
         if (dot == std::string::npos) dot = path.size();
         const std::string part = path.substr(start, dot - start);
-        if (part.empty()) return false;
+        if (part.empty()) return nullptr;
         node = cJSON_GetObjectItemCaseSensitive(node, part.c_str());
         start = dot + 1;
         if (dot == path.size()) break;
     }
+    return node;
+}
+
+// Reads a number or numeric string at a dotted path ("a.b.c") of a JSON document.
+bool number_at_path(const cJSON* root, const std::string& path, double& out)
+{
+    const cJSON* node = node_at_path(root, path);
     if (!node) return false;
     if (cJSON_IsNumber(node)) {
         out = node->valuedouble;
@@ -93,7 +105,6 @@ struct ExtData::Impl {
     std::array<SlotState, ExtDataConfig::kMaxSlots> state;
     TaskHandle_t task{nullptr};
     bool started{false};
-    std::string push_base;   // topic prefix for values pushed by Home Assistant
 };
 
 ExtData::Impl* ExtData::impl()
@@ -134,10 +145,8 @@ void ExtData::apply_config()
     ConfigStore::get().load_ext(fresh);
 
     std::vector<std::string> topics;
-    const std::string push_base = MqttManager::input_topic_base();
     {
         std::lock_guard<std::mutex> lock(self->mutex);
-        self->push_base = push_base;
         // Keep known values when a slot still points at the same source.
         for (size_t i = 0; i < self->state.size(); ++i) {
             const bool same = i < fresh.slots.size() && i < self->cfg.slots.size() &&
@@ -150,7 +159,6 @@ void ExtData::apply_config()
         if (fresh.enabled) {
             for (const auto& slot : fresh.slots)
                 if (slot.source == "mqtt" && !slot.ref.empty()) topics.push_back(slot.ref);
-                else if (slot.source == "push" && !slot.ref.empty()) topics.push_back(push_base + slot.ref);
         }
     }
     MqttManager::get().set_extra_topics(topics, on_mqtt_message);
@@ -169,21 +177,28 @@ void ExtData::on_mqtt_message(const std::string& topic, const std::string& paylo
     std::lock_guard<std::mutex> lock(self->mutex);
     for (size_t i = 0; i < self->cfg.slots.size() && i < self->state.size(); ++i) {
         const ExtSlot& slot = self->cfg.slots[i];
-        const bool matches = slot.source == "mqtt" ? slot.ref == topic
-            : slot.source == "push" && topic == self->push_base + slot.ref;
-        if (!matches) continue;
+        if (slot.source != "mqtt" || slot.ref != topic) continue;
+        const bool text_role = is_text_role(slot.role);
         double value = 0;
+        std::string text;
         bool ok = false;
         if (slot.key.empty()) {
-            ok = parse_number(payload, value);
+            if (text_role) { text = payload; ok = !text.empty(); }
+            else ok = parse_number(payload, value);
         } else if (cJSON* json = cJSON_ParseWithLength(payload.c_str(), payload.size())) {
-            ok = number_at_path(json, slot.key, value);
+            if (text_role) {
+                const cJSON* node = node_at_path(json, slot.key);
+                if (cJSON_IsString(node) && node->valuestring) { text = node->valuestring; ok = !text.empty(); }
+            } else {
+                ok = number_at_path(json, slot.key, value);
+            }
             cJSON_Delete(json);
         }
         SlotState& state = self->state[i];
         if (ok) {
             state.has_value = true;
             state.value = value;
+            state.text = text.substr(0, 40);
             state.error.clear();
             state.updated_us = esp_timer_get_time();
         } else {
@@ -243,7 +258,7 @@ void ExtData::poll_task(void*)
 
             std::string error;
             double value = 0;
-            std::string unit, name;
+            std::string unit, name, text;
             bool ok = false;
             if (err != ESP_OK) {
                 error = std::string("connection failed: ") + esp_err_to_name(err);
@@ -260,7 +275,10 @@ void ExtData::poll_task(void*)
                 const cJSON* name_item = attributes ? cJSON_GetObjectItemCaseSensitive(attributes, "friendly_name") : nullptr;
                 if (cJSON_IsString(unit_item) && unit_item->valuestring) unit = unit_item->valuestring;
                 if (cJSON_IsString(name_item) && name_item->valuestring) name = name_item->valuestring;
-                if (cJSON_IsString(state) && state->valuestring && parse_number(state->valuestring, value)) {
+                if (is_text_role(slot.role) && cJSON_IsString(state) && state->valuestring && state->valuestring[0]) {
+                    text = state->valuestring;
+                    ok = true;
+                } else if (cJSON_IsString(state) && state->valuestring && parse_number(state->valuestring, value)) {
                     ok = true;
                 } else {
                     error = std::string("state is not numeric: ") +
@@ -276,6 +294,7 @@ void ExtData::poll_task(void*)
             if (ok) {
                 target.has_value = true;
                 target.value = value;
+                target.text = text.substr(0, 40);
                 target.unit = unit;
                 target.name = name;
                 target.error.clear();
@@ -315,6 +334,32 @@ bool ExtData::role_power_w(const char* role, double& watts) const
     return found;
 }
 
+bool ExtData::role_energy_wh(const char* role, double& wh) const
+{
+    const Impl* self = impl();
+    std::lock_guard<std::mutex> lock(self->mutex);
+    if (!self->cfg.enabled) return false;
+    const int64_t now = esp_timer_get_time();
+    const int stale_after_s = std::max<int>(120, self->cfg.poll_s * 3);
+    double sum = 0;
+    bool found = false;
+    for (size_t i = 0; i < self->cfg.slots.size() && i < self->state.size(); ++i) {
+        const ExtSlot& slot = self->cfg.slots[i];
+        const SlotState& state = self->state[i];
+        if (slot.role != role || !state.has_value || !state.error.empty()) continue;
+        if ((now - state.updated_us) / 1000000 > stale_after_s) continue;
+        const std::string unit = !slot.unit.empty() ? slot.unit : state.unit;
+        double value = state.value;
+        if (unit == "Wh") value *= 1.0;
+        else if (unit == "MWh") value *= 1.0e6;
+        else value *= 1000.0;   // kWh is the default for energy counters
+        sum += value;
+        found = true;
+    }
+    if (found) wh = sum;
+    return found;
+}
+
 std::string ExtData::values_json() const
 {
     const Impl* self = impl();
@@ -324,6 +369,7 @@ std::string ExtData::values_json() const
 
     cJSON* root = cJSON_CreateObject();
     cJSON_AddBoolToObject(root, "enabled", self->cfg.enabled);
+    cJSON_AddNumberToObject(root, "poll_s", self->cfg.poll_s < 10 ? 10 : self->cfg.poll_s);
     cJSON* items = cJSON_AddArrayToObject(root, "items");
     if (self->cfg.enabled) {
         for (size_t i = 0; i < self->cfg.slots.size() && i < self->state.size(); ++i) {
@@ -341,7 +387,8 @@ std::string ExtData::values_json() const
             cJSON_AddStringToObject(item, "source", slot.source.c_str());
             cJSON_AddStringToObject(item, "role", slot.role.c_str());
             cJSON_AddStringToObject(item, "state", status);
-            if (state.has_value) cJSON_AddNumberToObject(item, "value", state.value);
+            if (state.has_value && is_text_role(slot.role)) cJSON_AddStringToObject(item, "text", state.text.c_str());
+            else if (state.has_value) cJSON_AddNumberToObject(item, "value", state.value);
             cJSON_AddStringToObject(item, "unit", !slot.unit.empty() ? slot.unit.c_str() : state.unit.c_str());
             cJSON_AddNumberToObject(item, "age_s", age);
             cJSON_AddStringToObject(item, "error", state.error.c_str());

@@ -78,6 +78,7 @@ public:
 
     IoCounters io;
     std::atomic<uint32_t> read_interval_s{30};
+    std::atomic<int64_t>  last_meter_us{0};  ///< esp_timer time of the last stored meter reading, 0 = none
     std::atomic<bool>     continuous{true};
     std::atomic<bool>     last_login_ok{false}; ///< mirrors NVS last_lgn; set/reset by meter_task
 

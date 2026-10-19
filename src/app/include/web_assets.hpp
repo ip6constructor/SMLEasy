@@ -58,7 +58,61 @@ html{scroll-behavior:smooth}body{font-family:"Segoe UI",system-ui,sans-serif;col
 .btn:disabled{color:var(--text-muted);background:#e6ebf0;border-color:var(--border);box-shadow:none;cursor:not-allowed;filter:none;transform:none}.acme-section{margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(22,140,255,.03)}.acme-section h3{margin:0 0 6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}
 .check-list{margin:8px 0}.check-row{display:grid;grid-template-columns:28px 1fr;gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.84rem}.check-icon{font-weight:700;text-align:center}.check-detail{grid-column:2;color:var(--text-secondary);font-size:.76rem;overflow-wrap:anywhere}.check-row.pass .check-icon{color:var(--success)}.check-row.fail .check-icon{color:var(--danger)}.check-row.warn .check-icon{color:var(--warning)}.check-row.running .check-icon{color:var(--primary)}.check-row.pending .check-icon,.check-row.skipped .check-icon{color:var(--text-muted)}
 .ext-row{display:grid;grid-template-columns:1.3fr .9fr 1.6fr .5fr .9fr 1fr;gap:8px;margin-bottom:8px}.ext-row input,.ext-row select{min-width:0}.ext-head{color:var(--text-muted);font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}@media(max-width:760px){.ext-row{grid-template-columns:1fr 1fr}.ext-head{display:none}}
-.ext-card{grid-column:1/-1}.ext-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.ext-tile{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.7)}.ext-tile-label{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}.ext-tile-value{margin-top:8px;font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.45rem;font-weight:650;font-variant-numeric:tabular-nums}.ext-tile-age{margin-top:6px;font-size:.68rem;color:var(--text-muted)}.ext-bar{height:6px;margin-top:8px;border-radius:6px;background:var(--border);overflow:hidden}.ext-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light))}.ext-stale .ext-tile-value{color:var(--text-muted)}.ext-error{border-color:var(--danger)}.ext-error .ext-tile-value{color:var(--text-muted)}.ext-waiting .ext-tile-value{color:var(--text-muted)}
+.ext-card{grid-column:1/-1}.ext-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media(max-width:900px){.ext-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.ext-grid{grid-template-columns:1fr}}.ext-tile{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.7)}.ext-tile-label{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}.ext-tile-value{margin-top:8px;font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.45rem;font-weight:650;font-variant-numeric:tabular-nums}.ext-tile-age{margin-top:6px;font-size:.68rem;color:var(--text-muted)}.ext-bar{height:6px;margin-top:8px;border-radius:6px;background:var(--border);overflow:hidden}.ext-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light))}.ext-stale .ext-tile-value{color:var(--text-muted)}.ext-error{border-color:var(--danger)}.ext-error .ext-tile-value{color:var(--text-muted)}.ext-waiting .ext-tile-value{color:var(--text-muted)}.kpi-grid .kpi-card{background-repeat:no-repeat;background-position:right 18px center;background-size:auto 80%}.kpi-grid .kpi-card:nth-child(1){background-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22 fill=%22none%22 stroke=%22%23168cff%22 stroke-opacity=%22.28%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M60 8 36 112M60 8l24 104M22 36h76M32 70h56M38 36l44 34M82 36 38 70M4 36h18M98 36h18%22/%3E%3C/svg%3E")}.kpi-grid .kpi-card:nth-child(2){background-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 140 110%22%3E%3Ccircle cx=%22112%22 cy=%2224%22 r=%2212%22 fill=%22%23f5b301%22 fill-opacity=%22.45%22/%3E%3Cg stroke=%22%23f5b301%22 stroke-opacity=%22.45%22 stroke-width=%223%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M112 4v6M112 38v6M92 24h6M126 24h6M98 10l4 4M122 34l4 4M126 10l-4 4M102 34l-4 4%22/%3E%3C/g%3E%3Cpath d=%22M18 100 36 48h86l-18 52z%22 fill=%22%23168cff%22 fill-opacity=%22.16%22 stroke=%22%23168cff%22 stroke-opacity=%22.38%22 stroke-width=%223%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M27 74h86M32 61h86M54 48 40 100M76 48 64 100M98 48 88 100%22 stroke=%22%23168cff%22 stroke-opacity=%22.38%22 stroke-width=%222%22/%3E%3C/svg%3E")}.kpi-grid .kpi-card:nth-child(3){background-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 120%22%3E%3Ccircle cx=%2260%22 cy=%2260%22 r=%2246%22 fill=%22%232e9e5b%22 fill-opacity=%22.12%22 stroke=%22%232e9e5b%22 stroke-opacity=%22.38%22 stroke-width=%224%22/%3E%3Ctext x=%2260%22 y=%2280%22 text-anchor=%22middle%22 font-family=%22Arial,sans-serif%22 font-size=%2262%22 font-weight=%22700%22 fill=%22%232e9e5b%22 fill-opacity=%22.4%22%3E%26%238364%3B%3C/text%3E%3C/svg%3E")}.pbar{position:relative;height:16px;margin-top:22px;border-radius:9px;background:var(--border);overflow:hidden}.pbar-fill{height:100%;width:0;border-radius:9px;background:linear-gradient(90deg,#2f7de1,#6fb5ff);transition:width .6s ease}.pbar-fill.export{background:linear-gradient(90deg,#2e9e5b,#7fd6a0)}.pbar-scale{display:flex;justify-content:space-between;margin-top:6px;font-size:.72rem;color:var(--text-secondary)}.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}.pstats span{display:block;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary)}.pstats b{display:block;margin-top:4px;font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.05rem}.register-row{display:flex;align-items:center;gap:12px;margin-top:10px}.register-card .register-reading{flex:1;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;text-shadow:none;color:var(--text-primary);font-size:1.25rem;font-weight:700;letter-spacing:0;text-align:right}.register-reading .register-decimal{color:inherit}.register-reading .ext-zero{color:var(--text-muted);font-weight:500}.register-window{overflow:visible}.register-meter{background:linear-gradient(145deg,rgba(22,140,255,.09),rgba(22,140,255,.03));border-color:rgba(22,140,255,.28);border-radius:14px}.register-card .register-window{background:linear-gradient(145deg,rgba(22,140,255,.09),rgba(22,140,255,.03));border-color:rgba(22,140,255,.28);border-radius:12px}.ext-grid .ext-tile{background:linear-gradient(145deg,rgba(22,140,255,.09),rgba(22,140,255,.03));border-color:rgba(22,140,255,.28);border-radius:14px}.ext-row{display:flex;align-items:center;gap:12px;margin-top:10px}.ext-ico{flex:none;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center}.ext-counter{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0;justify-content:space-between}.ext-num{font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.1rem;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}.ext-zero{color:var(--text-muted);font-weight:500}.ext-unit{font-size:.82rem;color:var(--text-secondary)}.ext-big .ext-today{justify-content:flex-end;align-items:baseline;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(22,140,255,.2);font-size:.85rem;font-weight:600;color:var(--text-secondary)}.ext-big .ext-today b{font-size:1.1rem;font-weight:700;color:var(--text-primary)}.ext-big .ext-tile-value{margin-top:0}.batt{display:flex;align-items:center;gap:14px;margin-top:12px}.batt-cells{display:flex;flex-direction:column-reverse;gap:3px;padding:3px;border:2px solid var(--text-secondary);border-radius:6px;position:relative}.batt-cells:after{content:"";position:absolute;top:-7px;left:30%;height:4px;width:40%;border-radius:2px 2px 0 0;background:var(--text-secondary)}.batt-cells i{width:34px;height:12px;border-radius:2px;background:var(--border)}.batt-cells i.red{background:#d93025}.batt-cells i.yellow{background:#f0b400}.batt-cells i.green{background:#2e9e5b}.batt-car{font-size:1.1rem;line-height:1;margin-bottom:2px}.batt-pct{margin-left:6px;font-family:"Cascadia Code","JetBrains Mono",monospace;font-size:1.3rem;font-weight:650}.batt-trend{font-size:1.8rem;font-weight:800;line-height:1;min-width:1.2ch;text-align:center}.batt-trend.up{color:#2e9e5b}.batt-trend.down{color:#d93025}.ext-today{margin-top:8px;display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-secondary)}.ext-today b{font-family:"Cascadia Code","JetBrains Mono",monospace;color:var(--text-primary)}.ext-tile .register-reading{margin-top:8px}.ext-tile .register-unit{margin-top:4px}
+
+body.eh-full{overflow:hidden}
+body.eh-full #energy-view{position:fixed;inset:0;z-index:1000;background:#000;display:flex;align-items:center;justify-content:center}
+body.eh-full .eh-bar,body.eh-full #energy-view .page-intro{display:none}
+body.eh-full .eh-stage{width:min(100vw,calc(100vh*var(--ehr,1.7778)));border-radius:0;border:0}
+.eh-menu{display:none;position:absolute;top:10px;left:10px;z-index:5;width:42px;height:42px;padding:0;border-radius:12px;border:1px solid rgba(148,163,184,.4);background:rgba(8,15,30,.7);color:#fff;cursor:pointer;align-items:center;justify-content:center}
+.eh-menu svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+body.eh-full .eh-menu{display:flex}
+#eh-fs{left:62px}
+#energy-view{display:none}
+body.view-energy #energy-view{display:block}
+body.view-energy .page-intro,body.view-energy section.grid{display:none}
+.eh-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.eh-bar button{padding:6px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;cursor:pointer}
+.eh-bar button.on{background:#2563eb}
+.eh-clock{margin-left:auto;font-variant-numeric:tabular-nums;color:#94a3b8}
+.eh-stage{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0b1220 center/cover no-repeat;border:1px solid #1e293b;touch-action:none}
+#eh-flows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.eh-flow{fill:none;stroke-linecap:round;stroke-dasharray:2 7;animation:ehflow 1s linear infinite;filter:drop-shadow(0 0 3px currentColor)}
+@keyframes ehflow{to{stroke-dashoffset:-9}}
+.eh-tile{position:absolute;transform:translate(-50%,-50%);min-width:120px;max-width:30%;padding:8px 12px;border-radius:12px;background:rgba(8,15,30,.78);border:1px solid rgba(148,163,184,.35);color:#e2e8f0;backdrop-filter:blur(3px);font-size:clamp(11px,1.3vw,15px);line-height:1.35;user-select:none}
+.eh-tile b{display:block;font-size:1.5em;color:#fff}
+.eh-tile small{color:#94a3b8;display:block}
+.eh-tile h3{margin:0 0 2px;font-size:.95em;color:#cbd5e1}
+body.eh-edit .eh-tile{cursor:move;outline:2px dashed #38bdf8}
+.eh-ic{width:1.5em;height:1.5em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.eh-top{display:flex;align-items:center;gap:.6em}
+.eh-top .eh-ic{width:2.6em;height:2.6em}
+.eh-top h3{margin:0;font-size:.95em;color:#e2e8f0}
+.eh-top small{display:block}
+.eh-val{display:block;font-size:1.6em;font-weight:700;line-height:1.15}
+.eh-rows{border-top:1px solid rgba(148,163,184,.3);margin-top:6px;padding-top:4px}
+.eh-row{display:flex;justify-content:space-between;gap:1em;color:#94a3b8;white-space:nowrap}
+.eh-row span:last-child{color:#fff}
+.eh-hd{display:flex;align-items:center;gap:.45em;margin-bottom:2px}
+.eh-hd h3{margin:0}
+.eh-ar{display:block;font-weight:700;font-size:.95em}
+.eh-kpis div{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:.6em}
+.eh-kpis .eh-ic{grid-row:1/3;width:2em;height:2em}
+.eh-kpis{position:absolute;left:4px;right:4px;bottom:4px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 20px;border-radius:12px;background:rgba(0,0,0,.93);font-size:clamp(14px,2.4vw,28px)}
+.eh-kpis div{padding:0}
+.eh-kpis small{display:block;color:#94a3b8}
+.eh-kpis div{color:#e2e8f0}
+.eh-kpis b{font-size:1.3em;color:#fff}
+.eh-pbar{height:.8em;border-radius:3px;background:rgba(148,163,184,.25);margin:6px 0 2px;overflow:hidden}.eh-pbar i{display:block;height:100%;background:#fbbf24}
+.eh-soc{display:flex;gap:3px;margin:6px 0 2px}
+.eh-flowbar{position:relative;height:1.3em;margin:8px 0 4px;background:rgba(148,163,184,.18);overflow:hidden;clip-path:polygon(0 0,calc(100% - 1em) 0,100% 50%,calc(100% - 1em) 100%,0 100%)}
+.eh-flowbar.l{clip-path:polygon(1em 0,100% 0,100% 100%,1em 100%,0 50%)}
+.eh-flowbar i{position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--c) 0 .9em,transparent .9em 1.5em);background-size:1.5em 100%;animation:ehrun .9s linear infinite}
+.eh-flowbar.l i{animation-direction:reverse}.eh-flowbar.idle i{animation:none;background:rgba(148,163,184,.25)}
+@keyframes ehrun{to{background-position:1.5em 0}}
+.eh-tile[data-k=grid]{min-width:230px}.eh-tile[data-k=grid] .eh-row{font-size:1.25em;padding:3px 0}.eh-tile[data-k=grid] .eh-row span:last-child{font-weight:700}
+.eh-soc i{flex:1;height:.8em;border-radius:3px;background:rgba(148,163,184,.25)}
+.eh-soc i.red{background:#ef4444}.eh-soc i.yellow{background:#f59e0b}.eh-soc i.green{background:#22c55e}
 )rawcss";
 
 static const char kAppJs[] = R"rawjs(
@@ -79,6 +133,36 @@ let _reconnectCountdown = null;
 
 const UI_LANGUAGES = ['en', 'de', 'nl', 'fr', 'pl'];
 const UI_TEXT = {
+  'Modus': ['Mode', 'Modus', 'Modus', 'Mode', 'Tryb'],
+  'Leistung': ['Power', 'Leistung', 'Vermogen', 'Puissance', 'Moc'],
+  'Ladevorgang': ['Charging session', 'Ladevorgang', 'Laadsessie', 'Session de charge', 'Sesja \u0142adowania'],
+  'Gesamt': ['Total', 'Gesamt', 'Totaal', 'Total', 'Razem'],
+  'Woche': ['Week', 'Woche', 'Week', 'Semaine', 'Tydzie\u0144'],
+  'Geladen': ['Charged', 'Geladen', 'Geladen', 'Charg\u00e9', 'Na\u0142adowano'],
+  'PV S\u00fcd': ['PV South', 'PV S\u00fcd', 'PV Zuid', 'PV Sud', 'PV Po\u0142udnie'],
+  'Vollbild': ['Fullscreen', 'Vollbild', 'Volledig scherm', 'Plein \u00e9cran', 'Pe\u0142ny ekran'],
+  'PV West': ['PV West', 'PV West', 'PV West', 'PV Ouest', 'PV Zach\u00f3d'],
+  'PV Ost': ['PV East', 'PV Ost', 'PV Oost', 'PV Est', 'PV Wsch\u00f3d'],
+  'Ladezustand': ['State of charge', 'Ladezustand', 'Laadtoestand', 'Niveau de charge', 'Stan na\u0142adowania'],
+  'Energiehaus': ['Energy house', 'Energiehaus', 'Energiehuis', 'Maison énergie', 'Dom energii'],
+  'Mein Energiehaus': ['My energy house', 'Mein Energiehaus', 'Mijn energiehuis', 'Ma maison énergie', 'Mój dom energii'],
+  'Foto wählen': ['Choose photo', 'Foto wählen', 'Foto kiezen', 'Choisir une photo', 'Wybierz zdjęcie'],
+  'Foto-Link': ['Photo link', 'Foto-Link', 'Fotolink', 'Lien photo', 'Link do zdjęcia'],
+  'Kacheln verschieben': ['Move tiles', 'Kacheln verschieben', 'Tegels verplaatsen', 'Déplacer les tuiles', 'Przesuń kafelki'],
+  'Zurücksetzen': ['Reset', 'Zurücksetzen', 'Resetten', 'Réinitialiser', 'Resetuj'],
+  'Foto zu groß für den Browser-Speicher': ['Photo too large for browser storage', 'Foto zu groß für den Browser-Speicher', 'Foto te groot voor browseropslag', 'Photo trop grande pour le stockage du navigateur', 'Zdjęcie za duże dla pamięci przeglądarki'],
+  'Stromnetz': ['Grid', 'Stromnetz', 'Stroomnet', 'Réseau', 'Sieć'],
+  'Bezug': ['Import', 'Bezug', 'Afname', 'Soutirage', 'Pobór'],
+  'Einspeisung': ['Export', 'Einspeisung', 'Teruglevering', 'Injection', 'Oddawanie'],
+  'Batterie': ['Battery', 'Batterie', 'Batterij', 'Batterie', 'Bateria'],
+  'Laden': ['Charging', 'Laden', 'Laden', 'Charge', 'Ładowanie'],
+  'Entladen': ['Discharging', 'Entladen', 'Ontladen', 'Décharge', 'Rozładowanie'],
+  'Wallbox': ['Wallbox', 'Wallbox', 'Wallbox', 'Wallbox', 'Wallbox'],
+  'E-Auto': ['EV', 'E-Auto', 'EV', 'VE', 'EV'],
+  'Eigenverbrauch': ['Self-consumption', 'Eigenverbrauch', 'Eigenverbruik', 'Autoconsommation', 'Autokonsumpcja'],
+  'Gesamterzeugung': ['Total generation', 'Gesamterzeugung', 'Totale opwekking', 'Production totale', 'Całkowita produkcja'],
+  'Netzkosten heute': ['Grid cost today', 'Netzkosten heute', 'Netkosten vandaag', 'Coût réseau aujourd\'hui', 'Koszt sieci dzisiaj'],
+  'Monat': ['Month', 'Monat', 'Maand', 'Mois', 'Miesiąc'],
   'SMLEasy Dashboard': ['SMLEasy Dashboard', 'SMLEasy Dashboard', 'SMLEasy Dashboard', 'Tableau de bord SMLEasy', 'Panel SMLEasy'],
   'SMLEasy — Konfiguration': ['SMLEasy — Settings', 'SMLEasy — Konfiguration', 'SMLEasy — Instellingen', 'SMLEasy — Configuration', 'SMLEasy — Konfiguracja'],
   'Übersicht': ['Overview', 'Übersicht', 'Overzicht', 'Vue d’ensemble', 'Przegląd'],
@@ -252,6 +336,8 @@ const UI_TEXT = {
   'MQTT-Broker nicht verbunden.': ['MQTT broker not connected.', 'MQTT-Broker nicht verbunden.', 'MQTT-broker niet verbonden.', 'Broker MQTT non connecté.', 'Broker MQTT niepołączony.'],
   'Externe Daten gespeichert.': ['External data saved.', 'Externe Daten gespeichert.', 'Externe gegevens opgeslagen.', 'Données externes enregistrées.', 'Zapisano dane zewnętrzne.'],
   'Externe Daten konnten nicht gespeichert werden.': ['External data could not be saved.', 'Externe Daten konnten nicht gespeichert werden.', 'Externe gegevens konden niet worden opgeslagen.', 'Impossible d’enregistrer les données externes.', 'Nie udało się zapisać danych zewnętrznych.'],
+  'Heute': ['Today', 'Heute', 'Vandaag', 'Aujourd\'hui', 'Dzisiaj'],
+  'Hausverbrauch heute': ['Home consumption today', 'Hausverbrauch heute', 'Huisverbruik vandaag', 'Consommation du foyer aujourd\'hui', 'Zużycie domu dzisiaj'],
   'Haus & Energie': ['Home & energy', 'Haus & Energie', 'Huis & energie', 'Maison & énergie', 'Dom i energia'],
   'Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).': ['Live log is only visible over HTTPS (port 80 is in use during validation).', 'Live-Protokoll nur per HTTPS sichtbar (Port 80 ist während der Prüfung belegt).', 'Livelogboek alleen zichtbaar via HTTPS (poort 80 is tijdens de controle in gebruik).', 'Journal en direct visible uniquement en HTTPS (le port 80 est occupé pendant la validation).', 'Dziennik na żywo jest widoczny tylko przez HTTPS (port 80 jest zajęty podczas weryfikacji).'],
   'Produktivumgebung ohne Staging-Test: Fehlversuche zählen gegen die Rate-Limits von Let\'s Encrypt. Trotzdem fortfahren?': ['Production environment without a staging test: failed attempts count against the Let\'s Encrypt rate limits. Continue anyway?', 'Produktivumgebung ohne Staging-Test: Fehlversuche zählen gegen die Rate-Limits von Let\'s Encrypt. Trotzdem fortfahren?', 'Productieomgeving zonder staging-test: mislukte pogingen tellen mee voor de limieten van Let\'s Encrypt. Toch doorgaan?', 'Environnement de production sans test staging : les échecs comptent dans les limites de Let\'s Encrypt. Continuer quand même ?', 'Środowisko produkcyjne bez testu staging: nieudane próby wliczają się do limitów Let\'s Encrypt. Kontynuować mimo to?'],
@@ -442,7 +528,28 @@ const UI_TEXT = {
   'Update successful! Device is restarting …': ['Update successful! Device is restarting …', 'Update erfolgreich! Gerät startet neu …', 'Update geslaagd! Apparaat start opnieuw …', 'Mise à jour réussie ! Redémarrage …', 'Aktualizacja udana! Urządzenie uruchamia się ponownie …'],
   'Connection error': ['Connection error', 'Verbindungsfehler', 'Verbindingsfout', 'Erreur de connexion', 'Błąd połączenia'],
   'Error: ': ['Error: ', 'Fehler: ', 'Fout: ', 'Erreur : ', 'Błąd: '],
-  'Version': ['Version', 'Version', 'Versie', 'Version', 'Wersja']
+  'Version': ['Version', 'Version', 'Versie', 'Version', 'Wersja'],
+  'Bezugspreis (je kWh)': ['Import price (per kWh)', 'Bezugspreis (je kWh)', 'Afnameprijs (per kWh)', 'Prix d’achat (par kWh)', 'Cena poboru (za kWh)'],
+  'Einspeisevergütung (je kWh)': ['Feed-in tariff (per kWh)', 'Einspeisevergütung (je kWh)', 'Terugleververgoeding (per kWh)', 'Rémunération d’injection (par kWh)', 'Wynagrodzenie za oddawanie (za kWh)'],
+  'Wallbox-Erstattung (je kWh)': ['Wallbox reimbursement (per kWh)', 'Wallbox-Erstattung (je kWh)', 'Wallbox-vergoeding (per kWh)', 'Remboursement wallbox (par kWh)', 'Zwrot za wallbox (za kWh)'],
+  'Rolle für Statistik': ['Statistics role', 'Rolle für Statistik', 'Rol voor statistiek', 'Rôle pour les statistiques', 'Rola w statystykach'],
+  'Statistik': ['Statistics', 'Statistik', 'Statistieken', 'Statistiques', 'Statystyki'],
+  'Steuerung': ['Control', 'Steuerung', 'Besturing', 'Commande', 'Sterowanie'],
+  'Tage': ['Days', 'Tage', 'Dagen', 'Jours', 'Dni'],
+  'Wochen': ['Weeks', 'Wochen', 'Weken', 'Semaines', 'Tygodnie'],
+  'Monate': ['Months', 'Monate', 'Maanden', 'Mois', 'Miesiące'],
+  'Kurzname / Entity-ID / Topic': ['Short name / entity ID / topic', 'Kurzname / Entity-ID / Topic', 'Korte naam / entiteit-ID / topic', 'Nom court / ID d’entité / topic', 'Nazwa skrócona / ID encji / temat'],
+  'REST-Abfrage': ['REST query', 'REST-Abfrage', 'REST-opvraag', 'Requête REST', 'Zapytanie REST'],
+  'Tageswerte werden aus diesen Ständen berechnet und im Gerätespeicher gesichert.': ['Daily values are calculated from these readings and stored in device memory.', 'Tageswerte werden aus diesen Ständen berechnet und im Gerätespeicher gesichert.', 'Dagwaarden worden uit deze standen berekend en in het apparaatgeheugen opgeslagen.', 'Les valeurs journalières sont calculées à partir de ces relevés et enregistrées dans la mémoire de l’appareil.', 'Wartości dzienne są obliczane z tych odczytów i zapisywane w pamięci urządzenia.'],
+  'Home-Assistant-Automation erzeugen': ['Create Home Assistant automation', 'Home-Assistant-Automation erzeugen', 'Home Assistant-automatisering maken', 'Créer une automatisation Home Assistant', 'Utwórz automatyzację Home Assistant'],
+  'Aktuelle Zählerstände werden geladen …': ['Loading current meter readings …', 'Aktuelle Zählerstände werden geladen …', 'Actuele meterstanden worden geladen …', 'Chargement des relevés actuels …', 'Wczytywanie aktualnych odczytów …'],
+  'GNU AGPLv3: Weitergabe und Änderung erlaubt': ['GNU AGPLv3: redistribution and modification permitted', 'GNU AGPLv3: Weitergabe und Änderung erlaubt', 'GNU AGPLv3: verspreiden en wijzigen toegestaan', 'GNU AGPLv3 : redistribution et modification autorisées', 'GNU AGPLv3: dozwolone rozpowszechnianie i modyfikacja'],
+  'GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.': ['GNU AGPLv3: redistribution and modification permitted. No warranty.', 'GNU AGPLv3: Weitergabe und Änderung erlaubt. Keine Gewährleistung.', 'GNU AGPLv3: verspreiden en wijzigen toegestaan. Geen garantie.', 'GNU AGPLv3 : redistribution et modification autorisées. Aucune garantie.', 'GNU AGPLv3: dozwolone rozpowszechnianie i modyfikacja. Bez gwarancji.'],
+  'Spitze Bezug (1 h)': ['Peak import (1 h)', 'Spitze Bezug (1 h)', 'Piek afname (1 u)', 'Pic de soutirage (1 h)', 'Szczyt poboru (1 h)'],
+  'Spitze Einspeisung (1 h)': ['Peak feed-in (1 h)', 'Spitze Einspeisung (1 h)', 'Piek teruglevering (1 u)', 'Pic d’injection (1 h)', 'Szczyt oddawania (1 h)'],
+  'Strom je Phase': ['Current per phase', 'Strom je Phase', 'Stroom per fase', 'Courant par phase', 'Prąd na fazę'],
+  'Ersparnis heute': ['Savings today', 'Ersparnis heute', 'Besparing vandaag', 'Économie aujourd\'hui', 'Oszczędność dzisiaj'],
+  'kW netto': ['kW net', 'kW netto', 'kW netto', 'kW net', 'kW netto']
 };
 
 let activeUiLanguage = 'en';
@@ -867,11 +974,21 @@ async function requestAcmeCertificate() {
 }
 
 const EXT_PRESETS = [
-  { label: 'PV-Batterie Ladestand', ref: 'sensor.battery_state_of_charge', push: 'battery_soc' },
-  { label: 'PV-Leistung gesamt', ref: 'sensor.pv_power_total', push: 'pv_power', role: 'pv' },
-  { label: 'Wallbox gesamt', ref: 'sensor.wallbox_power_total', push: 'wallbox_power' },
-  { label: 'Hausverbrauch', ref: 'sensor.house_power', push: 'house_power' },
-  { label: 'Batterie-Leistung', ref: 'sensor.battery_power', push: 'battery_power', role: 'battery' }
+  { label: 'PV-Erzeugung gesamt', ref: 'sensor.pv_energy_total', role: 'pv_kwh' },
+  { label: 'Batterie geladen gesamt', ref: 'sensor.battery_charge_total', role: 'bat_chg_kwh' },
+  { label: 'Batterie entladen gesamt', ref: 'sensor.battery_discharge_total', role: 'bat_dis_kwh' },
+  { label: 'PV-Batterie Ladestand', ref: 'sensor.battery_state_of_charge' },
+  { label: 'Wallbox gesamt', ref: 'sensor.wallbox_energy_total', role: 'wb_kwh' },
+  { label: 'PV Ost', ref: 'sensor.pv_east_power', role: 'pv_east' },
+  { label: 'PV S\u00fcd', ref: 'sensor.pv_south_power', role: 'pv_south' },
+  { label: 'PV West', ref: 'sensor.pv_west_power', role: 'pv_west' },
+  { label: 'PV-Leistung gesamt', ref: 'sensor.pv_power', role: 'pv' },
+  { label: 'Batterie-Leistung', ref: 'sensor.battery_power', role: 'battery' },
+  { label: 'Ladeleistung', ref: 'sensor.wallbox_power', role: 'wb_power' },
+  { label: 'Auto Name', ref: 'sensor.car_name', role: 'car_name' },
+  { label: 'Auto Ladestand', ref: 'sensor.car_battery_level' },
+  { label: 'Ladevorgang', ref: 'sensor.wallbox_session_energy', role: 'wb_session_kwh' },
+  { label: 'Lademodus', ref: 'sensor.wallbox_mode', role: 'wb_mode' }
 ];
 const EXT_STATE_TEXT = { ok: 'ok', stale: 'veraltet', error: 'Fehler', waiting: 'wartet' };
 let extLiveTimer = null;
@@ -890,30 +1007,30 @@ function renderExtRows(slots) {
   const box = document.getElementById('ext-rows');
   if (!box) return;
   box.replaceChildren();
-  for (let index = 0; index < 8; index++) {
+  for (let index = 0; index < 16; index++) {
     const slot = slots[index] || {};
-    const preset = EXT_PRESETS[index] || { label: '', ref: '', push: '' };
+    const preset = EXT_PRESETS[index] || { label: '', ref: '' };
     const row = document.createElement('div');
     row.className = 'ext-row';
     const source = document.createElement('select');
     source.className = 'ext-source';
-    [['push', 'HA sendet (Kurzname)'], ['rest', 'REST (Entity-ID)'], ['mqtt', 'MQTT (Topic)']].forEach(([value, text]) => {
+    [['rest', 'REST (Entity-ID)'], ['mqtt', 'MQTT (Topic)']].forEach(([value, text]) => {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = text;
       source.appendChild(option);
     });
-    source.value = slot.source === 'mqtt' || slot.source === 'rest' ? slot.source : 'push';
+    source.value = slot.source === 'mqtt' ? 'mqtt' : 'rest';
     row.append(
       extInput('ext-label', slot.label, preset.label, 40),
       source,
-      extInput('ext-ref', slot.ref, preset.push || preset.ref, 128),
+      extInput('ext-ref', slot.ref, preset.ref, 128),
       extInput('ext-unit', slot.unit, '', 12),
       extInput('ext-key', slot.key, '', 40)
     );
     const role = document.createElement('select');
     role.className = 'ext-role';
-    [['', 'Nur anzeigen'], ['pv', 'PV-Leistung (W)'], ['battery', 'Batterie (+ = laden)'], ['battery_neg', 'Batterie (+ = entladen)']].forEach(([value, text]) => {
+    [['', 'Nur anzeigen'], ['pv_kwh', 'PV-Zähler (kWh gesamt)'], ['bat_chg_kwh', 'Batterie geladen (kWh gesamt)'], ['bat_dis_kwh', 'Batterie entladen (kWh gesamt)'], ['pv', 'PV-Leistung (W)'], ['battery', 'Batterie (+ = laden)'], ['battery_neg', 'Batterie (+ = entladen)'], ['pv_east', 'PV Ost (Leistung)'], ['pv_south', 'PV S\u00fcd (Leistung)'], ['pv_west', 'PV West (Leistung)'], ['wb_kwh', 'Wallbox-Z\u00e4hler (kWh gesamt)'], ['wb_power', 'Ladeleistung Wallbox'], ['wb_session_kwh', 'Ladevorgang (kWh)'], ['car_name', 'Auto-Name (Text)'], ['wb_mode', 'Lademodus (PV-Only/Both/Fast)']].forEach(([value, text]) => {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = text;
@@ -979,7 +1096,7 @@ function renderExtLive(data) {
     icon.className = 'check-icon';
     icon.textContent = item.state === 'ok' ? '✔' : item.state === 'error' ? '✖' : item.state === 'stale' ? '⚠' : '…';
     const label = document.createElement('span');
-    const valueText = typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
+    const valueText = typeof item.text === 'string' ? item.text : typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
     label.textContent = item.label + ': ' + valueText + ' · ' + localizedText(EXT_STATE_TEXT[item.state] || item.state) +
       (item.age_s >= 0 ? ' · ' + formatExtAge(item.age_s) : '');
     row.append(icon, label);
@@ -1049,17 +1166,6 @@ async function saveExtConfig(event) {
   }
 }
 
-async function showExtAutomation() {
-  const box = document.getElementById('ext-yaml');
-  if (!box) return;
-  try {
-    const response = await fetch('/api/ext/automation.yaml');
-    box.textContent = response.ok ? await response.text() : localizedText('Automation konnte nicht erzeugt werden.');
-    box.hidden = false;
-    if (response.ok && navigator.clipboard) navigator.clipboard.writeText(box.textContent).catch(() => {});
-  } catch (_) {}
-}
-
 async function refreshExtNow() {
   try { await fetch('/api/ext/refresh', { method: 'POST' }); } catch (_) {}
   setTimeout(loadExtLive, 2500);
@@ -1085,7 +1191,72 @@ async function fetchExt() {
       label.textContent = item.label;
       const value = document.createElement('div');
       value.className = 'ext-tile-value';
-      value.textContent = typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
+      value.textContent = typeof item.text === 'string' ? item.text : typeof item.value === 'number' ? formatExtValue(item.value) + (item.unit ? ' ' + item.unit : '') : '—';
+      const role = item.role || (/wallbox/i.test(item.label || '') && /^k?wh$/i.test(item.unit || '') ? 'wb_kwh' : '');
+      const todayKey = EXT_TODAY_KEYS[role];
+      if (todayKey && typeof item.value === 'number') {
+        const unitWh = item.unit === 'Wh' ? 1 : item.unit === 'MWh' ? 1e6 : 1000;
+        tile.className += ' ext-big';
+        const row = document.createElement('div');
+        row.className = 'ext-row';
+        const today = document.createElement('div');
+        today.className = 'ext-today';
+        today.dataset.today = todayKey;
+        tile.append(label, row, today);
+        if (role === 'pv_kwh') {
+          const sav = document.createElement('div');
+          sav.className = 'ext-today';
+          sav.dataset.saving = 'today_saving';
+          tile.appendChild(sav);
+        }
+        row.append(extIcon(role), extCounter(item.value * unitWh));
+        grid.appendChild(tile);
+        return;
+      }
+      if (typeof item.value === 'number' && item.unit === '%') {
+        const pct = Math.max(0, Math.min(100, item.value));
+        const color = pct < 40 ? 'red' : pct > 60 ? 'green' : 'yellow';
+        const on = pct > 0 ? Math.max(1, Math.round(pct / 20)) : 0;
+        const isCar = /auto|fahrzeug|\bcar\b|\bev\b/i.test(item.label || '');
+        const batt = document.createElement('div');
+        batt.className = 'batt';
+        const cells = document.createElement('div');
+        cells.className = 'batt-cells';
+        for (let i = 0; i < 5; i++) {
+          const c = document.createElement('i');
+          if (i < on) c.className = color;
+          cells.appendChild(c);
+        }
+        const num = document.createElement('span');
+        num.className = 'batt-pct';
+        num.textContent = Math.round(pct) + ' %';
+        const trend = document.createElement('span');
+        trend.className = 'batt-trend';
+        if (!isCar) trend.id = 'batt-trend';
+        batt.append(trend, cells, num);
+        const age = document.createElement('div');
+        age.className = 'ext-tile-age';
+        age.textContent = formatExtAge(item.age_s);
+        tile.append(label, batt, age);
+        grid.appendChild(tile);
+        if (isCar) {
+          const st = carTrend[item.label] || (carTrend[item.label] = {prev: null, dir: '', at: 0});
+          if (st.prev != null && Math.abs(pct - st.prev) >= 1) { st.dir = pct > st.prev ? 'up' : 'down'; st.at = Date.now(); }
+          st.prev = pct;
+          if (st.dir && Date.now() - st.at < 300000) {
+            trend.className = 'batt-trend ' + st.dir;
+            trend.textContent = st.dir === 'up' ? '\u25B2' : '\u25BC';
+          }
+          const ico = document.createElement('div');
+          ico.className = 'batt-car';
+          ico.textContent = '\uD83D\uDE97';
+          num.prepend(ico);
+        } else {
+          if (battPrevSoc != null && Math.abs(pct - battPrevSoc) >= 1) { battTrend = pct > battPrevSoc ? 'up' : 'down'; battTrendAt = Date.now(); }
+          battPrevSoc = pct;
+        }
+        return;
+      }
       tile.append(label, value);
       if (typeof item.value === 'number' && item.unit === '%' && item.value >= 0 && item.value <= 100) {
         const bar = document.createElement('div');
@@ -1101,7 +1272,133 @@ async function fetchExt() {
       tile.appendChild(age);
       grid.appendChild(tile);
     });
+    if (items.some(i => i.role === 'pv_kwh')) {
+      const tile = document.createElement('div');
+      tile.className = 'ext-tile';
+      const label = document.createElement('div');
+      label.className = 'ext-tile-label';
+      label.textContent = localizedText('Hausverbrauch heute');
+      const value = document.createElement('div');
+      value.className = 'ext-tile-value';
+      value.id = 'ext-house-today';
+      value.textContent = '?';
+      const row = document.createElement('div');
+      row.className = 'ext-row';
+      row.append(extIcon('house'), value);
+      tile.classList.add('ext-big');
+      tile.append(label, row);
+      grid.appendChild(tile);
+    }
+    renderExtToday();
   } catch (_) {}
+}
+
+const EXT_ICONS = {
+  pv_kwh: ['#b7791f', '#fff1c2', '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'],
+  bat_chg_kwh: ['#1e9e5a', '#dcf7e7', '<path d="M13.5 2 5 13.5h6L10 22l9-12h-6.2z"/>'],
+  bat_dis_kwh: ['#e5484d', '#fde4e4', '<path d="M13.5 2 5 13.5h6L10 22l9-12h-6.2z"/>'],
+  wb_kwh: ['#6a5acd', '#e9e5fb', '<path d="M8 2v5M16 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'],
+  house: ['#2f7de1', '#dfeeff', '<path d="M12 3 2.5 11.5H5V21h5.5v-6h3v6H19v-9.5h2.5z"/>']
+};
+
+function extIcon(role) {
+  const [fg, bg, shape] = EXT_ICONS[role] || EXT_ICONS.house;
+  const el = document.createElement('div');
+  el.className = 'ext-ico';
+  el.style.background = bg;
+  el.style.color = fg;
+  el.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">' + shape + '</svg>';
+  return el;
+}
+
+function extCounter(valueWh) {
+  const wrap = document.createElement('div');
+  wrap.className = 'ext-counter';
+  const [whole, fraction] = (Number(valueWh) / 1000).toFixed(1).split('.');
+  const num = document.createElement('span');
+  num.className = 'ext-num';
+  num.textContent = whole + '.' + fraction;
+  const unit = document.createElement('span');
+  unit.className = 'ext-unit';
+  unit.textContent = 'kWh';
+  wrap.append(num, unit);
+  return wrap;
+}
+
+const EXT_TODAY_KEYS = {pv_kwh: 'today_pv_kwh', bat_chg_kwh: 'today_bat_chg_kwh', bat_dis_kwh: 'today_bat_dis_kwh', wb_kwh: 'today_wb_kwh'};
+let lastStatusData = null;
+const powerSamples = [];
+
+function updatePowerBar(netPower, d) {
+  const now = Date.now();
+  const imp = Math.max(0, netPower);
+  const exp = Math.max(0, -netPower);
+  const last = powerSamples[powerSamples.length - 1];
+  if (!last || now - last[0] >= 5000) powerSamples.push([now, imp, exp]);
+  else { last[1] = Math.max(last[1], imp); last[2] = Math.max(last[2], exp); }
+  while (powerSamples.length && now - powerSamples[0][0] > 3600000) powerSamples.shift();
+  const peakImp = Math.max(0, ...powerSamples.map(s => s[1]));
+  const peakExp = Math.max(0, ...powerSamples.map(s => s[2]));
+  const mag = Math.abs(netPower);
+  const scale = Math.max(6000, peakImp, peakExp);
+  const fill = document.getElementById('pbar-fill');
+  if (fill) {
+    fill.style.width = Math.min(100, 100 * mag / scale) + '%';
+    fill.className = 'pbar-fill' + (netPower < 0 ? ' export' : '');
+  }
+  const max = document.getElementById('pbar-max');
+  if (max) max.textContent = (scale / 1000).toFixed(scale % 1000 ? 1 : 0) + ' kW';
+  const setText = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+  setText('peak-imp', (peakImp / 1000).toFixed(2) + ' kW');
+  setText('peak-exp', (peakExp / 1000).toFixed(2) + ' kW');
+  const amps = [d.has_i_l1 ? d.i_l1_ma : null, d.has_i_l2 ? d.i_l2_ma : null, d.has_i_l3 ? d.i_l3_ma : null];
+  setText('phase-cur', amps.some(a => a != null) ? amps.map(a => a == null ? '\u2014' : (a / 1000).toFixed(1)).join(' / ') + ' A' : '\u2014');
+}
+
+const carTrend = {};
+let battTrend = '', battTrendAt = 0, battPrevSoc = null, battPrevCounters = null;
+
+function updateBattTrend(d) {
+  const chg = Number(d.today_bat_chg_kwh), dis = Number(d.today_bat_dis_kwh);
+  if (Number.isFinite(chg) && Number.isFinite(dis)) {
+    if (battPrevCounters) {
+      if (chg > battPrevCounters.chg + 0.0005) { battTrend = 'up'; battTrendAt = Date.now(); }
+      else if (dis > battPrevCounters.dis + 0.0005) { battTrend = 'down'; battTrendAt = Date.now(); }
+    }
+    battPrevCounters = {chg, dis};
+  }
+  if (battTrend && Date.now() - battTrendAt > 300000) battTrend = '';
+  const el = document.getElementById('batt-trend');
+  if (el) {
+    el.className = 'batt-trend' + (battTrend ? ' ' + battTrend : '');
+    el.textContent = battTrend === 'up' ? '\u25B2' : battTrend === 'down' ? '\u25BC' : '';
+  }
+}
+
+function renderExtToday() {
+  const d = lastStatusData;
+  if (!d) return;
+  updateBattTrend(d);
+  document.querySelectorAll('[data-today]').forEach(el => {
+    const v = d[el.dataset.today];
+    el.replaceChildren(localizedText('Heute') + ' ');
+    const b = document.createElement('b');
+    b.textContent = typeof v === 'number' ? v.toFixed(2) + ' kWh' : '?';
+    el.appendChild(b);
+  });
+  document.querySelectorAll('[data-saving]').forEach(el => {
+    const v = d[el.dataset.saving];
+    el.replaceChildren(localizedText('Ersparnis heute') + ' ');
+    const b = document.createElement('b');
+    b.textContent = typeof v === 'number' ? v.toFixed(2) + ' ' + (d.currency || 'EUR') : '?';
+    el.appendChild(b);
+  });
+  const house = document.getElementById('ext-house-today');
+  if (house) {
+    const n = k => Number(d[k]) || 0;
+    const kwh = n('today_import_kwh') - n('today_export_kwh') + n('today_pv_kwh') - n('today_bat_chg_kwh') + n('today_bat_dis_kwh');
+    house.textContent = d.today_import_kwh != null && kwh >= -0.005 ? Math.max(0, kwh).toFixed(2) + ' kWh' : '?';
+  }
 }
 
 function _startReconnect() {
@@ -1193,29 +1490,6 @@ function displayNumber(value, digits, unit) {
   return value == null || Number.isNaN(Number(value)) ? '—' : Number(value).toFixed(digits) + (unit ? ' ' + unit : '');
 }
 
-function updateHistory(points) {
-  const line = document.getElementById('history-line');
-  const area = document.getElementById('history-area');
-  if (!line || !area || !Array.isArray(points) || !points.length) return;
-  const values = points.map(p => Number(p.p) || 0);
-  const max = Math.max(1, ...values.map(Math.abs));
-  const width = 800, base = 185, height = 165;
-  const coords = values.map((value, index) => {
-    const x = values.length === 1 ? 0 : index * width / (values.length - 1);
-    const y = base - Math.max(-1, Math.min(1, value / max)) * height / 2 - height / 2;
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  });
-  line.setAttribute('points', coords.join(' '));
-  area.setAttribute('d', 'M' + coords[0] + 'L' + coords.join('L') + 'L800,185L0,185Z');
-}
-
-async function fetchHistory() {
-  try {
-    const r = await fetch('/api/history');
-    if (r.ok) updateHistory(await r.json());
-  } catch (_) {}
-}
-
 function kv(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = (val == null || val === '') ? '—' : val;
@@ -1240,18 +1514,23 @@ function renderNetworkAddresses(element, addresses) {
   });
 }
 
-function setRegisterValue(id, valueWh, hasValue) {
+function setRegisterValue(id, valueWh, hasValue, digits = 3) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!hasValue || valueWh == null || !Number.isFinite(Number(valueWh))) {
     el.textContent = '—';
     return;
   }
-  const [whole, fraction] = (Number(valueWh) / 1000).toFixed(3).split('.');
+  const [whole, fraction] = (Number(valueWh) / 1000).toFixed(digits).split('.');
   const decimal = document.createElement('span');
   decimal.className = 'register-decimal';
   decimal.textContent = '.' + fraction;
-  el.replaceChildren(whole.padStart(7, '0'), decimal);
+  const padded = whole.padStart(7, '0');
+  const lead = padded.match(/^0*/)[0].slice(0, 6);
+  const zeros = document.createElement('span');
+  zeros.className = 'ext-zero';
+  zeros.textContent = lead;
+  el.replaceChildren(zeros, padded.slice(lead.length), decimal);
 }
 
 function setRowVisible(id, visible) {
@@ -1306,12 +1585,14 @@ function renderStats() {
   if (!table || !statsData) return;
   const rows = (statsData[statsView] || []).slice().reverse();
   const hasPv = rows.some(r => r.pv > 0 || r.bc > 0 || r.bd > 0);
+  const hasWb = rows.some(r => r.wb > 0);
   const kwh = wh => (wh / 1000).toFixed(2);
   const money = m => (m / 1000).toFixed(2);
   const cols = ['Zeitraum', 'Bezug kWh', 'Einspeisung kWh'];
   if (hasPv) cols.push('PV kWh', 'Batterie laden/entladen kWh', 'Haus kWh', 'Eigenanteil %');
   cols.push('Netto ' + (statsData.currency || 'EUR'));
   if (hasPv) cols.push('Ersparnis ' + (statsData.currency || 'EUR'));
+  if (hasWb) cols.push('Wallbox kWh', 'Wallbox Ergebnis ' + (statsData.currency || 'EUR'));
   const head = table.tHead;
   head.replaceChildren();
   const hr = head.insertRow();
@@ -1327,6 +1608,7 @@ function renderStats() {
     if (hasPv) cells.push(kwh(r.pv), kwh(r.bc) + ' / ' + kwh(r.bd), kwh(house), String(own));
     cells.push(money(r.c));
     if (hasPv) cells.push(money(r.s));
+    if (hasWb) cells.push(kwh(r.wb), money(r.wm));
     const tr = body.insertRow();
     cells.forEach((c, i) => { const td = tr.insertCell(); td.textContent = c; if (i) td.className = 'value'; });
   });
@@ -1339,6 +1621,7 @@ function renderStats() {
 
 async function loadStats() {
   if (!document.getElementById('stats-table')) return;
+  if (document.body.classList.contains('view-energy')) return;
   try {
     const r = await fetch('/api/stats');
     if (!r.ok) return;
@@ -1348,6 +1631,8 @@ async function loadStats() {
 }
 
 async function fetchStatus() {
+  // Im Energie-Board pollt nur ehLoop(); parallele Abfragen blockieren den ESP-Webserver.
+  if (document.body.classList.contains('view-energy')) return;
   try {
     const r = await fetch('/api/status');
     if (!r.ok) throw new Error('status request failed');
@@ -1358,15 +1643,14 @@ async function fetchStatus() {
     const netPower = (Number(d.fwd_w) || 0) - (Number(d.rev_w) || 0);
     const powerValue = document.getElementById('current-power');
     if (powerValue && powerValue.firstChild) powerValue.firstChild.nodeValue = d.has_power ? String(Math.round(netPower)) : '—';
-    kv('power-kilowatt', d.has_power ? (netPower / 1000).toFixed(2) + ' kW netto' : null);
+    kv('power-kilowatt', d.has_power ? (netPower / 1000).toFixed(2) + ' ' + localizedText('kW netto') : null);
+    if (d.has_power) updatePowerBar(netPower, d);
     const heroCard = document.querySelector('.hero-card');
     if (heroCard) heroCard.hidden = !d.has_power;
     const meterCard = document.querySelector('.meter-card');
     if (meterCard) meterCard.hidden = !d.has_fwd_active_wh && !d.has_rev_active_wh;
     const kpiGrid = document.querySelector('.kpi-grid');
     if (kpiGrid) kpiGrid.hidden = !d.populated;
-    const historyCard = document.querySelector('.chart-card');
-    if (historyCard) historyCard.hidden = !d.populated;
     const splitCard = document.querySelector('.split-card');
     if (splitCard) splitCard.hidden = !d.populated;
     kv('today-import', displayNumber(d.today_import_kwh, 2, 'kWh'));
@@ -1374,29 +1658,17 @@ async function fetchStatus() {
     kv('cost-today', displayNumber(d.cost_today, 2, d.currency || 'EUR'));
     const importCost = (Number(d.today_import_kwh) || 0) * (Number(d.price_import_kwh) || 0);
     const exportCredit = (Number(d.today_export_kwh) || 0) * (Number(d.price_export_kwh) || 0);
-    kv('cost-breakdown', 'Bezug ' + importCost.toFixed(2) + ' - Einspeisung ' + exportCredit.toFixed(2) + ' ' + (d.currency || 'EUR'));
+    kv('cost-breakdown', localizedText('Bezug') + ' ' + importCost.toFixed(2) + ' - ' + localizedText('Einspeisung') + ' ' + exportCredit.toFixed(2) + ' ' + (d.currency || 'EUR'));
     kv('legend-import', displayNumber(d.today_import_kwh, 2, 'kWh'));
     kv('legend-month', displayNumber(d.month_import_kwh, 2, 'kWh'));
-    kv('table-import', d.has_fwd_active_wh ? displayNumber(Number(d.fwd_active_wh) / 1000, 2, '') : null);
-    kv('table-export', d.has_rev_active_wh ? displayNumber(Number(d.rev_active_wh) / 1000, 2, '') : null);
-    kv('table-power', d.has_power ? displayNumber(netPower, 0, '') : null);
-    kv('table-current-l1', d.has_i_l1 ? displayNumber(Number(d.i_l1_ma) / 1000, 2, '') : null);
-    kv('table-current-l2', d.has_i_l2 ? displayNumber(Number(d.i_l2_ma) / 1000, 2, '') : null);
-    kv('table-current-l3', d.has_i_l3 ? displayNumber(Number(d.i_l3_ma) / 1000, 2, '') : null);
-    setRowVisible('table-import', d.has_fwd_active_wh);
-    setRowVisible('table-export', d.has_rev_active_wh);
-    setRowVisible('table-power', d.has_power);
-    setRowVisible('table-current-l1', d.has_i_l1);
-    setRowVisible('table-current-l2', d.has_i_l2);
-    setRowVisible('table-current-l3', d.has_i_l3);
-    const meterTable = document.querySelector('.table-card');
-    if (meterTable) meterTable.hidden = ![d.has_fwd_active_wh, d.has_rev_active_wh, d.has_power, d.has_i_l1, d.has_i_l2, d.has_i_l3].some(Boolean);
     kv('m-mfr',   d.manufacturer);
     kv('m-model', d.model);
     kv('m-fw',    d.fw_version);
     kv('m-ser',   d.serial_bcd);
     kv('m-iser',  d.utility_serial);
     kv('m-time',  d.meter_time);
+    lastStatusData = d;
+    renderExtToday();
     setRegisterValue('m-fwh', d.fwd_active_wh, d.has_fwd_active_wh);
     setRegisterValue('m-rwh', d.rev_active_wh, d.has_rev_active_wh);
     kv('m-irh',   d.import_react_varh != null ? d.import_react_varh + ' varh' : null);
@@ -1476,6 +1748,7 @@ async function fetchStatus() {
 }
 
 async function fetchLog() {
+  if (document.body.classList.contains('view-energy')) return;
   try {
     const r = await fetch('/api/log?after=' + logSeq);
     if (!r.ok) return;
@@ -2266,7 +2539,9 @@ async function fetchTariffCfg() {
     if (!f) return;
     f.price_import_kwh.value = d.price_import_kwh ?? 0.30;
     f.price_export_kwh.value = d.price_export_kwh ?? 0.0664;
+    f.wallbox_refund_kwh.value = d.wallbox_refund_kwh ?? 0.31;
     f.currency.value = d.currency ?? 'EUR';
+    for (const k of ['east', 'south', 'west']) { f['pv_modules_' + k].value = d['pv_modules_' + k] ?? 0; f['pv_wp_' + k].value = d['pv_wp_' + k] ?? 485; }
   } catch (_) {}
 }
 
@@ -2276,7 +2551,11 @@ async function saveTariff(e) {
   const body = JSON.stringify({
     price_import_kwh: Number(fd.get('price_import_kwh')),
     price_export_kwh: Number(fd.get('price_export_kwh')),
-    currency: fd.get('currency')
+    wallbox_refund_kwh: Number(fd.get('wallbox_refund_kwh')),
+    currency: fd.get('currency'),
+    pv_modules_east: Number(fd.get('pv_modules_east')), pv_wp_east: Number(fd.get('pv_wp_east')),
+    pv_modules_south: Number(fd.get('pv_modules_south')), pv_wp_south: Number(fd.get('pv_wp_south')),
+    pv_modules_west: Number(fd.get('pv_modules_west')), pv_wp_west: Number(fd.get('pv_wp_west'))
   });
   const r = await fetch('/api/config/tariff', {method:'POST', headers:{'Content-Type':'application/json'}, body});
   alert(r.ok && (await r.json()).ok ? localizedText('Tariffs saved.') : localizedText('Could not save tariffs.'));
@@ -2565,6 +2844,275 @@ function startOta(file) {
   xhr.open('POST', '/api/ota');
   xhr.send(file);
 }
+
+const EH_POS_DEFAULT = {pvo: [18.5, 7.3], pvs: [43.6, 7.3], pv: [65.8, 8.3], pvw: [90.6, 25.9], house: [13, 43.4], bat: [13.9, 68.4], grid: [51.9, 60.7], car: [70.6, 45], wb: [91, 43.8]};
+const EH_COLORS = {pv: '#fbbf24', gridIn: '#60a5fa', gridOut: '#34d399', bat: '#c084fc', wb: '#2dd4bf'};
+let ehTimer = null;
+let ehGen = 0;
+let ehTiming = {meterAge: -1, readS: 0, haAgeMs: -1, haPollS: 0};
+async function ehGet(url) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(url, {signal: ctl.signal, cache: 'no-store'});
+    return r.ok ? await r.json() : null;
+  } finally { clearTimeout(t); }
+}
+// Naechste Abfrage 1,5 s nach dem erwarteten Lesen von Zaehler bzw. Home Assistant, nie davor oder parallel.
+function ehNextDelay() {
+  const t = ehTiming;
+  const events = [];
+  if (t.meterAge >= 0 && t.readS > 0) events.push(t.readS * 1000 - t.meterAge);
+  if (t.haAgeMs >= 0 && t.haPollS > 0) events.push(t.haPollS * 1000 - t.haAgeMs);
+  let delay = 5000;
+  for (let i = 0; i < 2; i++) {
+    for (const e of events) {
+      if (delay > e - 1000 && delay < e + 1500) delay = e + 1500;
+    }
+  }
+  return Math.max(2000, Math.min(delay, 40000));
+}
+async function ehLoop(gen) {
+  if (gen !== ehGen) return;
+  await ehRefresh();
+  ehClock();
+  if (gen !== ehGen) return;
+  ehTimer = setTimeout(() => ehLoop(gen), ehNextDelay());
+}
+let ehEdit = false;
+function ehLoad(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v === null ? fallback : v; } catch (e) { return fallback; }
+}
+function ehSave(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
+}
+function ehPos() { return Object.assign({}, EH_POS_DEFAULT, ehLoad('eh_pos7', {})); }
+function ehKw(v) { return (Math.abs(v) / 1000).toFixed(2) + ' kW'; }
+function ehApplyPhoto() {
+  const stage = document.getElementById('eh-stage');
+  if (!stage) return;
+  const src = ehLoad('eh_photo', '');
+  stage.style.backgroundImage = 'url("' + (src ? src.replace(/"/g, '%22') : '/house.jpg') + '")';
+    const ar = src ? ehLoad('eh_ar', '16 / 9') : '960 / 540';
+  stage.style.aspectRatio = ar;
+  const m = /(\d+)\s*\/\s*(\d+)/.exec(ar);
+  stage.style.setProperty('--ehr', m ? String(m[1] / m[2]) : '1.7778');
+}
+function ehPlace() {
+  const pos = ehPos();
+  document.querySelectorAll('.eh-tile').forEach(t => {
+    const p = pos[t.dataset.k] || [50, 50];
+    t.style.left = p[0] + '%';
+    t.style.top = p[1] + '%';
+  });
+}
+function ehSetPhotoFile(file) {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const w = Math.min(1280, img.width);
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = Math.round(img.height * w / img.width);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    // dunkle Zeilen am unteren Rand (Balken) abschneiden
+    let h = c.height;
+    const minH = Math.round(c.height * 0.4);
+    while (h > minH) {
+      const row = ctx.getImageData(0, h - 1, c.width, 1).data;
+      let sum = 0;
+      for (let i = 0; i < row.length; i += 4) sum += row[i] + row[i + 1] + row[i + 2];
+      if (sum / (row.length / 4 * 3) > 30) break;
+      h--;
+    }
+    if (h < c.height) {
+      const o = document.createElement('canvas');
+      o.width = c.width; o.height = h;
+      o.getContext('2d').drawImage(c, 0, 0);
+      c.width = o.width; c.height = h;
+      c.getContext('2d').drawImage(o, 0, 0);
+    }
+    ehSave('eh_ar', c.width + ' / ' + c.height);
+    if (!ehSave('eh_photo', c.toDataURL('image/jpeg', 0.8))) alert(localizedText('Foto zu gro\u00df f\u00fcr den Browser-Speicher'));
+    ehApplyPhoto();
+  };
+  img.src = url;
+}
+function ehFlow(svg, a, b, w, color, rev) {
+  if (!(w > 50) || !ehLoad('eh_photo', '')) return;
+  const pos = ehPos();
+  const p = pos[rev ? b : a], q = pos[rev ? a : b];
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  l.setAttribute('x1', p[0] + '%'); l.setAttribute('y1', p[1] + '%');
+  l.setAttribute('x2', q[0] + '%'); l.setAttribute('y2', q[1] + '%');
+  l.setAttribute('class', 'eh-flow');
+  l.setAttribute('stroke', color);
+  l.style.color = color;
+  l.setAttribute('stroke-width', String(2 + Math.min(5, w / 1500)));
+  svg.appendChild(l);
+}
+function ehSet(k, html) {
+  const el = document.querySelector('.eh-tile[data-k="' + k + '"]');
+  if (el) el.innerHTML = html;
+}
+const EH_IC = {
+  sun: '<svg class="eh-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  house: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+  pylon: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M12 2l-5 20M12 2l5 20M4 6h16M6 11h12M8 16h8"/></svg>',
+  car: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M3 13l2-5h14l2 5v5H3z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="16.5" cy="18" r="1.8"/></svg>',
+  battery: '<svg class="eh-ic" viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4M14 10v4"/></svg>',
+  plug: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/></svg>',
+  leaf: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c0 10-5 15-14 15z"/><path d="M5 19L14 10"/></svg>',
+  euro: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M17 6a7 7 0 1 0 0 12M4 10h9M4 14h9"/></svg>'
+};
+function ehHd(icon, color, title) { return '<div class="eh-hd" style="color:' + color + '">' + EH_IC[icon] + '<h3 style="color:#cbd5e1">' + title + '</h3></div>'; }
+function ehTile(icon, color, title, value, rows, sub, extra) {
+  let h = '<div class="eh-top" style="color:' + color + '">' + EH_IC[icon] + '<div><h3>' + title + '</h3>' + (sub ? '<small style="color:#94a3b8">' + sub + '</small>' : '') + '<span class="eh-val">' + value + '</span></div></div>';
+  if (extra) h += extra;
+  if (rows && rows.length) h += '<div class="eh-rows">' + rows.map(r => '<div class="eh-row"' + (r[2] ? ' style="color:' + r[2] + '"' : '') + '><span>' + r[0] + '</span><span>' + r[1] + '</span></div>').join('') + '</div>';
+  return h;
+}
+async function ehRefresh() {
+  try {
+    const d = (await ehGet('/api/status')) || {};
+    const e = (await ehGet('/api/ext/values')) || {};
+    const exAges = (Array.isArray(e.items) ? e.items : []).map(i => i.age_s).filter(a => typeof a === 'number' && a >= 0);
+    ehTiming = {
+      meterAge: typeof d.meter_age_ms === 'number' ? d.meter_age_ms : -1,
+      readS: d.read_interval_s || 0,
+      haAgeMs: exAges.length ? Math.min(...exAges) * 1000 : -1,
+      haPollS: e.poll_s || 0
+    };
+    const items = Array.isArray(e.items) ? e.items : [];
+    const num = it => (it && typeof it.value === 'number') ? it.value * (it.unit === 'kW' ? 1000 : 1) : null;
+    const byRole = r => items.find(i => i.role === r);
+    const areaW = re => num(items.find(i => /^k?w$/i.test(i.unit || '') && re.test(i.label || '')));
+    const pvWest = num(byRole('pv_west')) ?? areaW(/west/i), pvEast = num(byRole('pv_east')) ?? areaW(/\bost\b|east/i), pvSouth = num(byRole('pv_south')) ?? areaW(/s\u00fcd|sued|south/i);
+    let pvW = num(byRole('pv'));
+    if (pvW === null && (pvWest !== null || pvEast !== null || pvSouth !== null)) pvW = (pvWest || 0) + (pvEast || 0) + (pvSouth || 0);
+    let batW = num(byRole('battery'));
+    if (batW === null && byRole('battery_neg')) batW = -num(byRole('battery_neg'));
+    const soc = items.find(i => i.unit === '%' && !/auto|fahrzeug|\bcar\b|\bev\b/i.test(i.label || ''));
+    const car = items.find(i => i.unit === '%' && /auto|fahrzeug|\bcar\b|\bev\b/i.test(i.label || ''));
+    const wbP = byRole('wb_power') || items.find(i => /wallbox|keba|\bwb\b/i.test(i.label || '') && /^k?w$/i.test(i.unit || ''));
+    const wbW = num(wbP);
+    const gridW = (d.fwd_w || 0) - (d.rev_w || 0);
+    const houseW = (pvW || 0) - (batW || 0) + gridW - (wbW || 0);
+    const T = t => localizedText(t);
+    const pk = {e: d.pv_peak_east_w || 0, s: d.pv_peak_south_w || 0, w: d.pv_peak_west_w || 0};
+    const pkAll = pk.e + pk.s + pk.w;
+    const pbar = (w, peak) => peak > 0 && w !== null ? '<div class="eh-pbar"><i style="width:' + Math.max(0, Math.min(100, w / peak * 100)).toFixed(0) + '%"></i></div>' : '';
+    const prow = (w, peak) => peak > 0 ? [[w === null ? '\u2014' : Math.round(Math.max(0, Math.min(100, w / peak * 100))) + ' %', (peak / 1000).toFixed(1) + ' kWp']] : null;
+    ehSet('pv', ehTile('sun', '#fbbf24', T('PV'), pvW === null ? '\u2014' : ehKw(pvW), (prow(pvW, pkAll) || []).concat([[T('Heute'), (d.today_pv_kwh || 0).toFixed(1) + ' kWh'], [T('Monat'), (d.month_pv_kwh || 0).toFixed(0) + ' kWh']]), null, pbar(pvW, pkAll)));
+    ehSet('pvw', ehTile('sun', '#fbbf24', T('PV West'), pvWest === null ? '\u2014' : ehKw(pvWest), prow(pvWest, pk.w), null, pbar(pvWest, pk.w)));
+    ehSet('pvs', ehTile('sun', '#fbbf24', T('PV S\u00fcd'), pvSouth === null ? '\u2014' : ehKw(pvSouth), prow(pvSouth, pk.s), null, pbar(pvSouth, pk.s)));
+    ehSet('pvo', ehTile('sun', '#fbbf24', T('PV Ost'), pvEast === null ? '\u2014' : ehKw(pvEast), prow(pvEast, pk.e), null, pbar(pvEast, pk.e)));
+    const hc = gridW > 0 ? '#60a5fa' : '#fbbf24';
+    ehSet('house', ehTile('house', hc, T('Hausverbrauch'), typeof d.today_house_kwh === 'number' ? d.today_house_kwh.toFixed(1) + ' kWh' : '\u2014', [[T('Leistung'), Math.round(Math.max(0, houseW)) + ' W'], [T('Monat'), typeof d.month_house_kwh === 'number' ? d.month_house_kwh.toFixed(0) + ' kWh' : '?']], T('Heute')));
+    ehSet('grid', ehTile('pylon', '#ef4444', T('Stromnetz'), Math.round(Math.abs(gridW)) + ' W', [[T('Bezug') + ' (' + T('Heute') + ')', (d.today_import_kwh || 0).toFixed(2) + ' kWh', '#ef4444'], [T('Einspeisung') + ' (' + T('Heute') + ')', (d.today_export_kwh || 0).toFixed(2) + ' kWh', '#fbbf24']], null, '<div class="eh-flowbar ' + (Math.abs(gridW) < 5 ? 'idle' : gridW > 0 ? 'l' : 'r') + '" style="--c:' + (gridW > 0 ? '#ef4444' : '#fbbf24') + '"><i></i></div>'));
+    const pct = soc ? Math.max(0, Math.min(100, soc.value)) : null;
+    const on = pct === null ? 0 : (pct > 0 ? Math.max(1, Math.round(pct / 20)) : 0);
+    const col = pct === null ? '' : pct < 40 ? 'red' : pct > 60 ? 'green' : 'yellow';
+    let segs = '';
+    for (let i = 0; i < 5; i++) segs += '<i class="' + (i < on ? col : '') + '"></i>';
+    const bc = pct === null ? '#94a3b8' : pct < 40 ? '#ef4444' : pct > 60 ? '#22c55e' : '#f59e0b';
+    ehSet('bat', ehTile('battery', bc, T('Batterie'), pct === null ? (batW === null ? '\u2014' : ehKw(batW)) : Math.round(pct) + ' %', [[T('Geladen') + ' (' + T('Heute') + ')', (d.today_bat_chg_kwh || 0).toFixed(1) + ' kWh'], [T('Entladen') + ' (' + T('Heute') + ')', (d.today_bat_dis_kwh || 0).toFixed(1) + ' kWh']], null, '<div class="eh-soc">' + segs + '</div>'));
+    const carText = byRole('car_name');
+    const modeItem = byRole('wb_mode');
+    const carName = carText && carText.text ? carText.text : car ? (String(car.label || '').replace(/\s*(ladestand|ladezustand|soc|akku|batterie|state of charge)\s*/ig, ' ').trim() || T('E-Auto')) : T('E-Auto');
+    const cc = !car ? '#94a3b8' : (car.value < 40 ? '#ef4444' : car.value > 60 ? '#22c55e' : '#f59e0b');
+    const cOn = car ? Math.max(car.value > 0 ? 1 : 0, Math.round(car.value / 20)) : 0;
+    let cSegs = '';
+    for (let i = 0; i < 5; i++) cSegs += '<i class="' + (i < cOn ? (car.value < 40 ? 'red' : car.value > 60 ? 'green' : 'yellow') : '') + '"></i>';
+    const sess = byRole('wb_session_kwh') || items.find(i => /ladevorgang|sitzung|session/i.test(i.label || '') && /^k?wh$/i.test(i.unit || ''));
+    const modeRaw = modeItem && modeItem.text ? String(modeItem.text) : '';
+    const modeKey = /fast|schnell/i.test(modeRaw) ? 'fast' : /both|beide|mix/i.test(modeRaw) ? 'both' : /pv/i.test(modeRaw) ? 'pv' : '';
+    const modeLabel = modeKey === 'fast' ? 'Fast' : modeKey === 'both' ? 'Both' : modeKey === 'pv' ? 'PV-Only' : modeRaw;
+    const modeColor = modeKey === 'fast' ? '#ef4444' : modeKey === 'both' ? '#f59e0b' : '#22c55e';
+    const wbTot = byRole('wb_kwh');
+    ehSet('car', ehTile('car', '#a855f7', carName, car ? Math.round(car.value) + ' %' : '\u2014', [[T('Leistung'), (wbW === null ? '\u2014' : ehKw(wbW)) + ' / 11 kW'], [T('Modus'), modeLabel || '?', modeLabel ? modeColor : null], [T('Ladevorgang'), sess && typeof sess.value === 'number' ? sess.value.toFixed(1) + ' kWh' : '?'], [T('Gesamt'), wbTot && typeof wbTot.value === 'number' ? wbTot.value.toFixed(0) + ' kWh' : '?']], T('Ladezustand'), '<div class="eh-soc">' + cSegs + '</div>'));
+    ehSet('wb', ehTile('plug', '#2dd4bf', T('Wallbox'), wbW === null ? '\u2014' : ehKw(wbW), [[T('Heute'), typeof d.today_wb_kwh === 'number' ? d.today_wb_kwh.toFixed(1) + ' kWh' : '?'], [T('Woche'), typeof d.week_wb_kwh === 'number' ? d.week_wb_kwh.toFixed(1) + ' kWh' : '?'], [T('Monat'), typeof d.month_wb_kwh === 'number' ? d.month_wb_kwh.toFixed(0) + ' kWh' : '?']]));
+    const svg = document.getElementById('eh-flows');
+    svg.replaceChildren();
+    ehFlow(svg, 'pv', 'house', pvW || 0, EH_COLORS.pv, false);
+    ehFlow(svg, 'grid', 'house', Math.abs(gridW), gridW >= 0 ? EH_COLORS.gridIn : EH_COLORS.gridOut, gridW < 0);
+    ehFlow(svg, 'bat', 'house', Math.abs(batW || 0), EH_COLORS.bat, (batW || 0) > 0);
+    ehFlow(svg, 'wb', 'house', wbW || 0, EH_COLORS.wb, true);
+    const pv = d.today_pv_kwh || 0, ex = d.today_export_kwh || 0;
+    const kp = document.getElementById('eh-kpis');
+    const kc = (ic, col, t, v) => '<div><span style="color:' + col + ';grid-row:1/3;display:flex">' + EH_IC[ic] + '</span><small>' + t + '</small><b>' + v + '</b></div>';
+    kp.innerHTML = kc('leaf', '#22c55e', T('Eigenverbrauch'), pv > 0.05 ? Math.max(0, Math.min(100, (pv - ex) / pv * 100)).toFixed(0) + ' %' : '\u2014')
+      + kc('sun', '#fbbf24', T('Gesamterzeugung'), pv.toFixed(1) + ' kWh')
+      + kc('pylon', '#60a5fa', T('Netzkosten heute'), (d.cost_today || 0).toFixed(2) + ' ' + (d.currency || 'EUR'))
+      + kc('euro', '#22c55e', T('Ersparnis heute'), (d.today_saving || 0).toFixed(2) + ' ' + (d.currency || 'EUR'));
+  } catch (err) { /* naechster Zyklus */ }
+}
+function ehClock() {
+  const c = document.getElementById('eh-clock');
+  if (c) c.textContent = new Date().toLocaleString();
+}
+function ehRoute() {
+  const on = location.hash === '#energy';
+  document.body.classList.toggle('view-energy', on);
+  document.body.classList.toggle('eh-full', on);
+  document.querySelectorAll('.nav-item[href^="#"]').forEach(a => a.classList.toggle('active', a.getAttribute('href') === location.hash || (!on && a.getAttribute('href') === '#dashboard')));
+  clearTimeout(ehTimer);
+  ehTimer = null;
+  ehGen++;
+  if (on) {
+    ehPlace(); ehApplyPhoto(); ehClock();
+    ehLoop(ehGen);
+  }
+}
+function ehInit() {
+  const stage = document.getElementById('eh-stage');
+  if (!stage) return;
+  localStorage.removeItem('eh_photo'); localStorage.removeItem('eh_ar');
+  const exitFs = () => { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); };
+  const enterFs = () => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
+  document.getElementById('eh-menu').onclick = () => { document.body.classList.remove('eh-full'); exitFs(); };
+  document.getElementById('eh-fs').onclick = () => { if (document.fullscreenElement) exitFs(); else enterFs(); };
+  document.getElementById('eh-full').onclick = () => { document.body.classList.add('eh-full'); enterFs(); };
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') document.body.classList.remove('eh-full'); });
+  document.getElementById('eh-edit').onclick = ev => {
+    ehEdit = !ehEdit;
+    document.body.classList.toggle('eh-edit', ehEdit);
+    ev.currentTarget.classList.toggle('on', ehEdit);
+  };
+  let drag = null;
+  stage.addEventListener('pointerdown', ev => {
+    const t = ev.target.closest('.eh-tile');
+    if (!ehEdit || !t) return;
+    drag = t;
+    t.setPointerCapture(ev.pointerId);
+  });
+  stage.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    const r = stage.getBoundingClientRect();
+    const x = Math.max(3, Math.min(97, (ev.clientX - r.left) / r.width * 100));
+    const y = Math.max(3, Math.min(97, (ev.clientY - r.top) / r.height * 100));
+    drag.style.left = x + '%';
+    drag.style.top = y + '%';
+    drag.dataset.x = x; drag.dataset.y = y;
+  });
+  const end = () => {
+    if (!drag) return;
+    if (drag.dataset.x) {
+      const pos = ehLoad('eh_pos7', {});
+      pos[drag.dataset.k] = [Math.round(drag.dataset.x * 10) / 10, Math.round(drag.dataset.y * 10) / 10];
+      ehSave('eh_pos7', pos);
+      ehRefresh();
+    }
+    drag = null;
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', end);
+  window.addEventListener('hashchange', ehRoute);
+  ehRoute();
+}
+document.addEventListener('DOMContentLoaded', ehInit);
 document.addEventListener('DOMContentLoaded', () => {
   initUiLanguage();
   renderProfileOptions();
@@ -2586,12 +3134,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('tariff-form')) fetchTariffCfg();
   if (document.getElementById('ha-form')) fetchHaCfg();
   fetchStatus();
-  fetchHistory();
   fetchLog();
   loadStats();
   setInterval(loadStats, 60000);
   statusTimer = setInterval(fetchStatus, 5000);
-  setInterval(fetchHistory, 30000);
   logTimer    = setInterval(fetchLog, 30000);
 });
 )rawjs";
@@ -2600,21 +3146,22 @@ static const char kIndexHtml[] = R"rawhtml(<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SMLEasy Dashboard</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" type="image/svg+xml"></head>
 <body><div class="app">
 <aside class="sidebar"><div class="brand">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="smlGh" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#132238" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40M8 55 A42 42 0 0 0 40 91.5M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGh)" stroke-width="9" stroke-linecap="round"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGh)"/></svg>)rawsvg" R"rawhtml(<div>EasySML<small>Smart energy</small></div></div>
-<div class="nav-title">Übersicht</div><a class="nav-item active" href="#dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></a><a class="nav-item" href="#meter-values"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8V5"/></svg><span>Zählerwerte</span></a><a class="nav-item" href="#history"><svg viewBox="0 0 24 24"><path d="M4 18 9 12l4 3 7-9"/><path d="M4 4v14h17"/></svg><span>Verlauf</span></a><div class="nav-title" style="margin-top:24px">Konfiguration</div><a class="nav-item" href="/config#general"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.3a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 18l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12H1.5a2 2 0 1 1 0-4h.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.2.5v-.1a2 2 0 1 1 4 0v.2A2 2 0 0 0 16.6 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 20.8 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3Z"/></svg><span>Allgemein</span></a><a class="nav-item" href="/config#meter"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg><span>Zähler</span></a><a class="nav-item" href="/config#wifi"><svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg><span>WLAN</span></a><a class="nav-item" href="/config#firmware"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg><span>Firmware</span></a><a class="nav-item" href="/tls" data-tls-link hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>HTTPS / Zertifikate</span></a><a class="nav-item" href="/ext" data-ext-link hidden><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="M8 15l3-4 3 2 4-6"/></svg><span>Externe Daten</span></a><div class="sidebar-footer"><div class="status"><i class="status-dot"></i><span>Verbunden</span></div><div style="margin-top:8px">EasySML <span id="fw-ver-footer">v1.0</span></div><div class="side-conn"><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></div></div></aside>
+<div class="nav-title">Übersicht</div><a class="nav-item active" href="#dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></a><a class="nav-item" href="#energy"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M13 8l-3 5h4l-3 5"/></svg><span>Energiehaus</span></a><div class="nav-title" style="margin-top:24px">Konfiguration</div><a class="nav-item" href="/config#general"><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="m19.4 15 .1.1a2 2 0 1 1-2.8 2.8l-.1-.1a2 2 0 0 0-3.4 1.4v.3a2 2 0 1 1-4 0v-.2A2 2 0 0 0 5.8 18l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A2 2 0 0 0 1.6 12H1.5a2 2 0 1 1 0-4h.2A2 2 0 0 0 3 4.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A2 2 0 0 0 9.2.5v-.1a2 2 0 1 1 4 0v.2A2 2 0 0 0 16.6 2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A2 2 0 0 0 20.8 8h.2a2 2 0 1 1 0 4h-.2a2 2 0 0 0-1.4 3Z"/></svg><span>Allgemein</span></a><a class="nav-item" href="/config#meter"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg><span>Zähler</span></a><a class="nav-item" href="/config#wifi"><svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg><span>WLAN</span></a><a class="nav-item" href="/config#firmware"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg><span>Firmware</span></a><a class="nav-item" href="/tls" data-tls-link hidden><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>HTTPS / Zertifikate</span></a><a class="nav-item" href="/pair" data-tls-link hidden><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3m4 0v4h-4m-3-1v1"/></svg><span>App koppeln</span></a><a class="nav-item" href="/ext" data-ext-link hidden><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="M8 15l3-4 3 2 4-6"/></svg><span>Externe Daten</span></a><div class="sidebar-footer"><div class="status"><i class="status-dot"></i><span>Verbunden</span></div><div style="margin-top:8px">EasySML <span id="fw-ver-footer">v1.0</span></div><div class="side-conn"><div class="kv"><span class="lbl">WLAN</span><span class="val" id="wifi-ssid">—</span></div><div class="kv"><span class="lbl">Uptime</span><span class="val" id="uptime">—</span></div></div></div></aside>
 <div class="workspace"><header class="topbar"><div><div class="eyebrow">Smart meter / Übersicht</div><h1>Dashboard</h1></div><div class="topbar-meta"><span id="fw-ver">—</span><span id="status-pill" class="status"><i class="status-dot"></i>Idle</span></div></header>
 <main id="dashboard" class="main-content"><div class="page-intro"><div><div class="eyebrow">Live monitoring</div><h2>Verbrauch auf einen Blick</h2><p>Aktuelle Messwerte und Energiefluss deines Zählers.</p></div></div>
+<section id="energy-view"><div class="page-intro"><div><div class="eyebrow">Live</div><h2>Mein Energiehaus</h2></div></div><div class="eh-bar"><button id="eh-full" type="button">Vollbild</button><button id="eh-edit" type="button">Kacheln verschieben</button><span class="eh-clock" id="eh-clock"></span></div><div class="eh-stage" id="eh-stage"><button class="eh-menu" id="eh-menu" type="button" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><button class="eh-menu" id="eh-fs" type="button" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><svg id="eh-flows" aria-hidden="true"></svg><div class="eh-tile" data-k="pv"></div><div class="eh-tile" data-k="pvs"></div><div class="eh-tile" data-k="pvw"></div><div class="eh-tile" data-k="pvo"></div><div class="eh-tile" data-k="grid"></div><div class="eh-tile" data-k="house"></div><div class="eh-tile" data-k="bat"></div><div class="eh-tile" data-k="car"></div><div class="eh-tile" data-k="wb"></div><div class="eh-kpis" id="eh-kpis"></div></div></section>
 <section class="grid">
-<article class="card hero-card"><h2>Aktuelle Leistung</h2><div class="metric-value" id="current-power">—<span class="metric-unit">W</span></div><div class="metric-sub" id="power-kilowatt">— kW netto</div></article>
-<article class="card meter-card register-card"><div class="register-heading"><h2>Zählerstände</h2><span class="register-live">Zähler Live</span></div><div class="register-subtitle">Bezug und Einspeisung als Zählwerke</div><div class="register-meter"><div class="register-brand"><span>ZÄHLWERKE · OBIS 1.8.0 / 2.8.0</span></div><div class="register-displays"><div class="register-window"><div class="register-label">1.8.0 / BEZUG GESAMT</div><span class="register-reading" id="m-fwh">—</span><div class="register-unit">kWh</div></div><div class="register-window"><div class="register-label">2.8.0 / EINSPEISUNG GESAMT</div><span class="register-reading" id="m-rwh">—</span><div class="register-unit">kWh</div></div></div></div><div class="register-time"><span>Zählerzeit</span><span class="val" id="m-time">—</span></div></article>
+<article class="card hero-card"><h2>Aktuelle Leistung</h2><div class="metric-value" id="current-power">—<span class="metric-unit">W</span></div><div class="metric-sub" id="power-kilowatt">— kW netto</div><div class="pbar"><div class="pbar-fill" id="pbar-fill"></div></div><div class="pbar-scale"><span>0</span><span id="pbar-max">6 kW</span></div><div class="pstats"><div><span>Spitze Bezug (1 h)</span><b id="peak-imp">—</b></div><div><span>Spitze Einspeisung (1 h)</span><b id="peak-exp">—</b></div><div><span>Strom je Phase</span><b id="phase-cur">—</b></div></div></article>
+<article class="card meter-card register-card"><div class="register-heading"><h2>Zählerstände</h2><span class="register-live">Zähler Live</span></div><div class="register-subtitle">Bezug und Einspeisung als Zählwerke</div><div class="register-meter"><div class="register-brand"><span>ZÄHLWERKE · OBIS 1.8.0 / 2.8.0</span></div><div class="register-displays"><div class="register-window"><div class="register-label">1.8.0 / BEZUG GESAMT</div><div class="register-row"><div class="ext-ico" style="background:#dfeeff;color:#2f7de1"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 6.5 22M12 2l5.5 20M4 7h16M6 13h12M7.5 7l9 6M16.5 7l-9 6"/></svg></div><span class="register-reading" id="m-fwh">—</span></div><div class="register-unit">kWh</div></div><div class="register-window"><div class="register-label">2.8.0 / EINSPEISUNG GESAMT</div><div class="register-row"><div class="ext-ico" style="background:#dcf7e7;color:#1e9e5a"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 6.5 22M12 2l5.5 20M4 7h16M6 13h12M7.5 7l9 6M16.5 7l-9 6"/></svg></div><span class="register-reading" id="m-rwh">—</span></div><div class="register-unit">kWh</div></div></div></div><div class="register-time"><span>Zählerzeit</span><span class="val" id="m-time">—</span></div></article>
 <div class="kpi-grid"><article class="card kpi-card"><div class="label">Verbrauch heute</div><div class="kpi-value" id="today-import">—</div><div class="kpi-change positive">Importierte Energie</div></article><article class="card kpi-card"><div class="label">Einspeisung heute</div><div class="kpi-value" id="today-export">—</div><div class="kpi-change">Exportierte Energie</div></article><article class="card kpi-card"><div class="label">Nettokosten heute</div><div class="kpi-value" id="cost-today">—</div><div class="kpi-change" id="cost-breakdown">Bezug minus Einspeisevergütung</div></article></div>
 <article class="card ext-card" id="ext-card" hidden><h2>Haus & Energie</h2><div class="ext-grid" id="ext-items"></div></article>
-<article id="history" class="card chart-card"><h2>Leistungsverlauf <span style="float:right;font-weight:400;letter-spacing:0;text-transform:none">Letzte Messpunkte</span></h2><div class="chart-wrap"><svg viewBox="0 0 800 220" preserveAspectRatio="none" aria-label="Leistungsverlauf"><path class="chart-grid" d="M0 20H800M0 75H800M0 130H800M0 185H800"/><path id="history-area" class="chart-area" d="M0 185L0 185L800 185Z"/><polyline id="history-line" class="chart-line" points="0,185 800,185"/></svg></div></article>
+
 <article class="card split-card"><h2>Verbrauchsaufteilung</h2><div class="donut" aria-label="Verbrauchsaufteilung"></div><div class="legend"><span><b><i style="background:var(--primary)"></i>Bezug heute</b><strong id="legend-import">—</strong></span><span><b><i style="background:#8bdcf4"></i>Monat gesamt</b><strong id="legend-month">—</strong></span></div></article>
-<article id="meter-values" class="card table-card"><h2>Aktuelle Zählerwerte</h2><table class="data-table"><thead><tr><th>OBIS</th><th>Beschreibung</th><th style="text-align:right">Wert</th><th>Einheit</th></tr></thead><tbody><tr><td>1.8.0</td><td>Bezug gesamt</td><td class="value" id="table-import">—</td><td>kWh</td></tr><tr><td>2.8.0</td><td>Einspeisung gesamt</td><td class="value" id="table-export">—</td><td>kWh</td></tr><tr><td>16.7.0</td><td>Aktuelle Leistung</td><td class="value" id="table-power">—</td><td>W</td></tr><tr><td>31.7.0</td><td>Strom L1</td><td class="value" id="table-current-l1">—</td><td>A</td></tr><tr><td>51.7.0</td><td>Strom L2</td><td class="value" id="table-current-l2">—</td><td>A</td></tr><tr><td>71.7.0</td><td>Strom L3</td><td class="value" id="table-current-l3">—</td><td>A</td></tr></tbody></table></article>
+
 <article class="card system-card"><h2>Systemstatus</h2><div class="system-list"><div class="kv"><span class="lbl">Hersteller</span><span class="val" id="m-mfr">—</span></div><div class="kv"><span class="lbl">Modell</span><span class="val" id="m-model">—</span></div><div class="kv"><span class="lbl">Firmware</span><span class="val" id="m-fw">—</span></div><div class="kv"><span class="lbl">Seriennr.</span><span class="val" id="m-ser">—</span></div><div class="kv"><span class="lbl">Login</span><span class="val" id="last-login-ok">—</span></div><div class="kv"><span class="lbl">Alarme</span><span class="val" id="m-alarm">Keine</span></div></div></article>
 <article class="card stats-card" style="grid-column:1/-1"><h2>Statistik <span class="stats-tabs"><button class="btn btn-gray" data-stats-view="days" onclick="setStatsView('days')">Tage</button> <button class="btn btn-gray" data-stats-view="weeks" onclick="setStatsView('weeks')">Wochen</button> <button class="btn btn-gray" data-stats-view="months" onclick="setStatsView('months')">Monate</button></span></h2><div style="overflow-x:auto"><table class="data-table" id="stats-table"><thead></thead><tbody></tbody></table></div><div class="metric-sub" id="stats-note" style="margin-top:10px"></div></article>
 <article class="card control-card"><h2>Steuerung</h2><div class="card-inner"><div class="btn-row"><button class="btn btn-blue" onclick="doStart()">&#9654; Einmal auslesen</button><label class="continuous-control"><span>Dauerlesen</span><span class="continuous-switch"><input id="continuous-toggle" type="checkbox" role="switch" checked onchange="setContinuousReading(this.checked)"><span class="continuous-switch-track"></span></span></label><button class="btn btn-gray" onclick="doResetCounters()">Zähler reset</button><button class="btn btn-gray" onclick="doReboot()">Neustart</button></div><div class="control-meta"><div class="kv"><span class="lbl">Firmware</span><span class="val" id="fw-ver-ctrl">—</span></div><a href="/config" class="btn btn-gray">Konfiguration</a></div></div></article>
-</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.0.0/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.0.0">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer><div class="overview-info network-addresses" aria-label="Netzwerkadressen"><div class="network-address-row"><span class="lbl">IP-V4: </span><span class="network-ip-list" id="wifi-ip">—</span></div><div class="network-address-row"><span class="lbl">IP-V6: </span><span class="network-ip-list" id="wifi-ip6">—</span></div></div></main></div></div><script src="/app.js"></script></body></html>
+</section><footer class="overview-info">Copyright Michael Kreutzer 2026 <span>·</span> GNU AGPLv3: Weitergabe und Änderung erlaubt <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.6.0/LICENSE">Lizenztext</a> <span>·</span> <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.6.0">Quellcode</a> <span>·</span> Keine Gewährleistung <span>·</span> Version <strong id="app-version">—</strong></footer><div class="overview-info network-addresses" aria-label="Netzwerkadressen"><div class="network-address-row"><span class="lbl">IP-V4: </span><span class="network-ip-list" id="wifi-ip">—</span></div><div class="network-address-row"><span class="lbl">IP-V6: </span><span class="network-ip-list" id="wifi-ip6">—</span></div></div></main></div></div><script src="/app.js"></script></body></html>
 )rawhtml";
 
 static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
@@ -2631,10 +3178,11 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   <div class="lcars-header-elbow sml-logo">)rawhtml" R"rawsvg(<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMLEasy"><defs><linearGradient id="smlGc" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="#0b1220" stroke-width="9"/><path d="M50 8 A42 42 0 0 1 90.5 40" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M8 55 A42 42 0 0 0 40 91.5" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round"/><path d="M12 40 A42 42 0 0 1 30 15" fill="none" stroke="url(#smlGc)" stroke-width="9" stroke-linecap="round" opacity=".85"/><rect x="34" y="55" width="7" height="16" rx="1.5" fill="url(#smlGc)"/><rect x="44" y="48" width="7" height="23" rx="1.5" fill="url(#smlGc)"/><rect x="54" y="40" width="7" height="31" rx="1.5" fill="url(#smlGc)"/><path d="M72 30 L58 55 H68 L60 78 L80 50 H69 Z" fill="url(#smlGc)"/></svg>)rawsvg" R"rawhtml(</div>
   <div class="lcars-header-bar">
     <h1>SMLEasy &mdash; Konfiguration</h1>
-    <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.0.0" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
-    <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.0.0/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/tree/v3.6.0" class="btn btn-gray" style="text-decoration:none">Quellcode</a>
+    <a href="https://github.com/ip6constructor/SMLEasy/blob/v3.6.0/LICENSE" class="btn btn-gray" style="text-decoration:none">AGPLv3</a>
     <a href="#general" class="btn btn-gray" data-cfg-tab="general" style="text-decoration:none">Allgemein</a><a href="#meter" class="btn btn-gray" data-cfg-tab="meter" style="text-decoration:none">Zähler</a><a href="#wifi" class="btn btn-gray" data-cfg-tab="wifi" style="text-decoration:none">WLAN</a><a href="#firmware" class="btn btn-gray" data-cfg-tab="firmware" style="text-decoration:none">Firmware</a>
     <a href="/tls" class="btn btn-gray" data-tls-link hidden style="text-decoration:none">HTTPS / Zertifikate</a>
+    <a href="/pair" class="btn btn-gray" data-tls-link hidden style="text-decoration:none">App koppeln</a>
     <a href="/ext" class="btn btn-gray" data-ext-link hidden style="text-decoration:none">Externe Daten</a>
     <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
   </div>
@@ -2792,6 +3340,31 @@ static const char kConfigHtml[] = R"rawhtml(<!DOCTYPE html>
   </div>
 
   <!-- Tariff config -->
+  <div class="card peach" data-section="meter">
+    <h2 class="tan">Tarife</h2>
+    <div class="card-inner">
+    <form id="tariff-form" onsubmit="saveTariff(event)">
+      <label>Bezugspreis (je kWh)</label>
+      <input type="number" name="price_import_kwh" min="0" max="10" step="0.0001" value="0.30">
+      <label>Einspeisevergütung (je kWh)</label>
+      <input type="number" name="price_export_kwh" min="0" max="10" step="0.0001" value="0.0664">
+      <label>Wallbox-Erstattung (je kWh)</label>
+      <input type="number" name="wallbox_refund_kwh" min="0" max="10" step="0.0001" value="0.31">
+      <label>Währung</label>
+      <input type="text" name="currency" maxlength="4" value="EUR">
+      <label>PV Ost: Module / Wp je Modul</label>
+      <input type="number" name="pv_modules_east" min="0" max="500" step="1" value="0">
+      <input type="number" name="pv_wp_east" min="0" max="2000" step="1" value="485">
+      <label>PV Süd: Module / Wp je Modul</label>
+      <input type="number" name="pv_modules_south" min="0" max="500" step="1" value="0">
+      <input type="number" name="pv_wp_south" min="0" max="2000" step="1" value="485">
+      <label>PV West: Module / Wp je Modul</label>
+      <input type="number" name="pv_modules_west" min="0" max="500" step="1" value="0">
+      <input type="number" name="pv_wp_west" min="0" max="2000" step="1" value="485">
+      <div class="save-row"><button class="btn btn-blue" type="submit">Tarife speichern</button></div>
+    </form>
+    </div>
+  </div>
     </form>
     </div>
   </div>
@@ -2913,6 +3486,100 @@ static const char kTlsHtml[] = R"rawhtml(<!DOCTYPE html>
 </html>
 )rawhtml";
 
+static const char kPairHtml[] = R"rawhtml(<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMLEasy — App koppeln</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
+</head>
+<body>
+<header>
+  <div class="lcars-header-bar">
+    <h1>SMLEasy &mdash; App koppeln</h1>
+    <a href="/config" class="btn btn-gray" style="text-decoration:none">Konfiguration</a>
+    <a href="/" class="btn btn-gray" style="text-decoration:none">← Dashboard</a>
+  </div>
+</header>
+<main>
+  <div class="card peach">
+    <h2 class="tan">App koppeln</h2>
+    <div class="card-inner">
+      <p style="color:var(--lc-dim);font-size:.82rem">Öffnet für 120 Sekunden einen QR-Code mit dem konfigurierten Hostnamen (FQDN). Die Android-App scannt ihn und holt sich einmalig ein eigenes Zugriffstoken (max. 4 Apps); danach genügt das Token, auch außerhalb der erlaubten Netze. Der QR-Code enthält ein Einmal-Geheimnis und ist nur während des Fensters gültig — nicht fotografieren oder teilen. Diese Seite nur im lokalen Netz öffnen.</p>
+      <p id="pair-msg" style="margin:8px 0;font-size:.82rem">—</p>
+      <div id="pair-qr" style="background:#fff;padding:12px;display:inline-block;border-radius:8px" hidden></div>
+      <div class="save-row">
+        <button class="btn btn-blue" id="pair-open" type="button" onclick="pairOpen()">QR-Code anzeigen (120 s)</button>
+        <button class="btn btn-gray" id="pair-close" type="button" onclick="pairClose()" hidden>Schließen</button>
+      </div>
+      <h3 style="margin-top:14px">Gekoppelte Apps</h3>
+      <div id="pair-apps" style="font-size:.85rem"></div>
+    </div>
+  </div>
+</main>
+<script>
+/* QR encoding: qrcode-generator 2.0.4 (c) Kazuhiko Arase, MIT License, minified */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(o*r,n*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});
+let pairTimer = null;
+function pairRender(d) {
+  const box = document.getElementById('pair-qr');
+  const msg = document.getElementById('pair-msg');
+  const open = d.open && d.payload;
+  box.hidden = !open;
+  document.getElementById('pair-close').hidden = !open;
+  if (open) {
+    const q = qrcode(0, 'M');
+    q.addData(d.payload);
+    q.make();
+    box.innerHTML = q.createSvgTag({ cellSize: 5, margin: 0, scalable: true });
+    const svg = box.querySelector('svg');
+    if (svg) { svg.style.width = '260px'; svg.style.height = '260px'; }
+    msg.textContent = 'QR-Code gültig noch ' + d.remaining_s + ' s. Host: ' + d.fqdn + (d.https_active ? '' : ' (HTTPS derzeit nicht aktiv)') + (d.key_provider === 'development' ? ' — Entwicklungsschlüssel, nicht produktiv' : '');
+  } else {
+    box.innerHTML = '';
+    msg.textContent = d.fqdn ? 'Gesperrt. Host: ' + d.fqdn : 'Kein FQDN konfiguriert (Seite HTTPS / Zertifikate).';
+  }
+  clearTimeout(pairTimer);
+  const list = document.getElementById('pair-apps');
+  list.textContent = '';
+  (d.apps || []).forEach(function (a) {
+    const row = document.createElement('div');
+    row.textContent = a.name + ' ';
+    const b = document.createElement('button');
+    b.className = 'btn btn-gray';
+    b.type = 'button';
+    b.textContent = 'Widerrufen';
+    b.onclick = function () { pairRevoke(a.slot); };
+    row.appendChild(b);
+    list.appendChild(row);
+  });
+  if (open) pairTimer = setTimeout(pairPoll, 1000);
+}
+async function pairRevoke(slot) {
+  if (!confirm('Diese App wirklich widerrufen?')) return;
+  await fetch('/api/pairing/revoke', { method: 'POST', body: JSON.stringify({ slot: slot }) });
+  pairPoll();
+}
+async function pairCall(path, method) {
+  try {
+    const r = await fetch(path, { method: method });
+    if (!r.ok) { document.getElementById('pair-msg').textContent = 'Fehler: ' + (await r.text()); return; }
+    pairRender(await r.json());
+  } catch (e) {
+    document.getElementById('pair-msg').textContent = 'Gerät nicht erreichbar.';
+  }
+}
+function pairPoll() { pairCall('/api/pairing', 'GET'); }
+function pairOpen() { pairCall('/api/pairing/open', 'POST'); }
+function pairClose() { pairCall('/api/pairing/close', 'POST'); }
+pairPoll();
+</script>
+</body>
+</html>
+)rawhtml";
+
 static const char kExtHtml[] = R"rawhtml(<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -2941,7 +3608,7 @@ static const char kExtHtml[] = R"rawhtml(<!DOCTYPE html>
         <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="ext-enabled" style="width:auto"> Werte aus Home Assistant anzeigen</label>
 
         <div class="acme-section">
-          <h3>REST-Abfrage (nur nötig, wenn Werte nicht von HA gesendet werden)</h3>
+          <h3>REST-Abfrage</h3>
           <label for="ext-url">Home-Assistant-URL</label>
           <input type="text" id="ext-url" maxlength="200" placeholder="http://homeassistant.local:8123">
           <label for="ext-token">Zugriffstoken (Long-Lived Access Token)</label>
@@ -2955,15 +3622,13 @@ static const char kExtHtml[] = R"rawhtml(<!DOCTYPE html>
           <h3>Anzuzeigende Werte (bis zu 8)</h3>
           <div class="ext-row ext-head"><span>Bezeichnung</span><span>Quelle</span><span>Kurzname / Entity-ID / Topic</span><span>Einheit</span><span>JSON-Schlüssel (MQTT)</span><span>Rolle für Statistik</span></div>
           <div id="ext-rows"></div>
-          <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">HA sendet (empfohlen): Du vergibst nur einen Kurznamen (a-z, 0-9, _). Das Gerät lauscht auf ha_meter/&lt;Gerät&gt;/in/&lt;Kurzname&gt;. Mit „Home-Assistant-Automation erzeugen“ erhältst du ein YAML, in dem du in HA nur die Entität je Kurzname einträgst; Token und URL werden nicht gebraucht (MQTT-Integration muss aktiv sein). REST: Das Gerät fragt Home Assistant über die REST-API ab. Ein Token erzeugst du in Home Assistant unter Profil → Sicherheit → Langlebige Zugriffstoken. MQTT: Das Gerät abonniert ein Topic am Broker der Home-Assistant-Integration (Einstellungen → Home Assistant); eine Automation in Home Assistant muss den Wert dort veröffentlichen. Bei JSON-Nachrichten gibt der Schlüssel das Feld an, zum Beispiel battery.soc. Rolle für Statistik: Werte mit der Rolle PV oder Batterie (Leistung in W oder kW) werden über die Zeit zu Wh aufsummiert und fließen in die Tages-, Wochen- und Monatsstatistik ein (Hausverbrauch, Eigenanteil, Ersparnis).</p>
+          <p style="margin-top:8px;color:var(--lc-dim);font-size:.78rem">REST: Das Gerät fragt Home Assistant über die REST-API ab. Ein Token erzeugst du in Home Assistant unter Profil → Sicherheit → Langlebige Zugriffstoken. MQTT: Das Gerät abonniert ein Topic am Broker der Home-Assistant-Integration (Einstellungen → Home Assistant); eine Automation in Home Assistant muss den Wert dort veröffentlichen. Bei JSON-Nachrichten gibt der Schlüssel das Feld an, zum Beispiel battery.soc. Textwerte (Auto-Name, Lademodus PV-Only/Both/Fast) werden unver&auml;ndert angezeigt. Rolle f&uuml;r Statistik: Werte mit der Rolle PV oder Batterie (Leistung in W oder kW) werden über die Zeit zu Wh aufsummiert und fließen in die Tages-, Wochen- und Monatsstatistik ein (Hausverbrauch, Eigenanteil, Ersparnis).</p>
         </div>
 
         <div class="save-row" style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-blue" type="submit">Externe Daten speichern</button>
           <button class="btn btn-gray" type="button" onclick="refreshExtNow()">Jetzt abrufen</button>
-          <button class="btn btn-gray" type="button" onclick="showExtAutomation()">Home-Assistant-Automation erzeugen</button>
         </div>
-        <pre id="ext-yaml" hidden style="max-height:320px;overflow:auto;margin-top:8px;padding:10px;background:#f8fbfe;border:1px solid var(--border);border-radius:8px;font:.74rem/1.5 'Cascadia Code','JetBrains Mono',monospace;white-space:pre"></pre>
       </form>
     </div>
   </div>

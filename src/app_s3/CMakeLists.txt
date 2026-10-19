@@ -13,6 +13,9 @@ idf_component_register(
         "${APP_DIR}/energy_stats.cpp"
         "${APP_DIR}/tls_certs.cpp"
         "${APP_DIR}/ext_data.cpp"
+        "${APP_DIR}/key_provider.cpp"
+        "${APP_DIR}/secret_store.cpp"
+        "${APP_DIR}/app_tokens.cpp"
     INCLUDE_DIRS
         "${APP_DIR}"
         "${APP_DIR}/include"

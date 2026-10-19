@@ -12,19 +12,12 @@ permissions:
 jobs:
   build-c3:
     runs-on: ubuntu-latest
+    container: espressif/idf:v6.1
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install PlatformIO
-        run: python -m pip install platformio
 
       - name: Validate release version
         id: version
@@ -41,21 +34,20 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build ESP32-C3 firmware
+      - name: Build ESP32-C3 firmware (ESP-IDF 6.1)
         shell: bash
         run: |
-          for attempt in 1 2 3 4 5; do
-            pio run --environment esp32c3_optical_meter && exit 0
-            echo "Build attempt $attempt failed, retrying in 90 s"; sleep 90
-          done
-          exit 1
+          . "$IDF_PATH/export.sh"
+          idf.py -B build_c3 -DIDF_TARGET=esp32c3 -DSMLEASY_IDF6_APP=1 \
+            -DSDKCONFIG=build_c3/sdkconfig \
+            "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.c3_idf6" build
 
       - name: Prepare release asset
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p release
-          cp .pio/build/esp32c3_optical_meter/firmware.bin "release/SMLEasy-${VERSION}.bin"
+          cp build_c3/smartmeter.bin "release/SMLEasy-${VERSION}.bin"
           test -s "release/SMLEasy-${VERSION}.bin"
 
       - uses: actions/upload-artifact@v4

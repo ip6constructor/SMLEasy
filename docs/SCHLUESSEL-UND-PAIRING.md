@@ -15,6 +15,17 @@ Schluessel entstehen auf dem jeweiligen Geraet bzw. in der App, nicht in Git.
   passende Debug-/Downloadrestriktionen und geprueften Updatepfad.
 - Flash Encryption und NVS-Verschluesselung schuetzen lokale Daten getrennt
   von E2E-Payloads. Coredumps und Diagnosen duerfen keine RAM-Keys exportieren.
+- Entscheidung (2026-10-19, Nutzer): NVS wird nicht verschluesselt/geschuetzt.
+  Geschuetzt wird nur der Geraeteschluessel (Root in eFuse HMAC_UP), mit dem
+  eine App sicher gekoppelt wird. Folge: In NVS duerfen nur Daten liegen, die
+  ohne Geheimnis nutzlos bleiben (Konfiguration, oeffentliche App-Keys,
+  gewrappte Schluessel, Token nur als Hash). `K_store` und
+  Flash-Encryption sind damit nicht Voraussetzung fuer das Pairing; wer
+  Flash-Zugriff hat, kann NVS lesen und aendern (Konfiguration, App-Liste).
+  Ausnahme/Uebergang: der Development-KeyProvider legt seinen Root in NVS ab
+  und ist daher nicht produktiv. Signatur der App-Berechtigungseintraege
+  (z. B. mit `K_auth`) ist bewusst auf spaeter verschoben (Nutzerentscheidung);
+  bis dahin ist eine Manipulation der App-Liste bei Flash-Zugriff moeglich.
 - Device und App verwenden verschiedene Keys fuer Daten, Authentifizierung,
   Pairing und lokale Speicherung.
 - Der Server darf weder Root noch Data-Key oder entschluesseltes Energiedatum
@@ -240,6 +251,30 @@ physischer Provisionierungsabbruch; Pairing-MITM/Fingerprint/Replay/Timeout;
 mehrere Apps und Entzug; AEAD/Nonce nach Stromausfall und vollem Erase;
 Recovery ohne alten ESP/ohne alte App; signierte Dual-OTA; keine Secrets in
 Logs/Coredumps/Git/Backend; TLS-/Pairing-Spitzenverbrauch auf C3.
+
+## 9a. Implementierungsstand (IDF-6/S3-Pfad, Entwicklungsschlüssel)
+
+Nicht produktiv; Root ist der Dev-Provider (NVS), kein eFuse-Root.
+
+- **Secret-Verschlüsselung:** WLAN-, MQTT-, HA-Token und private TLS-/Fallback-/ACME-Schlüssel
+  liegen als AES-256-GCM-Blob (`<key>.e`: Version | 96-Bit-Zufallsnonce | Ciphertext | Tag, AAD
+  = Version + `namespace/key`) mit `K_store = HMAC_root("smleasy/local-storage/v1")`. Klartext
+  wird beim Schreiben gelöscht; Lesen fällt auf Klartext zurück (Migration beim nächsten Speichern).
+- **Web-Passwort:** nur HMAC-Prüfwert (`pv`), nicht entschlüsselbar. Default-/Klartext-Passwort wird
+  beim ersten erfolgreichen Login migriert.
+- **App-Token:** Pairing-Fenster (120 s, nur lokal) erzeugt ein Einmal-Geheimnis (128 Bit), das
+  im QR (`smleasy://pair?v=2&fqdn=…&port=…&s=…`) steht. `POST /api/pairing/claim` (ohne Passwort,
+  nur lokale Peers, 5 Fehlversuche schließen das Fenster) liefert ein 256-Bit-Token; gespeichert
+  wird nur `HMAC_root("smleasy/app-token/v1" ‖ token)` (max. 4 Apps, Widerruf in `/pair`).
+- **Netzfilter:** Port 80 filtert wie bisher beim Verbindungsaufbau. Port 443 prüft pro Request:
+  Peers außerhalb der erlaubten Netze erreichen nur lesende Token-Routen (`/api/status`, `/api/stats`,
+  `/api/history`, `/api/meter`, `/api/ext/values`, `/house.jpg`) mit gültigem `Authorization: Bearer`.
+  Web-UI, Konfiguration, OTA und Pairing bleiben auf erlaubte Netze beschränkt.
+- **Folgen/Rückweg:** Wechsel Dev→eFuse-Root macht Blobs und Token unlesbar (Passwörter neu eingeben,
+  Apps neu koppeln). Rückweg auf IDF-4.4-Firmware verliert verschlüsselte Passwörter und Token.
+- **Offen/ungetestet:** kein Hardwaretest, kein Test der Bearer-Route von außerhalb, kein Rate-Limit
+  für Bearer-Fehlversuche, kein Gerätekey-Pinning/HPKE, Token nicht per eFuse gebunden. Der QR enthält
+  nun ein Einmal-Geheimnis (Fenster 120 s). S3-Image 0x19af20 Byte, 14 % frei; Heap/Stack nicht gemessen.
 
 ## 10. Quellen
 

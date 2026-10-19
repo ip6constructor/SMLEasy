@@ -27,6 +27,12 @@ private:
     static void https_task(void* restart);
     esp_err_t start_https();
     static esp_err_t handle_tls_config_get(httpd_req_t*);
+    static esp_err_t handle_pair_page(httpd_req_t*);
+    static esp_err_t handle_pairing_status(httpd_req_t*);
+    static esp_err_t handle_pairing_open(httpd_req_t*);
+    static esp_err_t handle_pairing_close(httpd_req_t*);
+    static esp_err_t handle_pairing_claim(httpd_req_t*);
+    static esp_err_t handle_pairing_revoke(httpd_req_t*);
     static esp_err_t handle_tls_config_save(httpd_req_t*);
     static esp_err_t handle_acme_challenge(httpd_req_t*);
     static esp_err_t handle_acme_request(httpd_req_t*);
@@ -38,11 +44,11 @@ private:
     static esp_err_t handle_ext_config_save(httpd_req_t*);
     static esp_err_t handle_ext_values(httpd_req_t*);
     static esp_err_t handle_ext_refresh(httpd_req_t*);
-    static esp_err_t handle_ext_automation(httpd_req_t*);
     static esp_err_t handle_root(httpd_req_t*);
     static esp_err_t handle_config_page(httpd_req_t*);
     static esp_err_t handle_style_css(httpd_req_t*);
     static esp_err_t handle_app_js(httpd_req_t*);
+    static esp_err_t handle_house_jpg(httpd_req_t*);
     static esp_err_t handle_status(httpd_req_t*);
     static esp_err_t handle_log(httpd_req_t*);
     static esp_err_t handle_history(httpd_req_t*);

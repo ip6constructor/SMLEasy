@@ -1,5 +1,6 @@
 #include "app_state.hpp"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include <cstring>
 #include <sstream>
 
@@ -27,6 +28,7 @@ MeterData AppState::get_meter_data() const {
 void AppState::set_meter_data(const MeterData& d) {
     xSemaphoreTake(mutex_, portMAX_DELAY);
     meter_data_ = d;
+    last_meter_us.store(esp_timer_get_time());
     xSemaphoreGive(mutex_);
 }
 

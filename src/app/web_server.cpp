@@ -1,5 +1,6 @@
 #include "web_server.hpp"
 #include "web_assets.hpp"
+#include "house_image.hpp"
 #include "app_state.hpp"
 #include "config_store.hpp"
 #include "meter_task.hpp"
@@ -32,6 +33,8 @@
 #include "esp_random.h"
 #include "acme_client.hpp"
 #include "tls_certs.hpp"
+#include "key_provider.hpp"
+#include "app_tokens.hpp"
 #else
 #define SMLEASY_LOCAL_HTTPS 0
 #endif
@@ -232,19 +235,16 @@ static bool valid_cidr_list(const std::string& list)
     return true;
 }
 
-static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
+static bool peer_allowed(int sockfd, char* peer_text, size_t peer_text_len)
 {
     sockaddr_storage peer{};
     socklen_t peer_len = sizeof(peer);
-    if (getpeername(sockfd, reinterpret_cast<sockaddr*>(&peer), &peer_len) != 0) {
-        shutdown(sockfd, SHUT_RDWR);
-        return ESP_FAIL;
-    }
-    if (is_private_address(peer)) return ESP_OK;
+    if (getpeername(sockfd, reinterpret_cast<sockaddr*>(&peer), &peer_len) != 0) return false;
+    if (is_private_address(peer)) return true;
 #if CONFIG_LWIP_IPV6
     if (peer.ss_family == AF_INET6) {
         const auto* address = reinterpret_cast<const sockaddr_in6*>(&peer);
-        if (app::WifiManager::get().is_in_local_ip6_prefix(address->sin6_addr.s6_addr)) return ESP_OK;
+        if (app::WifiManager::get().is_in_local_ip6_prefix(address->sin6_addr.s6_addr)) return true;
     }
 #endif
     app::UiConfig cfg;
@@ -254,32 +254,78 @@ static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
         const size_t end = cfg.allowed_networks.find_first_of(",; \t\r\n", start);
         const std::string item = cfg.allowed_networks.substr(
             start, end == std::string::npos ? end : end - start);
-        if (!item.empty() && cidr_matches(peer, item)) return ESP_OK;
+        if (!item.empty() && cidr_matches(peer, item)) return true;
         if (end == std::string::npos) break;
         start = end + 1;
     }
-    char peer_text[46] = "?";
     if (peer.ss_family == AF_INET6) {
 #if CONFIG_LWIP_IPV6
         inet_ntop(AF_INET6, &reinterpret_cast<const sockaddr_in6*>(&peer)->sin6_addr,
-                  peer_text, sizeof(peer_text));
+                  peer_text, static_cast<socklen_t>(peer_text_len));
 #endif
     } else if (peer.ss_family == AF_INET) {
         inet_ntop(AF_INET, &reinterpret_cast<const sockaddr_in*>(&peer)->sin_addr,
-                  peer_text, sizeof(peer_text));
+                  peer_text, static_cast<socklen_t>(peer_text_len));
     }
+    return false;
+}
+
+static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
+{
+    char peer_text[46] = "?";
+    if (peer_allowed(sockfd, peer_text, sizeof(peer_text))) return ESP_OK;
     ESP_LOGW(TAG, "blocked web client %s outside allowed networks", peer_text);
     shutdown(sockfd, SHUT_RDWR);
     return ESP_FAIL;
 }
+
+#if SMLEASY_LOCAL_HTTPS
+// Read-only endpoints a paired app may call with its bearer token, also from outside the allowed networks.
+static bool token_route(const httpd_req_t* req)
+{
+    if (req->method != HTTP_GET) return false;
+    std::string uri(req->uri);
+    uri = uri.substr(0, uri.find('?'));
+    static const char* const kRoutes[] = {
+        "/api/status", "/api/ext/values", "/api/stats", "/api/history", "/api/meter", "/house.jpg",
+    };
+    for (const char* r : kRoutes) if (uri == r) return true;
+    return false;
+}
+
+static bool bearer_ok(httpd_req_t* req)
+{
+    char header[128] = {};
+    if (httpd_req_get_hdr_value_str(req, "Authorization", header, sizeof(header)) != ESP_OK) return false;
+    if (strncmp(header, "Bearer ", 7) != 0) return false;
+    return app::tokens::verify(header + 7);
+}
+
+// Per-request gate: peers outside the allowed networks only reach token routes with a valid token.
+static esp_err_t gated_handler(httpd_req_t* req)
+{
+    char peer_text[46] = "?";
+    if (!peer_allowed(httpd_req_to_sockfd(req), peer_text, sizeof(peer_text))) {
+        if (!token_route(req) || !bearer_ok(req)) {
+            ESP_LOGW(TAG, "blocked %s outside allowed networks (no valid app token)", peer_text);
+            httpd_resp_set_status(req, "403 Forbidden");
+            httpd_resp_set_type(req, "text/plain; charset=utf-8");
+            httpd_resp_send(req, "Forbidden", HTTPD_RESP_USE_STRLEN);
+            return ESP_FAIL;
+        }
+    }
+    return reinterpret_cast<esp_err_t (*)(httpd_req_t*)>(req->user_ctx)(req);
+}
+#endif
 
 static bool require_auth(httpd_req_t* req)
 {
     char header[256] = {};
     char decoded[192] = {};
     size_t decoded_len = 0;
-    app::WebAuthConfig auth;
-    app::ConfigStore::get().load_web_auth(auth);
+#if SMLEASY_LOCAL_HTTPS
+    if (token_route(req) && bearer_ok(req)) return true;
+#endif
     const bool header_ok = httpd_req_get_hdr_value_str(req, "Authorization",
                                                         header, sizeof(header)) == ESP_OK;
     if (header_ok && strncmp(header, "Basic ", 6) == 0 &&
@@ -287,8 +333,10 @@ static bool require_auth(httpd_req_t* req)
                               &decoded_len, reinterpret_cast<const unsigned char*>(header + 6),
                               strlen(header + 6)) == 0) {
         decoded[decoded_len] = '\0';
-        const std::string expected = auth.username + ":" + auth.password;
-        if (expected == decoded) return true;
+        const char* colon = strchr(decoded, ':');
+        if (colon && app::ConfigStore::get().verify_web_auth(std::string(decoded, colon - decoded),
+                                                             std::string(colon + 1)))
+            return true;
     }
     httpd_resp_set_status(req, "401 Unauthorized");
     httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"EasySML\"");
@@ -865,6 +913,7 @@ void WebServer::register_routes(httpd_handle_t server)
         { "/config",              HTTP_GET,  handle_config_page,   nullptr },
         { "/style.css",           HTTP_GET,  handle_style_css,     nullptr },
         { "/app.js",              HTTP_GET,  handle_app_js,        nullptr },
+        { "/house.jpg",           HTTP_GET,  handle_house_jpg,     nullptr },
         { "/api/status",          HTTP_GET,  handle_status,        nullptr },
         { "/api/log",             HTTP_GET,  handle_log,           nullptr },
         { "/api/history",         HTTP_GET,  handle_history,       nullptr },
@@ -897,6 +946,12 @@ void WebServer::register_routes(httpd_handle_t server)
         { "/favicon.ico",          HTTP_GET,  handle_favicon,       nullptr },
 #if SMLEASY_LOCAL_HTTPS
         { "/api/config/tls",      HTTP_GET,  handle_tls_config_get,    nullptr },
+        { "/pair",                HTTP_GET,  handle_pair_page,         nullptr },
+        { "/api/pairing",         HTTP_GET,  handle_pairing_status,    nullptr },
+        { "/api/pairing/open",    HTTP_POST, handle_pairing_open,      nullptr },
+        { "/api/pairing/close",   HTTP_POST, handle_pairing_close,     nullptr },
+        { "/api/pairing/claim",   HTTP_POST, handle_pairing_claim,     nullptr },
+        { "/api/pairing/revoke",  HTTP_POST, handle_pairing_revoke,    nullptr },
         { "/api/config/tls",      HTTP_POST, handle_tls_config_save,   nullptr },
         { "/api/acme/request",    HTTP_POST, handle_acme_request,      nullptr },
         { "/api/acme/check",      HTTP_POST, handle_acme_check,        nullptr },
@@ -909,10 +964,18 @@ void WebServer::register_routes(httpd_handle_t server)
         { "/api/config/ext",      HTTP_POST, handle_ext_config_save,   nullptr },
         { "/api/ext/values",      HTTP_GET,  handle_ext_values,        nullptr },
         { "/api/ext/refresh",     HTTP_POST, handle_ext_refresh,       nullptr },
-        { "/api/ext/automation.yaml", HTTP_GET, handle_ext_automation,  nullptr },
 #endif
     };
-    for (const auto& r : routes) httpd_register_uri_handler(server, &r);
+    for (const auto& r : routes) {
+#if SMLEASY_LOCAL_HTTPS
+        httpd_uri_t gated = r;
+        gated.user_ctx = reinterpret_cast<void*>(r.handler);
+        gated.handler = gated_handler;
+        httpd_register_uri_handler(server, &gated);
+#else
+        httpd_register_uri_handler(server, &r);
+#endif
+    }
 }
 
 // ── local HTTPS (port 443, parallel to HTTP) ────────────────────────────────────
@@ -982,7 +1045,8 @@ esp_err_t WebServer::start_https()
     ssl_cfg.httpd.send_wait_timeout = 30;
     // The HTTP server already owns the default control port.
     ssl_cfg.httpd.ctrl_port = ESP_HTTPD_DEF_CTRL_PORT + 1;
-    ssl_cfg.httpd.open_fn = dashboard_network_filter;
+    // The per-request gate in register_routes lets app tokens in from outside the allowed networks.
+    ssl_cfg.httpd.open_fn = nullptr;
     ssl_cfg.servercert = reinterpret_cast<const uint8_t*>(certificate.c_str());
     ssl_cfg.servercert_len = certificate.size() + 1;
     ssl_cfg.prvtkey_pem = reinterpret_cast<const uint8_t*>(private_key.c_str());
@@ -1007,6 +1071,194 @@ void WebServer::stop_https()
         httpd_ssl_stop(https_server_);
         https_server_ = nullptr;
     }
+}
+
+// ── app pairing window (QR carries the FQDN; no secrets, no unauthenticated endpoint) ──
+
+namespace {
+constexpr int64_t kPairWindowUs = 120LL * 1000000LL;
+std::atomic<int64_t> s_pair_until_us{0};
+std::mutex s_pair_mutex;
+std::string s_pair_secret;
+int s_pair_failures = 0;
+
+std::string random_hex(size_t bytes)
+{
+    std::string out;
+    for (size_t i = 0; i < bytes; ++i) {
+        char h[3];
+        std::snprintf(h, sizeof(h), "%02x", static_cast<unsigned>(esp_random() & 0xff));
+        out += h;
+    }
+    return out;
+}
+
+std::string pct_encode(const std::string& in)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    std::string out;
+    for (unsigned char c : in) {
+        if (std::isalnum(c) || c == '.' || c == '-' || c == '_') {
+            out += static_cast<char>(c);
+        } else {
+            out += '%';
+            out += hex[c >> 4];
+            out += hex[c & 15];
+        }
+    }
+    return out;
+}
+
+esp_err_t pairing_reply(httpd_req_t* req, bool open_now)
+{
+    const int64_t now = esp_timer_get_time();
+    std::string secret;
+    {
+        std::lock_guard<std::mutex> lock(s_pair_mutex);
+        if (open_now) {
+            s_pair_until_us.store(now + kPairWindowUs);
+            s_pair_secret = random_hex(16);
+            s_pair_failures = 0;
+        }
+        secret = s_pair_secret;
+    }
+    const int64_t until = s_pair_until_us.load();
+    const bool open = until > now;
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "open", open);
+    cJSON* apps = cJSON_AddArrayToObject(root, "apps");
+    tokens::Info infos[tokens::kMaxApps];
+    tokens::list(infos);
+    for (int i = 0; i < tokens::kMaxApps; ++i) {
+        if (!infos[i].used) continue;
+        cJSON* a = cJSON_CreateObject();
+        cJSON_AddNumberToObject(a, "slot", i);
+        cJSON_AddStringToObject(a, "name", infos[i].name.c_str());
+        cJSON_AddItemToArray(apps, a);
+    }
+    cJSON_AddNumberToObject(root, "remaining_s", open ? static_cast<double>((until - now) / 1000000LL) : 0);
+    cJSON_AddBoolToObject(root, "https_active", WebServer::get().is_https_running());
+    cJSON_AddStringToObject(root, "fqdn", cfg.fqdn.c_str());
+    const std::string device_id = keys::device_id_hex();
+    cJSON_AddStringToObject(root, "device_id", device_id.c_str());
+    cJSON_AddStringToObject(root, "key_provider", keys::kind_name(keys::provider().kind()));
+    if (open && !cfg.fqdn.empty() && !secret.empty()) {
+        std::string payload = "smleasy://pair?v=2&fqdn=" + pct_encode(cfg.fqdn) + "&port=443&s=" + secret;
+        if (!device_id.empty()) payload += "&id=" + device_id;
+        cJSON_AddStringToObject(root, "payload", payload.c_str());
+    }
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return send_json(req, body);
+}
+}  // namespace
+
+esp_err_t WebServer::handle_pairing_status(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    return pairing_reply(req, false);
+}
+
+esp_err_t WebServer::handle_pairing_open(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    if (cfg.fqdn.empty()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "FQDN ist nicht konfiguriert");
+        return ESP_FAIL;
+    }
+    return pairing_reply(req, true);
+}
+
+esp_err_t WebServer::handle_pairing_close(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    s_pair_until_us.store(0);
+    {
+        std::lock_guard<std::mutex> lock(s_pair_mutex);
+        s_pair_secret.clear();
+    }
+    return pairing_reply(req, false);
+}
+
+// No password: the one-time secret from the QR code (window open, local peers only) authorizes the claim.
+esp_err_t WebServer::handle_pairing_claim(httpd_req_t* req)
+{
+    std::string raw;
+    if (req->content_len > 512 || read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "read error");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    const cJSON* secret = json ? cJSON_GetObjectItem(json, "secret") : nullptr;
+    const cJSON* name = json ? cJSON_GetObjectItem(json, "name") : nullptr;
+    const std::string given = cJSON_IsString(secret) && secret->valuestring ? secret->valuestring : "";
+    std::string app_name = cJSON_IsString(name) && name->valuestring ? name->valuestring : "";
+    cJSON_Delete(json);
+    for (char& c : app_name) if (static_cast<unsigned char>(c) < 32) c = ' ';
+    if (app_name.empty()) app_name = "App";
+
+    bool ok = false;
+    {
+        std::lock_guard<std::mutex> lock(s_pair_mutex);
+        const bool open = s_pair_until_us.load() > esp_timer_get_time() && !s_pair_secret.empty();
+        if (open && given.size() == s_pair_secret.size()) {
+            uint8_t diff = 0;
+            for (size_t i = 0; i < given.size(); ++i) diff |= static_cast<uint8_t>(given[i] ^ s_pair_secret[i]);
+            ok = diff == 0;
+        }
+        if (open && !ok && ++s_pair_failures >= 5) {
+            s_pair_until_us.store(0);
+            s_pair_secret.clear();
+        }
+        if (ok) {
+            s_pair_until_us.store(0);
+            s_pair_secret.clear();
+            s_pair_failures = 0;
+        }
+    }
+    std::string token;
+    if (!ok || !tokens::issue(app_name, token)) {
+        httpd_resp_set_status(req, ok ? "507 Insufficient Storage" : "403 Forbidden");
+        httpd_resp_set_type(req, "text/plain; charset=utf-8");
+        return httpd_resp_send(req, ok ? "Kein freier App-Platz (max. 4)" : "Forbidden", HTTPD_RESP_USE_STRLEN);
+    }
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "token", token.c_str());
+    char* text = cJSON_PrintUnformatted(root);
+    std::string body(text ? text : "{}");
+    cJSON_free(text);
+    cJSON_Delete(root);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_pairing_revoke(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "read error");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    const cJSON* slot = json ? cJSON_GetObjectItem(json, "slot") : nullptr;
+    const bool ok = cJSON_IsNumber(slot) && tokens::revoke(static_cast<int>(slot->valuedouble));
+    cJSON_Delete(json);
+    return send_json(req, ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
+esp_err_t WebServer::handle_pair_page(httpd_req_t* req) {
+    REQUIRE_AUTH(req);
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    return httpd_resp_send(req, kPairHtml, HTTPD_RESP_USE_STRLEN);
 }
 
 esp_err_t WebServer::handle_tls_config_get(httpd_req_t* req)
@@ -1369,6 +1621,12 @@ esp_err_t WebServer::handle_app_js(httpd_req_t* req) {
     return httpd_resp_send_chunk(req, nullptr, 0);
 }
 
+esp_err_t WebServer::handle_house_jpg(httpd_req_t* req) {
+    httpd_resp_set_type(req, "image/jpeg");
+    httpd_resp_set_hdr(req, "Cache-Control", "max-age=86400");
+    return httpd_resp_send(req, reinterpret_cast<const char*>(kHouseJpg), static_cast<ssize_t>(kHouseJpgLen));
+}
+
 // ── /api/status ───────────────────────────────────────────────────────────────
 
 esp_err_t WebServer::handle_status(httpd_req_t* req) {
@@ -1466,6 +1724,12 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     cJSON_AddStringToObject(root, "ssid_ap",  WifiManager::get().is_ap_active()
                                                ? WifiManager::get().ap_ssid().c_str() : "");
     cJSON_AddNumberToObject(root, "uptime_s", (double)(esp_timer_get_time() / 1000000LL));
+    cJSON_AddNumberToObject(root, "read_interval_s", static_cast<double>(st.read_interval_s.load()));
+    {
+        const int64_t last_us = st.last_meter_us.load();
+        cJSON_AddNumberToObject(root, "meter_age_ms",
+            last_us > 0 ? static_cast<double>((esp_timer_get_time() - last_us) / 1000) : -1.0);
+    }
     cJSON_AddNumberToObject(root, "tx_pin", MeterTask::get().tx_pin());
     cJSON_AddNumberToObject(root, "rx_pin", MeterTask::get().rx_pin());
 #if ESP_IDF_VERSION_MAJOR >= 6
@@ -1499,9 +1763,35 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
         cJSON_AddNumberToObject(root, "week_house_kwh",  stats.week_house_kwh);
         cJSON_AddNumberToObject(root, "month_house_kwh", stats.month_house_kwh);
     }
+    {
+        static const char* const kP[3] = {"today", "week", "month"};
+        char key[40];
+        for (int i = 0; i < 3; ++i) {
+            auto add = [&](const char* fmt, double v) { snprintf(key, sizeof(key), fmt, kP[i]); cJSON_AddNumberToObject(root, key, v); };
+            if (stats.pv_kwh[i] > 0 || stats.chg_kwh[i] > 0 || stats.dis_kwh[i] > 0) {
+                add("%s_pv_kwh", stats.pv_kwh[i]);
+                add("%s_bat_chg_kwh", stats.chg_kwh[i]);
+                add("%s_bat_dis_kwh", stats.dis_kwh[i]);
+                add("%s_saving", stats.saving[i]);
+            }
+            if (stats.wb_kwh[i] > 0) {
+                add("%s_wb_kwh", stats.wb_kwh[i]);
+                add("%s_wb_result", stats.wb_result[i]);
+            }
+        }
+    }
     cJSON_AddStringToObject(root, "currency",                tariff.currency.c_str());
     cJSON_AddNumberToObject(root, "price_import_kwh",        tariff.price_import_kwh);
+    cJSON_AddNumberToObject(root, "wallbox_refund_kwh",      tariff.wallbox_refund_kwh);
     cJSON_AddNumberToObject(root, "price_export_kwh",        tariff.price_export_kwh);
+    {
+        static const char* const kN[3] = {"east", "south", "west"};
+        char key[24];
+        for (int i = 0; i < 3; ++i) {
+            snprintf(key, sizeof(key), "pv_peak_%s_w", kN[i]);
+            cJSON_AddNumberToObject(root, key, static_cast<double>(tariff.pv_modules[i]) * tariff.pv_module_wp[i]);
+        }
+    }
 
     char* s = cJSON_PrintUnformatted(root);
     std::string body(s);
@@ -1534,7 +1824,6 @@ esp_err_t WebServer::handle_history(httpd_req_t* req) {
 // ── /api/stats (days / weeks / months incl. PV and battery) ─────────────────
 
 esp_err_t WebServer::handle_stats(httpd_req_t* req) {
-    REQUIRE_AUTH(req);
     TariffConfig tariff;
     ConfigStore::get().load_tariff(tariff);
     return send_json(req, EnergyStats::get().stats_json(tariff.price_import_kwh,
@@ -1596,7 +1885,18 @@ esp_err_t WebServer::handle_tariff_get(httpd_req_t* req) {
     cJSON* root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "price_import_kwh", cfg.price_import_kwh);
     cJSON_AddNumberToObject(root, "price_export_kwh", cfg.price_export_kwh);
+    cJSON_AddNumberToObject(root, "wallbox_refund_kwh", cfg.wallbox_refund_kwh);
     cJSON_AddStringToObject(root, "currency",         cfg.currency.c_str());
+    {
+        static const char* const kN[3] = {"east", "south", "west"};
+        char key[24];
+        for (int i = 0; i < 3; ++i) {
+            snprintf(key, sizeof(key), "pv_modules_%s", kN[i]);
+            cJSON_AddNumberToObject(root, key, cfg.pv_modules[i]);
+            snprintf(key, sizeof(key), "pv_wp_%s", kN[i]);
+            cJSON_AddNumberToObject(root, key, cfg.pv_module_wp[i]);
+        }
+    }
     char* s = cJSON_PrintUnformatted(root);
     std::string body(s);
     cJSON_free(s);
@@ -1622,8 +1922,22 @@ esp_err_t WebServer::handle_tariff_save(httpd_req_t* req) {
     if (cJSON_IsNumber(item)) cfg.price_import_kwh = item->valuedouble;
     item = cJSON_GetObjectItem(j, "price_export_kwh");
     if (cJSON_IsNumber(item)) cfg.price_export_kwh = item->valuedouble;
+    item = cJSON_GetObjectItem(j, "wallbox_refund_kwh");
+    if (cJSON_IsNumber(item)) cfg.wallbox_refund_kwh = item->valuedouble;
     item = cJSON_GetObjectItem(j, "currency");
     if (cJSON_IsString(item)) cfg.currency = item->valuestring;
+    {
+        static const char* const kN[3] = {"east", "south", "west"};
+        char key[24];
+        for (int i = 0; i < 3; ++i) {
+            snprintf(key, sizeof(key), "pv_modules_%s", kN[i]);
+            item = cJSON_GetObjectItem(j, key);
+            if (cJSON_IsNumber(item) && item->valuedouble >= 0 && item->valuedouble <= 500) cfg.pv_modules[i] = static_cast<uint16_t>(item->valuedouble);
+            snprintf(key, sizeof(key), "pv_wp_%s", kN[i]);
+            item = cJSON_GetObjectItem(j, key);
+            if (cJSON_IsNumber(item) && item->valuedouble >= 0 && item->valuedouble <= 2000) cfg.pv_module_wp[i] = static_cast<uint16_t>(item->valuedouble);
+        }
+    }
     cJSON_Delete(j);
     bool ok = ConfigStore::get().save_tariff(cfg);
     return send_json(req, ok ? "{\"ok\":true}" : "{\"ok\":false}");
@@ -2297,14 +2611,6 @@ static bool valid_mqtt_topic(const std::string& topic)
     return true;
 }
 
-static bool valid_push_name(const std::string& name)
-{
-    if (name.empty() || name.size() > 32) return false;
-    for (const char c : name)
-        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
-    return true;
-}
-
 static bool valid_json_path(const std::string& path)
 {
     if (path.size() > 40) return false;
@@ -2421,9 +2727,9 @@ esp_err_t WebServer::handle_ext_config_save(httpd_req_t* req)
         const std::string where = "row " + std::to_string(i + 1) + ": ";
         if (cfg.slots.size() >= ExtDataConfig::kMaxSlots) {
             cJSON_Delete(json);
-            return ext_reject(req, "at most 8 values are supported");
+            return ext_reject(req, "at most 16 values are supported");
         }
-        if (slot.source != "rest" && slot.source != "mqtt" && slot.source != "push") {
+        if (slot.source != "rest" && slot.source != "mqtt") {
             cJSON_Delete(json);
             return ext_reject(req, where + "unknown source");
         }
@@ -2434,14 +2740,6 @@ esp_err_t WebServer::handle_ext_config_save(httpd_req_t* req)
         if (slot.source == "rest" && !valid_entity_id(slot.ref)) {
             cJSON_Delete(json);
             return ext_reject(req, where + "entity id must look like sensor.battery_soc");
-        }
-        if (slot.source == "push" && !valid_push_name(slot.ref)) {
-            cJSON_Delete(json);
-            return ext_reject(req, where + "short name must be 1-32 characters a-z, 0-9 or _");
-        }
-        if ((slot.source == "mqtt" || slot.source == "push") && !valid_json_path(slot.key)) {
-            cJSON_Delete(json);
-            return ext_reject(req, where + "invalid JSON key");
         }
         if (slot.source == "mqtt" && (!valid_mqtt_topic(slot.ref) || !valid_json_path(slot.key))) {
             cJSON_Delete(json);
@@ -2457,51 +2755,6 @@ esp_err_t WebServer::handle_ext_config_save(httpd_req_t* req)
     if (!ConfigStore::get().save_ext(cfg)) return send_json(req, "{\"ok\":false}");
     ExtData::get().apply_config();
     return send_json(req, "{\"ok\":true}");
-}
-
-esp_err_t WebServer::handle_ext_automation(httpd_req_t* req)
-{
-    REQUIRE_AUTH(req);
-    ExtDataConfig cfg;
-    ConfigStore::get().load_ext(cfg);
-    const std::string base = MqttManager::input_topic_base();
-    std::string yaml =
-        "# SMLEasy: Home-Assistant-Automation (ab HA 2024.10)\n"
-        "# Ersetze jede Zeile 'entity_id' durch deine Entit\xC3\xA4t und f\xC3\xBCge die Automation in\n"
-        "# Einstellungen > Automatisierungen > Neue Automatisierung > YAML ein.\n"
-        "alias: SMLEasy Werte senden\n"
-        "mode: queued\n"
-        "triggers:\n";
-    std::string actions;
-    int count = 0;
-    for (const auto& slot : cfg.slots) {
-        if (slot.source != "push" || slot.ref.empty()) continue;
-        ++count;
-        yaml += "  - trigger: state\n    entity_id: sensor." + slot.ref + "   # " + slot.label + "\n    id: " + slot.ref + "\n";
-        actions +=
-            "      - conditions:\n"
-            "          - condition: trigger\n"
-            "            id: " + slot.ref + "\n"
-            "        sequence:\n"
-            "          - action: mqtt.publish\n"
-            "            data:\n"
-            "              topic: " + base + slot.ref + "\n"
-            "              payload: \"{{ trigger.to_state.state }}\"\n"
-            "              retain: true\n";
-    }
-    if (!count) {
-        yaml += "  []   # Keine Werte mit Quelle 'HA sendet' gespeichert.\n";
-    } else {
-        yaml +=
-            "conditions:\n"
-            "  - condition: template\n"
-            "    value_template: \"{{ trigger.to_state.state | is_number }}\"\n"
-            "actions:\n"
-            "  - choose:\n" + actions;
-    }
-    httpd_resp_set_type(req, "text/plain; charset=utf-8");
-    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
-    return httpd_resp_send(req, yaml.c_str(), yaml.size());
 }
 
 esp_err_t WebServer::handle_ext_values(httpd_req_t* req)

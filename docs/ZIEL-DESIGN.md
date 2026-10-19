@@ -129,6 +129,45 @@ keine aktuelle oder zukuenftige Groessengarantie.
   spaeter zugewiesenem Praefix) sind ebenfalls erlaubt; andere globale
   IPv6-Praefixe erfordern eine explizite CIDR-Freigabe. Die S3-Config ist
   lokal generiert und nicht der PlatformIO-C3-Config gleichzusetzen.
+- C3 auf ESP-IDF 6.1 (Build-Nachweis 2026-10-19, isoliert, kein Releasepfad):
+  `idf.py -B build_c3_idf6 -DIDF_TARGET=esp32c3 -DSMLEASY_IDF6_APP=1
+  -DSDKCONFIG=build_c3_idf6/sdkconfig
+  "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.c3_idf6" build`
+  (IDF v6.1, `PYTHONUTF8=1`) wurde erfolgreich gebaut: `smartmeter.bin`
+  1.753.056 Byte (0x1ac3e0), 11 Prozent des kleinsten App-Slots frei; die
+  Config enthaelt `CONFIG_LWIP_IPV6=y` und HTTPS-Server. Offen: Flash/Boot auf
+  echter C3-Hardware, IPv6-Laufzeit, Heap/Stack, OTA-Wechsel 4.4 -> 6.1 und
+  CI. Der PlatformIO-/IDF-4.4.8-Releasepfad bleibt unveraendert.
+- Tageswechsel/Energie-Board: Das Schreiben der Historie (64-KiB-Erase) erfolgt
+  nicht mehr unter dem Statistik-Mutex, damit `/api/status` nicht blockiert.
+  Das Board pollt Status und HA-Werte nacheinander mit Timeout, ohne
+  parallele Dashboard-Abfragen, und plant den naechsten Abruf 1,5 s nach dem
+  erwarteten Zaehler-/HA-Lesen (neue Felder `meter_age_ms`, `read_interval_s`,
+  `poll_s`). Nicht auf Hardware ueber einen echten Tageswechsel getestet.
+- Android-Board-App (`android/`, Kotlin nativ, Stand: nicht gebaut, nicht auf
+  Hardware getestet; JDK/Android SDK/Gradle-Wrapper fehlen): zeigt das
+  Energie-Board per REST (`/api/status`, `/api/ext/values`), cached `/house.jpg`
+  und speichert Kachelposition/-groesse lokal.
+  Kopplung: Auf dem Geraet (Konfiguration -> "App koppeln", Seite `/pair`,
+  nur IDF-6-Build, Basic-Auth, nur lokal) oeffnet ein Button ein 120-s-Fenster
+  und zeigt einen QR-Code `smleasy://pair?v=1&fqdn=<FQDN>&port=443` (clientseitig
+  mit qrcode-generator 2.0.4, MIT, minifiziert eingebettet; QR-Roundtrip mit jsQR
+  geprueft). Ausserhalb des Fensters liefert `/api/pairing` keinen Payload. Es gibt
+  keinen unauthentifizierten REST-Endpunkt fuer den FQDN mehr. Die App liest den QR
+  per Kamera (Google Code Scanner), aus einem Foto (ZXing core) oder nimmt den FQDN
+  manuell. Danach: `https://FQDN`, sonst mDNS-IP mit SNI/Pruefung gegen den FQDN,
+  sonst HTTP mit sichtbarem Hinweis. Staging-Zertifikate akzeptiert Android nicht.
+  ABWEICHUNG von §6 (Entscheidung des Nutzers): Ausloeser ist ein Button in der
+  Web-Konfiguration statt physischem Taster. Der QR enthaelt derzeit weder
+  Einmal-Token noch Schluessel; Token-Pruefung, Device-Key-Pinning, HPKE-
+  Schluesselwrapping und eFuse-HMAC_UP-Root (KeyProvider) sind NICHT umgesetzt und
+  bleiben offen (eFuse nur mit geraetespezifischer Freigabe).
+  Bildschirmschoner: `BoardDream` (Daydream) nutzt dieselbe Abfrage. `ScreenCare`
+  verschiebt den Inhalt einmal pro Kalendertag um max. 8 dp (9er-Muster) gegen
+  Einbrennen und passt die Fensterhelligkeit per Lichtsensor an (5 % bis 100 %,
+  log. Kennlinie). Ohne Sensor bleibt die Systemhelligkeit.
+  iOS-App (spaeter): QR-Format und HTTPS+Basic-Auth sind plattformneutral; das
+  spaetere Schluesselprotokoll wird einmal fuer beide Plattformen spezifiziert.
 - Lokales HTTPS (Phase 1, nur S3/IDF 6): Ein zweiter HTTP-Server lauscht auf
   Port 443 parallel zu HTTP auf Port 80 und teilt sich Routen sowie den
   Netzwerkfilter. Er startet in einem eigenen Task (10-KiB-Stack) nach dem

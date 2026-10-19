@@ -465,6 +465,55 @@ DESCRIPTIONS: tuple[SmartmeterSensorDescription, ...] = (
 )
 
 
+_PERIODS = (("today", "heute"), ("week", "Woche"), ("month", "Monat"))
+_PERIOD_ENERGY = (
+    ("import", "Bezug", "mdi:transmission-tower-import", "{p}_import_kwh"),
+    ("export", "Einspeisung", "mdi:transmission-tower-export", "{p}_export_kwh"),
+    ("pv", "PV-Erzeugung", "mdi:solar-power", "{p}_pv_kwh"),
+    ("bat_chg", "Batterie geladen", "mdi:battery-charging", "{p}_bat_chg_kwh"),
+    ("bat_dis", "Batterie entladen", "mdi:battery-arrow-down", "{p}_bat_dis_kwh"),
+    ("wb", "Wallbox", "mdi:ev-station", "{p}_wb_kwh"),
+)
+_PERIOD_MONEY = (
+    ("cost", "Netto-Kosten Netz", "mdi:cash", "cost_{p}"),
+    ("wb_result", "Wallbox Ergebnis", "mdi:cash-plus", "{p}_wb_result"),
+    ("saving", "Ersparnis PV", "mdi:piggy-bank", "{p}_saving"),
+)
+
+
+def _period_descriptions() -> tuple[SmartmeterSensorDescription, ...]:
+    items: list[SmartmeterSensorDescription] = []
+    for period, label in _PERIODS:
+        for key, name, icon, payload in _PERIOD_ENERGY:
+            items.append(
+                SmartmeterSensorDescription(
+                    key=f"{period}_{key}_kwh",
+                    key_in_payload=payload.format(p=period),
+                    name=f"{name} {label}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=SensorDeviceClass.ENERGY,
+                    icon=icon,
+                    precision=3,
+                )
+            )
+        for key, name, icon, payload in _PERIOD_MONEY:
+            items.append(
+                SmartmeterSensorDescription(
+                    key=f"{period}_{key}",
+                    key_in_payload=payload.format(p=period),
+                    name=f"{name} {label}",
+                    native_unit_of_measurement="EUR",
+                    icon=icon,
+                    precision=2,
+                )
+            )
+    return tuple(items)
+
+
+_EXISTING_KEYS = {d.key for d in DESCRIPTIONS}
+DESCRIPTIONS = DESCRIPTIONS + tuple(d for d in _period_descriptions() if d.key not in _EXISTING_KEYS)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SmartmeterCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
     async_add_entities(SmartmeterSensor(coordinator, entry, description) for description in DESCRIPTIONS)

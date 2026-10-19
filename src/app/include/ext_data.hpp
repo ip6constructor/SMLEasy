@@ -29,6 +29,10 @@ public:
     /// Returns false when no slot with that role has a fresh value.
     bool role_power_w(const char* role, double& watts) const;
 
+    /// Sum of the fresh cumulative counters (kWh, Wh and MWh are converted) of all slots with this
+    /// role ("pv_kwh", "bat_chg_kwh", "bat_dis_kwh"), in Wh. Returns false when none is fresh.
+    bool role_energy_wh(const char* role, double& wh) const;
+
 private:
     ExtData() = default;
     static void poll_task(void*);

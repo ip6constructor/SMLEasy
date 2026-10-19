@@ -71,7 +71,10 @@ struct TlsConfig {
 struct TariffConfig {
     double      price_import_kwh{0.30};  ///< price paid per imported kWh
     double      price_export_kwh{0.0664};  ///< feed-in compensation per exported kWh
+    double      wallbox_refund_kwh{0.31};  ///< reimbursement per kWh charged into the company car
     std::string currency{"EUR"};
+    uint16_t    pv_modules[3]{0, 0, 0};       ///< module count east, south, west
+    uint16_t    pv_module_wp[3]{485, 485, 485}; ///< peak watts per module east, south, west
 };
 
 /// Home Assistant integration config (transport: MQTT discovery).
@@ -96,7 +99,7 @@ struct ExtSlot {
 
 /// Values pulled from Home Assistant (REST API) or its MQTT broker.
 struct ExtDataConfig {
-    static constexpr size_t kMaxSlots = 8;
+    static constexpr size_t kMaxSlots = 16;
     bool        enabled{false};
     std::string ha_url{};         ///< e.g. http://homeassistant.local:8123
     std::string ha_token{};       ///< long-lived access token (never sent back to the UI)
@@ -117,6 +120,7 @@ public:
 
     bool load_web_auth(WebAuthConfig& out);
     bool save_web_auth(const WebAuthConfig& cfg);
+    bool verify_web_auth(const std::string& user, const std::string& pass);
     bool load_ui(UiConfig& out);
     bool save_ui(const UiConfig& cfg);
     bool load_tls(TlsConfig& out);

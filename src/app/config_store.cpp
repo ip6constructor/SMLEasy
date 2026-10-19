@@ -2,6 +2,11 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_log.h"
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION_MAJOR >= 6
+#define SMLEASY_SEAL_SECRETS 1
+#include "secret_store.hpp"
+#endif
 #include <cstdio>
 #include <cstdlib>
 #include <cinttypes>
@@ -26,6 +31,47 @@ static bool nvs_get_str(nvs_handle_t h, const char* key, std::string& out)
     if (::nvs_get_str(h, key, buf.data(), &len) != ESP_OK) return false;
     out.assign(buf.data(), len > 0 ? len - 1 : 0); // strip NUL terminator
     return true;
+}
+
+// Secrets: sealed blob under "<key>.e" (IDF 6 path); plaintext key only as legacy fallback.
+static bool secret_get(nvs_handle_t h, const char* ns, const char* key, std::string& out)
+{
+#ifdef SMLEASY_SEAL_SECRETS
+    const std::string bkey = std::string(key) + ".e";
+    size_t len = 0;
+    if (::nvs_get_blob(h, bkey.c_str(), nullptr, &len) == ESP_OK && len > 0) {
+        std::vector<uint8_t> blob(len);
+        if (::nvs_get_blob(h, bkey.c_str(), blob.data(), &len) == ESP_OK &&
+            app::secrets::open(std::string(ns) + "/" + key, blob.data(), len, out))
+            return true;
+        ESP_LOGE(TAG, "sealed secret %s/%s unreadable", ns, key);
+        return false;
+    }
+#else
+    (void)ns;
+#endif
+    return nvs_get_str(h, key, out);
+}
+
+static esp_err_t secret_set(nvs_handle_t h, const char* ns, const char* key, const std::string& value)
+{
+#ifdef SMLEASY_SEAL_SECRETS
+    std::vector<uint8_t> blob;
+    if (app::secrets::seal(std::string(ns) + "/" + key, value, blob)) {
+        const std::string bkey = std::string(key) + ".e";
+        esp_err_t err = ::nvs_set_blob(h, bkey.c_str(), blob.data(), blob.size());
+        if (err == ESP_OK) {
+            const esp_err_t e = ::nvs_erase_key(h, key);  // drop legacy plaintext
+            if (e != ESP_OK && e != ESP_ERR_NVS_NOT_FOUND) err = e;
+        }
+        return err;
+    }
+    ESP_LOGE(TAG, "sealing %s/%s failed, not storing", ns, key);
+    return ESP_FAIL;
+#else
+    (void)ns;
+    return ::nvs_set_str(h, key, value.c_str());
+#endif
 }
 
 static bool nvs_get_u32(nvs_handle_t h, const char* key, uint32_t& out)
@@ -142,7 +188,7 @@ bool ConfigStore::load_wifi(WifiConfig& out)
         return false;
     }
     const bool ssid_ok = nvs_get_str(h, "ssid", out.ssid);
-    const bool pass_ok = nvs_get_str(h, "pass", out.password);
+    const bool pass_ok = secret_get(h, kNsWifi, "pass", out.password);
     nvs_close(h);
     ESP_LOGI(TAG, "wifi cfg loaded: ssid=%s password=%s", out.ssid.c_str(),
              pass_ok ? "stored" : "missing");
@@ -157,7 +203,7 @@ bool ConfigStore::save_wifi(const WifiConfig& cfg)
         return false;
     }
     const esp_err_t ssid_err = nvs_set_str(h, "ssid", cfg.ssid.c_str());
-    const esp_err_t pass_err = nvs_set_str(h, "pass", cfg.password.c_str());
+    const esp_err_t pass_err = secret_set(h, kNsWifi, "pass", cfg.password);
     esp_err_t err = nvs_commit(h);
     nvs_close(h);
     if (ssid_err != ESP_OK || pass_err != ESP_OK || err != ESP_OK) {
@@ -173,9 +219,45 @@ bool ConfigStore::load_web_auth(WebAuthConfig& out)
     nvs_handle_t h;
     if (nvs_open(kNsAuth, NVS_READONLY, &h) != ESP_OK) return false;
     nvs_get_str(h, "user", out.username);
-    nvs_get_str(h, "pass", out.password);
+    std::string legacy;
+    if (nvs_get_str(h, "pass", legacy)) out.password = legacy;
+#ifdef SMLEASY_SEAL_SECRETS
+    else { uint8_t pv[32]; size_t n = sizeof(pv); if (::nvs_get_blob(h, "pv", pv, &n) == ESP_OK) out.password.clear(); }
+#endif
     nvs_close(h);
-    return !out.username.empty() && !out.password.empty();
+    return !out.username.empty();
+}
+
+bool ConfigStore::verify_web_auth(const std::string& user, const std::string& pass)
+{
+    WebAuthConfig cfg;
+    load_web_auth(cfg);
+    if (user != cfg.username) return false;
+#ifdef SMLEASY_SEAL_SECRETS
+    nvs_handle_t h;
+    if (nvs_open(kNsAuth, NVS_READONLY, &h) == ESP_OK) {
+        uint8_t stored[32];
+        size_t n = sizeof(stored);
+        const bool have = ::nvs_get_blob(h, "pv", stored, &n) == ESP_OK && n == sizeof(stored);
+        nvs_close(h);
+        if (have) {
+            uint8_t calc[32];
+            if (!secrets::password_verifier(pass, calc)) return false;
+            uint8_t diff = 0;
+            for (size_t i = 0; i < 32; ++i) diff |= stored[i] ^ calc[i];
+            return diff == 0;
+        }
+    }
+#endif
+    // Legacy plaintext or built-in default: verify, then migrate to the verifier.
+    if (cfg.password.empty() || pass.size() != cfg.password.size()) return false;
+    uint8_t diff = 0;
+    for (size_t i = 0; i < pass.size(); ++i) diff |= static_cast<uint8_t>(pass[i] ^ cfg.password[i]);
+    if (diff != 0) return false;
+#ifdef SMLEASY_SEAL_SECRETS
+    save_web_auth(cfg);
+#endif
+    return true;
 }
 
 bool ConfigStore::save_web_auth(const WebAuthConfig& cfg)
@@ -183,8 +265,19 @@ bool ConfigStore::save_web_auth(const WebAuthConfig& cfg)
     if (cfg.username.empty() || cfg.password.empty()) return false;
     nvs_handle_t h;
     if (nvs_open(kNsAuth, NVS_READWRITE, &h) != ESP_OK) return false;
+    esp_err_t pass_err;
     const esp_err_t user_err = nvs_set_str(h, "user", cfg.username.c_str());
-    const esp_err_t pass_err = nvs_set_str(h, "pass", cfg.password.c_str());
+#ifdef SMLEASY_SEAL_SECRETS
+    uint8_t pv[32];
+    if (!secrets::password_verifier(cfg.password, pv)) { nvs_close(h); return false; }
+    pass_err = ::nvs_set_blob(h, "pv", pv, sizeof(pv));
+    if (pass_err == ESP_OK) {
+        const esp_err_t e = ::nvs_erase_key(h, "pass");
+        if (e != ESP_OK && e != ESP_ERR_NVS_NOT_FOUND) pass_err = e;
+    }
+#else
+    pass_err = nvs_set_str(h, "pass", cfg.password.c_str());
+#endif
     const esp_err_t commit_err = nvs_commit(h);
     nvs_close(h);
     return user_err == ESP_OK && pass_err == ESP_OK && commit_err == ESP_OK;
@@ -219,10 +312,10 @@ bool ConfigStore::load_tls(TlsConfig& out)
     nvs_get_str(h, "fqdn", out.fqdn);
     nvs_get_str(h, "email", out.email);
     nvs_get_str(h, "cert", out.certificate_pem);
-    nvs_get_str(h, "privkey", out.private_key_pem);
+    secret_get(h, kNsTls, "privkey", out.private_key_pem);
     nvs_get_str(h, "fb_cert", out.fallback_certificate_pem);
-    nvs_get_str(h, "fb_key", out.fallback_private_key_pem);
-    nvs_get_str(h, "acme_key", out.acme_account_key_pem);
+    secret_get(h, kNsTls, "fb_key", out.fallback_private_key_pem);
+    secret_get(h, kNsTls, "acme_key", out.acme_account_key_pem);
     nvs_get_str(h, "acme_url", out.acme_account_url);
     uint8_t terms = out.acme_terms_accepted ? 1 : 0;
     nvs_get_u8(h, "acme_terms", terms);
@@ -261,10 +354,10 @@ bool ConfigStore::save_tls(const TlsConfig& cfg)
     if (err == ESP_OK) err = nvs_set_str(h, "fqdn", cfg.fqdn.c_str());
     if (err == ESP_OK) err = nvs_set_str(h, "email", cfg.email.c_str());
     if (err == ESP_OK) err = nvs_set_str(h, "cert", cfg.certificate_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "privkey", cfg.private_key_pem.c_str());
+    if (err == ESP_OK) err = secret_set(h, kNsTls, "privkey", cfg.private_key_pem);
     if (err == ESP_OK) err = nvs_set_str(h, "fb_cert", cfg.fallback_certificate_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "fb_key", cfg.fallback_private_key_pem.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "acme_key", cfg.acme_account_key_pem.c_str());
+    if (err == ESP_OK) err = secret_set(h, kNsTls, "fb_key", cfg.fallback_private_key_pem);
+    if (err == ESP_OK) err = secret_set(h, kNsTls, "acme_key", cfg.acme_account_key_pem);
     if (err == ESP_OK) err = nvs_set_str(h, "acme_url", cfg.acme_account_url.c_str());
     if (err == ESP_OK) err = nvs_set_u8(h, "acme_terms", cfg.acme_terms_accepted ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_u8(h, "acme_staging", cfg.acme_staging ? 1 : 0);
@@ -281,7 +374,7 @@ bool ConfigStore::reset_all_config()
 {
     bool ok = true;
     constexpr const char* namespaces[] = {
-        kNsWifi, kNsAuth, kNsUi, kNsTls, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff, kNsExt,
+        kNsWifi, kNsAuth, kNsUi, kNsTls, kNsMeter, kNsHa, kNsMqttLegacy, kNsTariff, kNsExt, "app_tok",
     };
 
     for (const char* name : namespaces) {
@@ -361,47 +454,25 @@ static std::vector<ExtSlot> decode_slots(const std::string& text)
     return slots;
 }
 
-// Fixed short names pushed by the Home Assistant integration; no manual setup needed.
-static std::vector<ExtSlot> default_push_slots()
-{
-    struct Def { const char* label; const char* ref; const char* role; };
-    static const Def defs[] = {
-        {"PV-Leistung gesamt", "pv_power", "pv"},
-        {"Batterie-Leistung", "battery_power", "battery"},
-        {"PV-Batterie Ladestand", "battery_soc", ""},
-        {"Wallbox gesamt", "wallbox_power", ""},
-        {"Hausverbrauch", "house_power", ""},
-    };
-    std::vector<ExtSlot> slots;
-    for (const auto& def : defs) {
-        ExtSlot slot;
-        slot.label = def.label;
-        slot.source = "push";
-        slot.ref = def.ref;
-        slot.role = def.role;
-        slots.push_back(slot);
-    }
-    return slots;
-}
-
 bool ConfigStore::load_ext(ExtDataConfig& out)
 {
     nvs_handle_t h;
     if (nvs_open(kNsExt, NVS_READONLY, &h) != ESP_OK) {
         out.enabled = true;
-        out.slots = default_push_slots();
         return false;
     }
     uint8_t enabled = 1; // Home Assistant push values are on by default
     nvs_get_u8(h, "en", enabled);
     out.enabled = enabled != 0;
     nvs_get_str(h, "url", out.ha_url);
-    nvs_get_str(h, "token", out.ha_token);
+    secret_get(h, kNsExt, "token", out.ha_token);
     nvs_get_u16(h, "poll", out.poll_s);
     std::string slots;
     if (nvs_get_str(h, "slots", slots)) out.slots = decode_slots(slots);
     nvs_close(h);
-    if (out.slots.empty()) out.slots = default_push_slots();
+    // The removed "HA sendet" source is no longer supported.
+    for (size_t i = out.slots.size(); i-- > 0;)
+        if (out.slots[i].source == "push") out.slots.erase(out.slots.begin() + static_cast<long>(i));
     return true;
 }
 
@@ -415,19 +486,28 @@ bool ConfigStore::save_ext(const ExtDataConfig& cfg)
     for (const auto& slot : cfg.slots) {
         if (!clean_text(slot.label, 40) || !clean_text(slot.ref, 128) || !clean_text(slot.unit, 12) ||
             !clean_text(slot.key, 40) ||
-            (slot.role != "" && slot.role != "pv" && slot.role != "battery" && slot.role != "battery_neg") ||
-            (slot.source != "rest" && slot.source != "mqtt" && slot.source != "push")) {
+            (slot.role != "" && slot.role != "pv" && slot.role != "battery" && slot.role != "battery_neg" &&
+             slot.role != "pv_kwh" && slot.role != "bat_chg_kwh" && slot.role != "bat_dis_kwh" && slot.role != "wb_kwh" &&
+             slot.role != "pv_east" && slot.role != "pv_south" && slot.role != "pv_west" &&
+             slot.role != "wb_power" && slot.role != "wb_session_kwh" &&
+             slot.role != "car_name" && slot.role != "wb_mode") ||
+            (slot.source != "rest" && slot.source != "mqtt")) {
             ESP_LOGE(TAG, "external data slot rejected");
             return false;
         }
+    }
+    const std::string encoded_slots = encode_slots(cfg.slots);
+    if (encoded_slots.size() > 3800) {
+        ESP_LOGE(TAG, "external data slots too large for NVS");
+        return false;
     }
     nvs_handle_t h;
     if (nvs_open(kNsExt, NVS_READWRITE, &h) != ESP_OK) return false;
     esp_err_t err = nvs_set_u8(h, "en", cfg.enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_set_str(h, "url", cfg.ha_url.c_str());
-    if (err == ESP_OK) err = nvs_set_str(h, "token", cfg.ha_token.c_str());
+    if (err == ESP_OK) err = secret_set(h, kNsExt, "token", cfg.ha_token);
     if (err == ESP_OK) err = nvs_set_u16(h, "poll", cfg.poll_s);
-    if (err == ESP_OK) err = nvs_set_str(h, "slots", encode_slots(cfg.slots).c_str());
+    if (err == ESP_OK) err = nvs_set_str(h, "slots", encoded_slots.c_str());
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
     if (err != ESP_OK) ESP_LOGE(TAG, "saving external data config failed: %s", esp_err_to_name(err));
@@ -452,14 +532,14 @@ bool ConfigStore::load_ha(HaConfig& out)
         nvs_get_u8 (h, "mqtt_en",      en);
         nvs_get_str(h, "mqtt_uri",     out.broker_uri);
         nvs_get_str(h, "mqtt_user",    out.username);
-        nvs_get_str(h, "mqtt_pass",    out.password);
+        secret_get(h, kNsMqttLegacy, "mqtt_pass", out.password);
         nvs_get_str(h, "mqtt_dev",     out.device_name);
         nvs_get_str(h, "mqtt_ha_pref", out.ha_prefix);
     } else {
         nvs_get_u8 (h, "ha_en",        en);
         nvs_get_str(h, "ha_uri",       out.broker_uri);
         nvs_get_str(h, "ha_user",      out.username);
-        nvs_get_str(h, "ha_pass",      out.password);
+        secret_get(h, kNsHa, "ha_pass", out.password);
         nvs_get_str(h, "ha_dev",       out.device_name);
         nvs_get_str(h, "ha_pref",      out.ha_prefix);
     }
@@ -480,7 +560,7 @@ bool ConfigStore::save_ha(const HaConfig& cfg)
     nvs_set_u8 (h, "ha_en",    cfg.enabled      ? 1 : 0);
     nvs_set_str(h, "ha_uri",   cfg.broker_uri.c_str());
     nvs_set_str(h, "ha_user",  cfg.username.c_str());
-    nvs_set_str(h, "ha_pass",  cfg.password.c_str());
+    secret_set(h, kNsHa, "ha_pass", cfg.password);
     nvs_set_str(h, "ha_dev",   cfg.device_name.c_str());
     nvs_set_str(h, "ha_pref",  cfg.ha_prefix.c_str());
     esp_err_t err = nvs_commit(h);
@@ -513,7 +593,18 @@ bool ConfigStore::load_tariff(TariffConfig& out)
         const double value = std::strtod(s.c_str(), &end);
         if (end != s.c_str() && *end == '\0') out.price_export_kwh = value;
     }
+    if (nvs_get_str(h, "p_wb", s) && !s.empty()) {
+        char* end = nullptr;
+        const double value = std::strtod(s.c_str(), &end);
+        if (end != s.c_str() && *end == '\0') out.wallbox_refund_kwh = value;
+    }
     nvs_get_str(h, "cur", out.currency);
+    static const char* const kMod[3] = {"pm_e", "pm_s", "pm_w"};
+    static const char* const kWp[3] = {"pw_e", "pw_s", "pw_w"};
+    for (int i = 0; i < 3; ++i) {
+        nvs_get_u16(h, kMod[i], out.pv_modules[i]);
+        nvs_get_u16(h, kWp[i], out.pv_module_wp[i]);
+    }
     nvs_close(h);
     ESP_LOGI(TAG, "tariff cfg loaded: import=%.4f export=%.4f %s",
              out.price_import_kwh, out.price_export_kwh, out.currency.c_str());
@@ -532,7 +623,15 @@ bool ConfigStore::save_tariff(const TariffConfig& cfg)
     nvs_set_str(h, "p_imp", buf);
     snprintf(buf, sizeof(buf), "%.4f", cfg.price_export_kwh);
     nvs_set_str(h, "p_exp", buf);
+    snprintf(buf, sizeof(buf), "%.4f", cfg.wallbox_refund_kwh);
+    nvs_set_str(h, "p_wb", buf);
     nvs_set_str(h, "cur", cfg.currency.c_str());
+    static const char* const kMod[3] = {"pm_e", "pm_s", "pm_w"};
+    static const char* const kWp[3] = {"pw_e", "pw_s", "pw_w"};
+    for (int i = 0; i < 3; ++i) {
+        nvs_set_u16(h, kMod[i], cfg.pv_modules[i]);
+        nvs_set_u16(h, kWp[i], cfg.pv_module_wp[i]);
+    }
     esp_err_t err = nvs_commit(h);
     nvs_close(h);
     if (err != ESP_OK) {

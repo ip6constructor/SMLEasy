@@ -5,11 +5,10 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SmartmeterApi, SmartmeterApiError
-from .const import CONF_SCAN_INTERVAL, CONF_USE_SSL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN, PUSH_VALUES
+from .const import CONF_SCAN_INTERVAL, CONF_USE_SSL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 
 def _schema(host: str = "", port: int = DEFAULT_PORT, use_ssl: bool = False, scan_interval: int = DEFAULT_SCAN_INTERVAL) -> vol.Schema:
@@ -85,10 +84,5 @@ class SmartmeterOptionsFlow(config_entries.OptionsFlow):
             self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
         fields: dict[Any, Any] = {vol.Required(CONF_SCAN_INTERVAL, default=current): int}
-        for name in PUSH_VALUES:
-            key = f"push_{name}"
-            existing = self._config_entry.options.get(key)
-            marker = vol.Optional(key, description={"suggested_value": existing})
-            fields[marker] = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         schema = vol.Schema(fields)
         return self.async_show_form(step_id="init", data_schema=schema)

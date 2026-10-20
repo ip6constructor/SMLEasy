@@ -117,6 +117,9 @@ public:
 
     bool load_wifi(WifiConfig& out);
     bool save_wifi(const WifiConfig& cfg);
+    /// Permanent device hostname (FQDN): basis for QR code and certificate request.
+    std::string hostname();
+    bool set_hostname(const std::string& name);
 
     bool load_web_auth(WebAuthConfig& out);
     bool save_web_auth(const WebAuthConfig& cfg);

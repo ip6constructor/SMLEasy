@@ -25,6 +25,8 @@ public:
     [[nodiscard]] std::string get_ip()           const { return ip_; }
     [[nodiscard]] std::string get_ip6()          const;
     [[nodiscard]] std::vector<std::string> get_ip6_addresses() const;
+    // Waits for a routable (global) IPv6 address; returns false on timeout or without IPv6.
+    bool wait_for_global_ip6(uint32_t timeout_ms) const;
     [[nodiscard]] bool is_in_local_ip6_prefix(const uint8_t* peer_address) const;
     [[nodiscard]] std::string ap_ssid()          const { return ap_ssid_; }
     [[nodiscard]] std::string sta_ssid()         const { return sta_ssid_; }

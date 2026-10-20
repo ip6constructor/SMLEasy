@@ -8,6 +8,9 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.Inet6Address
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.net.Socket
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -21,8 +24,8 @@ class AuthRequired : Exception()
  * Der FQDN stammt aus dem Pairing (QR oder manuelle Eingabe), nicht aus einer Abfrage am
  * Geraet. Ist er gesetzt, wird https://FQDN verwendet. Loest er im LAN nicht auf, verbindet
  * die App zur mDNS-IP, setzt aber SNI und Zertifikatspruefung auf den FQDN; die normale
- * Zertifikatspruefung bleibt aktiv. Ohne Pairing oder bei HTTPS-Fehlern bleibt HTTP
- * (sichtbar ueber [usesHttps]).
+ * Zertifikatspruefung bleibt aktiv. Neue Kopplungen pruefen stattdessen den bestaetigten
+ * Fingerprint. Mit Token/Pin gibt es niemals einen HTTP-Fallback.
  */
 class Api(
     private val host: String?,
@@ -32,27 +35,47 @@ class Api(
     private val user: String,
     private val pass: String?,
     private val token: String? = null,
+    private val host6: String? = null,
+    private val fingerprint: String? = null,
 ) {
     private var base = ""
     private var sniHost: String? = null
     private var resolved = false
+    private var lastConnectionError: IOException? = null
 
     val usesHttps: Boolean get() = base.startsWith("https://")
-    val paired: Boolean get() = fqdn != null
+    val paired: Boolean get() = fqdn != null || fingerprint != null
+
+    /** Hostname (inkl. AAAA), danach direkte IPv6, zuletzt IPv4; niemals HTTP mit App-Token. */
+    private fun httpsCandidates(): List<Triple<String, String?, String?>> {
+        val suffix = if (httpsPort == 443) "" else ":$httpsPort"
+        val dns = if (fqdn == null) emptyList() else try {
+            InetAddress.getAllByName(fqdn).toList()
+        } catch (e: UnknownHostException) {
+            lastConnectionError = e
+            emptyList()
+        }
+        return buildList {
+            for (address in dns.filterIsInstance<Inet6Address>()) {
+                add(Triple("https://${PairingInfo.urlHost(address.hostAddress ?: continue)}$suffix", fqdn, fqdn))
+            }
+            if (!host6.isNullOrBlank() && paired) add(Triple("https://${PairingInfo.urlHost(host6)}$suffix", fqdn, fqdn))
+            for (address in dns.filterNot { it is Inet6Address }) {
+                add(Triple("https://${PairingInfo.urlHost(address.hostAddress ?: continue)}$suffix", fqdn, fqdn))
+            }
+            if (host != null && paired) add(Triple("https://${PairingInfo.urlHost(host)}$suffix", fqdn, fqdn))
+        }.distinct()
+    }
 
     /** Einmalig (oder nach Fehlern erneut) die beste Basisadresse bestimmen. */
     fun ensureBase() {
         if (resolved) return
-        val httpBase = host?.let { "http://$it:$port" }
-        base = httpBase ?: ""
+        lastConnectionError = null
+        val httpBase = (host6 ?: host)?.let { "http://${PairingInfo.urlHost(it)}:$port" }
+        base = if (token == null && fingerprint == null) httpBase ?: "" else ""
         sniHost = null
-        if (fqdn != null) {
-            val suffix = if (httpsPort == 443) "" else ":$httpsPort"
-            val candidates = buildList {
-                add(Triple("https://$fqdn$suffix", null as String?, fqdn))
-                if (host != null) add(Triple("https://$host$suffix", fqdn, fqdn))
-            }
-            for ((url, sni, name) in candidates) {
+        if (paired) {
+            for ((url, sni, name) in httpsCandidates()) {
                 if (probe(url, sni, name)) {
                     base = url
                     sniHost = sni
@@ -60,7 +83,10 @@ class Api(
                 }
             }
         }
-        if (base.isEmpty()) throw IOException("Kein Geraet erreichbar")
+        if (base.isEmpty()) throw IOException(
+            "HTTPS nicht erreichbar: ${lastConnectionError?.message ?: "keine Adresse"}; Zertifikat/IPv6-Route pruefen",
+            lastConnectionError,
+        )
         resolved = true
     }
 
@@ -68,12 +94,13 @@ class Api(
         resolved = false
     }
 
-    private fun probe(url: String, sni: String?, name: String): Boolean = try {
+    private fun probe(url: String, sni: String?, name: String?): Boolean = try {
         rawGet("$url/api/status", sni, name, authorize = true)
         true
     } catch (_: AuthRequired) {
         true
-    } catch (_: Exception) {
+    } catch (e: IOException) {
+        lastConnectionError = e
         false
     }
 
@@ -81,7 +108,13 @@ class Api(
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 4000
         c.readTimeout = 6000
-        if (c is HttpsURLConnection && sni != null) {
+        c.instanceFollowRedirects = false
+        if (c is HttpsURLConnection && fingerprint != null) {
+            val factory = DeviceTls.context(fingerprint).socketFactory
+            c.sslSocketFactory = if (sni != null) SniFactory(factory, sni) else factory
+            // Authentication is by the pinned certificate rather than by DNS/IP.
+            c.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
+        } else if (c is HttpsURLConnection && sni != null) {
             val default = HttpsURLConnection.getDefaultSSLSocketFactory()
             c.sslSocketFactory = SniFactory(default, sni)
             val verifier = HttpsURLConnection.getDefaultHostnameVerifier()
@@ -97,37 +130,6 @@ class Api(
             val b = Base64.encodeToString("$user:$pass".toByteArray(), Base64.NO_WRAP)
             c.setRequestProperty("Authorization", "Basic $b")
         }
-    }
-
-    /** Tauscht das Einmal-Geheimnis aus dem QR gegen ein App-Token (HTTPS, ohne Passwort). */
-    fun claim(secret: String, appName: String): String {
-        val suffix = if (httpsPort == 443) "" else ":$httpsPort"
-        val candidates = buildList {
-            add(Triple("https://$fqdn$suffix", null as String?, fqdn))
-            if (host != null) add(Triple("https://$host$suffix", fqdn, fqdn))
-        }
-        var last: Exception = IOException("Kein Geraet erreichbar")
-        for ((url, sni, name) in candidates) {
-            val c = connect("$url/api/pairing/claim", sni, name)
-            try {
-                c.requestMethod = "POST"
-                c.doOutput = true
-                c.setRequestProperty("Content-Type", "application/json")
-                val body = JSONObject().put("secret", secret).put("name", appName).toString()
-                c.outputStream.use { it.write(body.toByteArray()) }
-                val code = c.responseCode
-                if (code == 403) throw IOException("QR-Code abgelaufen oder ung\u00fcltig")
-                if (code == 507) throw IOException("Keine freien App-Pl\u00e4tze (max. 4)")
-                if (code != 200) throw IOException("HTTP $code")
-                return JSONObject(c.inputStream.bufferedReader().use { it.readText() }).getString("token")
-            } catch (e: IOException) {
-                last = e
-                if (e.message?.startsWith("QR-Code") == true || e.message?.startsWith("Keine freien") == true) throw e
-            } finally {
-                c.disconnect()
-            }
-        }
-        throw last
     }
 
     private fun rawGet(url: String, sni: String?, name: String?, authorize: Boolean): String {
@@ -152,6 +154,28 @@ class Api(
         } catch (e: IOException) {
             invalidate()
             throw e
+        }
+    }
+
+    /** Loest einen Geraete-Neustart aus; benoetigt die Passwort-Anmeldung (App-Token sind nur lesend). */
+    fun reboot() {
+        if (pass == null) throw AuthRequired()
+        ensureBase()
+        val c = connect(base + "/api/reboot", sniHost, sniHost)
+        try {
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.setFixedLengthStreamingMode(0)
+            val b = Base64.encodeToString("$user:$pass".toByteArray(), Base64.NO_WRAP)
+            c.setRequestProperty("Authorization", "Basic $b")
+            val code = c.responseCode
+            if (code == 401 || code == 403) throw AuthRequired()
+            if (code != 200) throw IOException("HTTP $code")
+        } catch (e: IOException) {
+            invalidate()
+            throw e
+        } finally {
+            c.disconnect()
         }
     }
 

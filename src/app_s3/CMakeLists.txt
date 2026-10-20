@@ -16,6 +16,7 @@ idf_component_register(
         "${APP_DIR}/key_provider.cpp"
         "${APP_DIR}/secret_store.cpp"
         "${APP_DIR}/app_tokens.cpp"
+        "${APP_DIR}/pairing_service.cpp"
     INCLUDE_DIRS
         "${APP_DIR}"
         "${APP_DIR}/include"
@@ -24,6 +25,7 @@ idf_component_register(
         acme_client
         esp_http_server
         esp_https_server
+        esp-tls
         mbedtls
         esp_wifi
         esp_netif

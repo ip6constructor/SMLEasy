@@ -21,6 +21,7 @@ class BoardDream : DreamService() {
 
         val store = Store(this)
         val board = BoardView(this, store) { _, _ -> }
+        board.dashboardMode = store.dashboardMode
         status = TextView(this).apply {
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.argb(170, 0, 0, 0))
@@ -44,7 +45,7 @@ class BoardDream : DreamService() {
             override fun onAuthRequired() = show("Anmeldung erforderlich: SMLEasy-App \u00f6ffnen")
             override fun onLost() = show("Kein Ger\u00e4t gekoppelt: SMLEasy-App \u00f6ffnen")
         })
-        care = ScreenCare(this, board) { window }
+        care = ScreenCare(this, board, store) { window }
     }
 
     override fun onDreamingStarted() {

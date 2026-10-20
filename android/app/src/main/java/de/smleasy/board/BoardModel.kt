@@ -15,6 +15,8 @@ data class TileData(
     val rows: List<Pair<String, String>> = emptyList(),
 )
 
+data class BoardKpi(val title: String, val value: String, val icon: String, val color: Int)
+
 /** Bildet /api/status und /api/ext/values auf dieselben Kacheln ab wie ehRefresh() im Web-Dashboard (vereinfacht, ohne Balkengrafiken). */
 object BoardModel {
     private val AMBER = Color.parseColor("#fbbf24")
@@ -31,6 +33,22 @@ object BoardModel {
     private val dash = "\u2014"
 
     private class Item(val label: String, val unit: String, val role: String, val value: Double?, val text: String?)
+
+    fun kpis(status: JSONObject): List<BoardKpi> {
+        fun number(key: String): Double? = (status.opt(key) as? Number)?.toDouble()?.takeIf { it.isFinite() }
+        fun value(key: String, digits: Int, unit: String) = number(key)?.let { f(it, digits) + " " + unit } ?: dash
+        val pv = number("today_pv_kwh")
+        val export = number("today_export_kwh")
+        val share = if (pv != null && export != null && pv > 0.05)
+            f(((pv - export) / pv * 100).coerceIn(0.0, 100.0), 0) + " %" else dash
+        val currency = status.optString("currency", "EUR")
+        return listOf(
+            BoardKpi("Eigenverbrauch", share, "\u25c7", GREEN),
+            BoardKpi("Gesamterzeugung", value("today_pv_kwh", 1, "kWh"), "\u2600", AMBER),
+            BoardKpi("Netzkosten heute", value("cost_today", 2, currency), "\u26a1", BLUE),
+            BoardKpi("Ersparnis heute", value("today_saving", 2, currency), "\u20ac", GREEN),
+        )
+    }
 
     fun build(status: JSONObject, ext: JSONObject?): Map<String, TileData> {
         val items = mutableListOf<Item>()

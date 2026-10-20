@@ -67,7 +67,12 @@ void AppState::push_log(const char* level, const char* tag, const char* msg) {
     if (log_lines_.size() >= kMaxLogLines) {
         log_lines_.pop_front();
     }
-    log_lines_.push_back({ ++log_seq_, level, tag, msg });
+    LogLine line{};
+    line.seq = ++log_seq_;
+    strncpy(line.level, level ? level : "", sizeof(line.level) - 1);
+    strncpy(line.tag, tag ? tag : "", sizeof(line.tag) - 1);
+    line.msg = msg ? msg : "";
+    log_lines_.push_back(std::move(line));
     xSemaphoreGive(mutex_);
 }
 

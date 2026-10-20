@@ -144,24 +144,24 @@ keine aktuelle oder zukuenftige Groessengarantie.
   parallele Dashboard-Abfragen, und plant den naechsten Abruf 1,5 s nach dem
   erwarteten Zaehler-/HA-Lesen (neue Felder `meter_age_ms`, `read_interval_s`,
   `poll_s`). Nicht auf Hardware ueber einen echten Tageswechsel getestet.
-- Android-Board-App (`android/`, Kotlin nativ, Stand: nicht gebaut, nicht auf
-  Hardware getestet; JDK/Android SDK/Gradle-Wrapper fehlen): zeigt das
+- Android-Board-App (`android/`, Kotlin nativ, Entwicklungsstand;
+  Build-/Testnachweise unten, keine Android-Hardwareabnahme): zeigt das
   Energie-Board per REST (`/api/status`, `/api/ext/values`), cached `/house.jpg`
   und speichert Kachelposition/-groesse lokal.
-  Kopplung: Auf dem Geraet (Konfiguration -> "App koppeln", Seite `/pair`,
-  nur IDF-6-Build, Basic-Auth, nur lokal) oeffnet ein Button ein 120-s-Fenster
-  und zeigt einen QR-Code `smleasy://pair?v=1&fqdn=<FQDN>&port=443` (clientseitig
-  mit qrcode-generator 2.0.4, MIT, minifiziert eingebettet; QR-Roundtrip mit jsQR
-  geprueft). Ausserhalb des Fensters liefert `/api/pairing` keinen Payload. Es gibt
-  keinen unauthentifizierten REST-Endpunkt fuer den FQDN mehr. Die App liest den QR
-  per Kamera (Google Code Scanner), aus einem Foto (ZXing core) oder nimmt den FQDN
-  manuell. Danach: `https://FQDN`, sonst mDNS-IP mit SNI/Pruefung gegen den FQDN,
-  sonst HTTP mit sichtbarem Hinweis. Staging-Zertifikate akzeptiert Android nicht.
-  ABWEICHUNG von §6 (Entscheidung des Nutzers): Ausloeser ist ein Button in der
-  Web-Konfiguration statt physischem Taster. Der QR enthaelt derzeit weder
-  Einmal-Token noch Schluessel; Token-Pruefung, Device-Key-Pinning, HPKE-
-  Schluesselwrapping und eFuse-HMAC_UP-Root (KeyProvider) sind NICHT umgesetzt und
-  bleiben offen (eFuse nur mit geraetespezifischer Freigabe).
+  Kopplung (aktualisiert 2026-10-19): `/pair` (IDF 6, Basic-Auth, erlaubte
+  Netze) startet maximal 300 s TLS/TCP auf Port 7384 mit mDNS-Suche.
+  Kein QR/Code-Link, keine Abhaengigkeit von FQDN/oeffentlicher CA.
+  App stellt Anfrage; Besitzer vergleicht die sechsstellige Nummer und
+  bestaetigt im Webfrontend. Erst dann erhaelt diese Verbindung Token und
+  Zertifikatsfingerprint. Geraeteverwaltung mit vier App-Slots, Umbenennen,
+  optionalem Erstellzeitpunkt und Widerruf. Alt-Claim antwortet HTTP 410.
+  Danach HTTPS ueber FQDN/IPv6/IPv4 mit Pinning, nie HTTP mit Token.
+  Wechsel des Blattzertifikats erfordert derzeit lokales Re-Pairing.
+  ABWEICHUNG von der urspruenglichen P4-Planung (Nutzerentscheidungen):
+  Web-Button statt physischem Taster, lokale Suche und Web-Freigabe statt QR.
+  HMAC-Tokenpruefung und Blattzertifikats-Pinning sind im Entwicklungsstand
+  umgesetzt; HPKE, eFuse-HMAC_UP-Root und produktives Key-/Recovery-Protokoll
+  bleiben offen. Keine produktive Aktivierung der P4-/P5-Gates.
   Bildschirmschoner: `BoardDream` (Daydream) nutzt dieselbe Abfrage. `ScreenCare`
   verschiebt den Inhalt einmal pro Kalendertag um max. 8 dp (9er-Muster) gegen
   Einbrennen und passt die Fensterhelligkeit per Lichtsensor an (5 % bis 100 %,
@@ -426,9 +426,95 @@ Tarifkorrekturen nicht durch ausschliesslich vorab berechnete Kosten verhindern.
 
 ## 6. Fortschrittsnachweis
 
-Aktuell: P0 Quellcode-/SDK-Untersuchung und PC-IPv6-HTTPS-Test abgeschlossen;
-Hardwaretests und alle Implementierungsphasen offen. Keine neue Firmware,
-Schluessel oder eFuse-Konfiguration durch diese Dokumentation erzeugt.
+Die P0-Quellcode-/SDK-Untersuchung und der PC-IPv6-HTTPS-Test sind belegt.
+Die folgenden Entwicklungs-Builds sind keine Freigabe der noch offenen
+Hardware-/Recovery-Gates; kein eFuse-Brennen oder SDK-Wechsel durch diese Aenderung.
+
+### 2026-10-20: C3-Heap-Optimierung, Koppelmodus-Sperre, Neustart, Helligkeit
+
+Betroffene Phase: Entwicklungsstand fuer P3/P4 (C3, ESP-IDF 6.1); keine
+produktive P4-/P5-Aktivierung. Kein SDK-Wechsel, keine Partitions-/eFuse-Aenderung.
+Aufgespielt per OTA auf das Geraet hinter `192.168.1.172`; laut seriellem Flash-Log
+des Nutzers ESP32-C3 (Chiprevision und Flashgroesse nicht erfasst, ungeprueft).
+
+Aenderungen: `MBEDTLS_DYNAMIC_BUFFER` (+`DYNAMIC_FREE_CONFIG_DATA`, `DYNAMIC_FREE_CA_CERT`)
+in `sdkconfig.defaults.c3_idf6`; HTTPS `max_open_sockets` 3 -> 4, `recv/send_wait_timeout`
+30 -> 8 s; Log-Ringpuffer 500 -> 80 Zeilen (`level`/`tag` als Festfelder);
+Koppelmodus: nur noch eine Instanz, Toggle-Knopf, waehrend er offen ist darf nur die
+IP des Startenden den HTTPS-Server nutzen (sonst 409; TLS-Handshake fremder
+Verbindungen laeuft kurz an, kein hartes 1-Slot-Limit); `/api/reboot` mit Authentifizierung;
+`/api/status` zusaetzlich `largest_free_block` und `stack_free` je Task. Android:
+Neustart-Menue, Helligkeit (Automatik/fest/Nachtabsenkung mit Zeitplan, Standard
+nachts 22-06 Uhr 5 %), Flavors `legacy` (minSdk 22) und `standard` (minSdk 24).
+
+| Nachweis | Ergebnis |
+|---|---|
+| C3, IDF v6.1, Config-Neuerzeugung (`sdkconfig` geloescht) | Build erfolgreich; BIN 1.789.760 Byte (`0x1b4f40`), Slot 1.966.080 Byte, Reserve 176.320 Byte (9 %, unter dem 20-%-Ziel) |
+| Heap nach Boot, vorher (ohne Aenderungen) | ca. 83 KB frei; Absturzschleife mit `min_free_heap` 1,6-13,7 KB |
+| Heap nach Boot, nachher | ca. 97-113 KB frei, `min_free_heap` 72-98 KB |
+| Betrieb mit App + Browser (4 Slots, Uptime ~1000 s) | ca. 104 KB frei, min 54 KB, groesster Block 78 KB |
+| Last: 2/4/6 parallele neue TLS-Verbindungen je 5 Runden | 59 von 60 Antworten HTTP 200, eine Abbruch (`000`) bei 4 parallel; min_free_heap Tiefstwert 30.852 Byte, groesster Block 53.248 Byte; Erholung auf ca. 104 KB; kein Reset (`reset_reason` 3 = nach OTA) |
+| Stack-Reserven (`stack_free`) | `meter_task` 9.624, `ext_poll` 6.336, `httpd` 6.364 Byte |
+| Webtests | `node --test tests/energy_board.test.cjs`: 4 bestanden |
+| Android | beide Flavors gebaut (`sdkVersion` 22 bzw. 24 per aapt); keine Geraete-/Fire-Abnahme |
+
+**Offen:** Langzeitlauf (Fragmentierung, Leck), Messung mit offenem Koppelmodus und
+mehreren Clients, Android-5.1-Test (TLS/Pairing/Helligkeit), Fire-HD-Installation,
+Stack-Kuerzung nach Messung, Serial-Log des frueheren Absturzes (Ursache Heap nur
+vermutet, nicht belegt). Keine Produktionsfreigabe. Hinweis Hardware: Das Shop-Geraet
+(WiFi IR SMI V32) nutzt GPIO3 (RX), GPIO1 (TX), GPIO20/21 (zweiter Zaehler); S3-Eigenfertigung
+siehe offene Entscheidungen, nichts davon umgesetzt.
+
+Rueckweg: vorheriges IDF-6-Image per OTA; fuer die vorige Konfiguration die vier
+`MBEDTLS_DYNAMIC_*`-Zeilen entfernen und `max_open_sockets` zuruecksetzen.
+
+### 2026-10-19: lokales Pairing, App-Verwaltung, IPv6-first und KPI-Leiste
+
+Betroffene Phase: Entwicklungsstand fuer P3/P4; keine produktive P4-/P5-Aktivierung.
+Kein Flashen, keine Aenderung an Partitionen, OTA-Slots oder eFuses.
+Pairing-/API-/NVS-Vertrag und Risiken:
+[Abschnitt 9a](SCHLUESSEL-UND-PAIRING.md#9a-implementierungsstand-idf-6s3-pfad-entwicklungsschlüssel).
+
+| Nachweis | Ergebnis |
+|---|---|
+| S3, ESP-IDF v6.1, `build/`, Firmware 3.6.0 | Ninja-Build erfolgreich; BIN 1.679.712 Byte (`0x19a160`), kleinster OTA-Slot 1.966.080 Byte, Reserve 286.368 Byte (14,6 %) |
+| Effektive S3-Config `build/config/sdkconfig.h` | `esp32s3`, 16-MB-Flash, IPv6/SLAAC und HTTPS aktiv, PSRAM aus; kein neuer Hardware-/Chiprevisionsnachweis |
+| S3 statische Groessen (`esp_idf_size`) | Flash Code 922.414 Byte, Flash Data 651.324 Byte; DIRAM 114.182/341.760 Byte; IRAM 16.384/16.384 Byte |
+| C3-Release, PlatformIO 2024.06.00, ESP-IDF 4.4.8 | Build erfolgreich mit `CI=true`, Version 3.6.0 unveraendert; Target `esp32c3`, 4 MB, IPv6/HTTPS weiterhin aus |
+| C3 Groessen | BIN 1.513.584 Byte; PlatformIO Flash 1.508.744/1.966.080 Byte (76,7 %), RAM 29.268/327.680 Byte (8,9 %) |
+| Android | JDK 17.0.20.1, Gradle 8.7, AGP 8.5.2; `assembleDebug testDebugUnitTest` erfolgreich; APK 861.462 Byte |
+| Android/JVM-Tests | 5 bestanden: IPv6-Syntax/Interface-Scope, vier KPI-Werte/Update/fehlend vs. Null, echte TLS-Kopplung ueber `::1` mit Warten/Freigabe und Fingerprint, Vergleichsnummer-Bindung |
+| Webtests | `node --test tests/energy_board.test.cjs`: 4 bestanden; Live-KPI-Werte/Update, fehlend vs. Null, frischer Status trotz Ext-Fehler, Pairing-/Verwaltungs-UI und JS-Syntax |
+
+Die Web-KPI-Leiste wird unmittelbar aus `/api/status` gerendert, vor externen
+Abfragen und Flussgrafiken, und auch durch den Dashboard-Statuspfad aktualisiert.
+Die Android-Leiste verwendet dieselben vier Felder und dieselbe fachliche Formel
+wie die Webansicht. Unbekannte Werte bleiben unbekannt statt als Null zu erscheinen.
+Kein neuer Energie-/Tarif-Speichervertrag.
+
+Buildumgebung: Der bereits veraenderte Gradle-Wrapper zeigt auf 9.7.1;
+fuer den AGP-8.5.2-Nachweis wurde bewusst das vorhandene Gradle 8.7 verwendet,
+ohne diesen fremden Wrapperstand zurueckzusetzen. Der Kotlin-Compiler lief
+fuer die erfolgreiche Validierung mit
+`-Pkotlin.compiler.execution.strategy=in-process`. Beim C3-Build wurde ein
+bereits vorhandener IDF-6-only-ACME-Pause-Verweis im gemeinsamen Statushandler
+abgegrenzt: C3 meldet `pause_s:0`, ohne ACME-Code zu aktivieren.
+
+**Offen:** echtes Android-/ESP-Pairing inklusive 300-s-Abschaltung, Abbruch,
+Ablehnen, volle Slots, NVS-Fehler, Widerruf und Reconnect; mDNS und Scope auf
+realen Telefonen; HTTPS ueber das IPv6-Internet; SML/HA/OTA unter gleichzeitiger
+TLS-Last. Kein Geraet mit diesem Stand geflasht, daher keine neuen Chiprevision-,
+Heap-Minimum-, groesster-Block- oder Task-Stack-Messungen.
+S3 unterschreitet das 20-%-OTA-Reserveziel und IRAM ist voll belegt:
+keine Produktionsfreigabe. Das Zertifikatspinning erfordert bei
+Zertifikatswechsel weiterhin erneutes lokales Pairing; sichere automatische
+Rotation, HPKE und eFuse-Provider bleiben offen.
+
+Rueckweg: vorheriges IDF-6-Image/App verwenden; neue optionale Token-Zeitmetadaten
+koennen ignoriert werden, bestehende Tokenverifier bleiben unveraendert.
+Ein Token, dessen Antwort bei Verbindungsabbruch verloren ging, in `/pair`
+widerrufen und neu koppeln. Wechsel zur IDF-4.4-Firmware ist der bereits
+dokumentierte getrennte Recoveryfall fuer verschluesselte Konfiguration/Token.
 
 Jede Phase erhaelt Nachweise mit Datum, Build/SDK, Board/Chiprevision,
 Testfaellen, Messwerten, Ergebnis und offenen Einschraenkungen.

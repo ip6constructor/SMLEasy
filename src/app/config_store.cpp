@@ -214,6 +214,32 @@ bool ConfigStore::save_wifi(const WifiConfig& cfg)
     return true;
 }
 
+std::string ConfigStore::hostname()
+{
+    std::string name;
+    nvs_handle_t h;
+    if (nvs_open(kNsWifi, NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_str(h, "host", name);
+        nvs_close(h);
+    }
+    if (name.empty() && nvs_open(kNsTls, NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_str(h, "fqdn", name);  // migration of the former TLS-only setting
+        nvs_close(h);
+    }
+    return name;
+}
+
+bool ConfigStore::set_hostname(const std::string& name)
+{
+    if (name.size() > 253) return false;
+    nvs_handle_t h;
+    if (nvs_open(kNsWifi, NVS_READWRITE, &h) != ESP_OK) return false;
+    esp_err_t err = nvs_set_str(h, "host", name.c_str());
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err == ESP_OK;
+}
+
 bool ConfigStore::load_web_auth(WebAuthConfig& out)
 {
     nvs_handle_t h;
@@ -307,7 +333,10 @@ bool ConfigStore::save_ui(const UiConfig& cfg)
 bool ConfigStore::load_tls(TlsConfig& out)
 {
     nvs_handle_t h;
-    if (nvs_open(kNsTls, NVS_READONLY, &h) != ESP_OK) return false;
+    if (nvs_open(kNsTls, NVS_READONLY, &h) != ESP_OK) {
+        out.fqdn = hostname();
+        return false;
+    }
     nvs_get_str(h, "mode", out.mode);
     nvs_get_str(h, "fqdn", out.fqdn);
     nvs_get_str(h, "email", out.email);
@@ -329,6 +358,8 @@ bool ConfigStore::load_tls(TlsConfig& out)
     nvs_get_u16(h, "renew_days", out.renewal_interval_days);
     nvs_get_i64(h, "issued_at", &out.last_issued_epoch);
     nvs_close(h);
+    const std::string host = hostname();
+    if (!host.empty()) out.fqdn = host;
     return true;
 }
 
@@ -366,6 +397,7 @@ bool ConfigStore::save_tls(const TlsConfig& cfg)
     if (err == ESP_OK) err = nvs_set_i64(h, "issued_at", cfg.last_issued_epoch);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
+    if (err == ESP_OK && !set_hostname(cfg.fqdn)) err = ESP_FAIL;
     if (err != ESP_OK) ESP_LOGE(TAG, "saving TLS config failed: %s", esp_err_to_name(err));
     return err == ESP_OK;
 }

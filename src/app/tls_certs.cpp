@@ -1,14 +1,62 @@
 #include "tls_certs.hpp"
+#include "config_store.hpp"
 #include "esp_log.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/x509_crt.h"
 #include "psa/crypto.h"
 #include <cstring>
 #include <ctime>
+#include <mutex>
 
 static const char* TAG = "TlsCerts";
 
 namespace app::tls_certs {
+
+bool load_identity(std::string& certificate, std::string& key)
+{
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    if (valid_pair(cfg.certificate_pem, cfg.private_key_pem)) {
+        certificate = cfg.certificate_pem;
+        key = cfg.private_key_pem;
+        return true;
+    }
+    if (!valid_pair(cfg.fallback_certificate_pem, cfg.fallback_private_key_pem)) {
+        if (!generate_self_signed(cfg.fqdn.empty() ? "smleasy.local" : cfg.fqdn,
+                                  cfg.fallback_certificate_pem, cfg.fallback_private_key_pem) ||
+            !ConfigStore::get().save_tls(cfg)) {
+            ESP_LOGE(TAG, "TLS identity could not be created or saved");
+            return false;
+        }
+    }
+    certificate = cfg.fallback_certificate_pem;
+    key = cfg.fallback_private_key_pem;
+    return true;
+}
+
+std::string fingerprint(const std::string& pem)
+{
+    mbedtls_x509_crt certificate;
+    mbedtls_x509_crt_init(&certificate);
+    unsigned char hash[32];
+    size_t hash_size = 0;
+    std::string result;
+    if (mbedtls_x509_crt_parse(&certificate, reinterpret_cast<const unsigned char*>(pem.c_str()),
+                             pem.size() + 1) == 0 &&
+        psa_crypto_init() == PSA_SUCCESS &&
+        psa_hash_compute(PSA_ALG_SHA_256, certificate.raw.p, certificate.raw.len,
+                         hash, sizeof(hash), &hash_size) == PSA_SUCCESS && hash_size == sizeof(hash)) {
+        for (unsigned char byte : hash) {
+            char hex[3];
+            std::snprintf(hex, sizeof(hex), "%02x", byte);
+            result += hex;
+        }
+    }
+    mbedtls_x509_crt_free(&certificate);
+    return result;
+}
 
 bool valid_pair(const std::string& certificate_pem, const std::string& private_key_pem)
 {

@@ -18,6 +18,9 @@ public:
     /// Reloads the configuration: refreshes MQTT subscriptions and polls REST values soon.
     void apply_config();
 
+    /// Suspends the REST polling (e.g. while a certificate check needs all the heap).
+    void set_paused(bool paused);
+
     /// Polls the REST values now instead of waiting for the next interval.
     void refresh();
 

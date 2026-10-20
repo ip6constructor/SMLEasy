@@ -212,6 +212,26 @@ Ein Dual-Stack-Listener darf das Dashboard nicht global oeffentlich machen.
 
 ## 4. Hardware-Abnahme
 
+### Android-App: IPv6-first (Entwicklungsstand 2026-10-19)
+
+- HTTPS-Kandidaten werden aus dem konfigurierten FQDN aufgeloest:
+  zuerst AAAA/IPv6 mit SNI auf den FQDN, dann gespeicherte IPv6-Adressen,
+  zuletzt A/IPv4 und gespeicherte IPv4. Der bestaetigte Zertifikatspin bleibt
+  bei direkter IP-Verbindung erforderlich; Internetzugriff bleibt auf Port 443.
+- mDNS/NSD behaelt `%Interface` bzw. `%Scope-ID` fuer Link-Local; Android 34+
+  beruecksichtigt alle aufgeloesten Adressen. Aeltere Android-Versionen liefern
+  ueber die bestehende NSD-API nur eine Adresse. Manuelle IPv6-Eingabe und
+  IPv6-only gespeicherte Konfiguration werden nicht mehr als fehlendes Geraet
+  behandelt. Ein Scope aus dem ESP kann nicht fuer das Telefon uebernommen werden.
+- Koppelmodus: eigener Dual-Stack-TLS-Listener auf TCP 7384, maximal 300 s,
+  nur auf ausdruecklichen Start und im bestehenden Netzfilter. Keine Portfreigabe
+  fuer diesen Dienst einrichten. Freigabe per lokalem Webfrontend; Details in
+  [Pairing-Vertrag](SCHLUESSEL-UND-PAIRING.md#9a-implementierungsstand-idf-6s3-pfad-entwicklungsschlüssel).
+- JVM-/Loopbacktests ersetzen keine Android-/Router-Abnahme. Offen sind
+  native Android-NSD-Suche ueber IPv6, Link-Local mit realem WLAN-Interface,
+  ULA/GUA, WLANwechsel, AAAA-only im Mobilfunknetz und externes HTTPS mit
+  gueltigem Token/abgewiesenem Token sowie Zertifikatswechsel.
+
 | Test | Erwartung |
 |---|---|
 | C3 IPv4-only, kein RA | Boot, SML, Dashboard und HA funktionieren |

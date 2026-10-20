@@ -4,6 +4,8 @@
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -270,10 +272,24 @@ static bool send_signed(const AccountKey& key, const std::string& jwk, const std
                         std::string& nonce, const std::string& url, const std::string& payload,
                         const char* accept, HttpResponse& reply)
 {
-    if (nonce.empty()) return false;
+    if (nonce.empty()) {
+        note("ACME request skipped: no nonce available");
+        return false;
+    }
     std::string jws;
-    if (!make_jws(key, jwk, kid, nonce, url, payload, jws)) return false;
-    if (http_request(url, HTTP_METHOD_POST, jws, accept, reply) != ESP_OK) return false;
+    if (!make_jws(key, jwk, kid, nonce, url, payload, jws)) {
+        note("ACME request could not be signed (heap %u)",
+             static_cast<unsigned>(esp_get_free_heap_size()));
+        return false;
+    }
+    const esp_err_t transport = http_request(url, HTTP_METHOD_POST, jws, accept, reply);
+    if (transport != ESP_OK) {
+        note("ACME transport error %s (HTTP %d, heap %u, min %u)", esp_err_to_name(transport),
+             reply.status, static_cast<unsigned>(esp_get_free_heap_size()),
+             static_cast<unsigned>(esp_get_minimum_free_heap_size()));
+        s_last_error = esp_err_to_name(transport);
+        return false;
+    }
     if (!reply.nonce.empty()) nonce = reply.nonce;
     if (reply.status < 200 || reply.status >= 300) {
         std::string detail = reply.body.substr(0, 160);
@@ -368,8 +384,14 @@ esp_err_t fetch_directory_info(const std::string& directory_url, DirectoryInfo& 
 {
     if (directory_url.rfind("https://", 0) != 0) return ESP_ERR_INVALID_ARG;
     HttpResponse reply;
-    if (http_request(directory_url, HTTP_METHOD_GET, "", "application/json", reply) != ESP_OK ||
-        reply.status != 200) return ESP_FAIL;
+    const esp_err_t request_err = http_request(directory_url, HTTP_METHOD_GET, "", "application/json", reply);
+    if (request_err != ESP_OK || reply.status != 200) {
+        add_log("Directory request failed: %s, HTTP %d, free heap %u, largest block %u",
+                esp_err_to_name(request_err), reply.status,
+                static_cast<unsigned>(esp_get_free_heap_size()),
+                static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
+        return ESP_FAIL;
+    }
     cJSON* directory = cJSON_Parse(reply.body.c_str());
     if (!directory) return ESP_FAIL;
     const cJSON* meta = cJSON_GetObjectItemCaseSensitive(directory, "meta");

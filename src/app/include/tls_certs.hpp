@@ -4,6 +4,9 @@
 
 namespace app::tls_certs {
 
+bool load_identity(std::string& certificate_pem, std::string& private_key_pem);
+std::string fingerprint(const std::string& certificate_pem);
+
 /// True if both PEM strings parse and the private key matches the certificate.
 bool valid_pair(const std::string& certificate_pem, const std::string& private_key_pem);
 

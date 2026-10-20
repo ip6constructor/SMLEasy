@@ -74,7 +74,7 @@ public:
     std::string log_json(uint32_t after_seq) const;
     uint32_t    log_seq() const;
 
-    static constexpr size_t kMaxLogLines = 500;
+    static constexpr size_t kMaxLogLines = 80;
 
     IoCounters io;
     std::atomic<uint32_t> read_interval_s{30};
@@ -92,7 +92,7 @@ private:
     JobState    job_state_{JobState::Idle};
     std::string job_error_;
 
-    struct LogLine { uint32_t seq; std::string level, tag, msg; };
+    struct LogLine { uint32_t seq; char level[8]; char tag[16]; std::string msg; };
     std::deque<LogLine> log_lines_;
     uint32_t            log_seq_{0};
 };

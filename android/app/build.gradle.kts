@@ -7,12 +7,27 @@ android {
     namespace = "de.smleasy.board"
     compileSdk = 34
 
+    // Ergebnis: SMLEasy-Board-<Version>-<debug|release>.apk
+    base.archivesName.set("SMLEasy-Board-3.6.0")
+
     defaultConfig {
         applicationId = "de.smleasy.board"
-        minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 37
+        versionName = "3.6.0"
+    }
+    // legacy: alte Hardware (z. B. Fire HD 10 7. Gen, Fire OS 5 = Android 5.1); standard: Android 7+.
+    // Ergebnis: SMLEasy-Board-<Version>-<legacy|standard>-<debug|release>.apk
+    flavorDimensions += "api"
+    productFlavors {
+        create("legacy") {
+            dimension = "api"
+            minSdk = 22
+        }
+        create("standard") {
+            dimension = "api"
+            minSdk = 24
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -21,11 +36,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
-    // Kamera-Scan ueber den Google-Code-Scanner (keine Kameraberechtigung noetig).
-    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
-    // QR aus einem ausgewaehlten Foto dekodieren (ohne Play-Dienste).
-    implementation("com.google.zxing:core:3.5.3")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

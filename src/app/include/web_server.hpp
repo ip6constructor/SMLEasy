@@ -32,7 +32,9 @@ private:
     static esp_err_t handle_pairing_open(httpd_req_t*);
     static esp_err_t handle_pairing_close(httpd_req_t*);
     static esp_err_t handle_pairing_claim(httpd_req_t*);
+    static esp_err_t handle_pairing_decide(httpd_req_t*);
     static esp_err_t handle_pairing_revoke(httpd_req_t*);
+    static esp_err_t handle_pairing_rename(httpd_req_t*);
     static esp_err_t handle_tls_config_save(httpd_req_t*);
     static esp_err_t handle_acme_challenge(httpd_req_t*);
     static esp_err_t handle_acme_request(httpd_req_t*);
@@ -57,6 +59,7 @@ private:
     static esp_err_t handle_config_get(httpd_req_t*);
     static esp_err_t handle_config_save(httpd_req_t*);
     static esp_err_t handle_wifi_save(httpd_req_t*);
+    static esp_err_t handle_hostname_save(httpd_req_t*);
     static esp_err_t handle_auth_get(httpd_req_t*);
     static esp_err_t handle_auth_save(httpd_req_t*);
     static esp_err_t handle_ui_language_get(httpd_req_t*);

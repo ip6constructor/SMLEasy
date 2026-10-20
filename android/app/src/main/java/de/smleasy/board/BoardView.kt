@@ -35,6 +35,12 @@ class BoardView(
     private val imageRect = RectF()
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
     private var data: Map<String, TileData> = emptyMap()
+    private var kpis: List<BoardKpi> = emptyList()
+    private val footer = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setBackgroundColor(Color.argb(238, 0, 0, 0))
+    }
     var editMode = false
         set(v) {
             field = v
@@ -42,6 +48,15 @@ class BoardView(
         }
     var selectedKey: String? = null
         private set
+    /** true: Kachel-Raster ohne Foto (wie die Dashboard-Ansicht im Web), false: Kacheln ueber dem Hausfoto. */
+    var dashboardMode = false
+        set(v) {
+            field = v
+            if (v) editMode = false
+            computeImageRect(width, height)
+            invalidate()
+            requestLayout()
+        }
 
     init {
         setBackgroundColor(Color.BLACK)
@@ -56,9 +71,10 @@ class BoardView(
             tiles[key] = tile
             addView(box, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
-    }
+                    addView(footer, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                }
 
-    fun setImage(b: Bitmap?) {
+                fun setImage(b: Bitmap?) {
         bitmap = b
         computeImageRect(width, height)
         invalidate()
@@ -68,6 +84,34 @@ class BoardView(
     fun setData(d: Map<String, TileData>) {
         data = d
         render()
+    }
+
+    fun setKpis(values: List<BoardKpi>) {
+        kpis = values
+        renderFooter()
+    }
+
+    private fun renderFooter() {
+        footer.removeAllViews()
+        val px = max(11f, imageRect.width() * 0.014f)
+        val pad = max(4, (px * 0.5f).toInt())
+        footer.setPadding(pad, pad, pad, pad)
+        kpis.forEach { kpi ->
+            val item = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(pad, 0, pad, 0)
+            }
+            item.addView(text(kpi.icon, px * 1.8f, kpi.color, true).apply { setPadding(0, 0, pad, 0) })
+            val labels = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            labels.addView(text(kpi.title, px, Color.parseColor("#94a3b8"), false).apply {
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            labels.addView(text(kpi.value, px * 1.3f, Color.WHITE, true))
+            item.addView(labels, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            footer.addView(item, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        requestLayout()
     }
 
     fun scaleSelected(factor: Float) {
@@ -83,7 +127,7 @@ class BoardView(
     }
 
     private fun computeImageRect(w: Int, h: Int) {
-        val b = bitmap
+        val b = if (dashboardMode) null else bitmap
         if (b == null || w == 0 || h == 0) {
             imageRect.set(0f, 0f, w.toFloat(), h.toFloat())
             return
@@ -95,7 +139,7 @@ class BoardView(
     }
 
     override fun onDraw(canvas: Canvas) {
-        bitmap?.let { canvas.drawBitmap(it, null, imageRect, paint) }
+        if (!dashboardMode) bitmap?.let { canvas.drawBitmap(it, null, imageRect, paint) }
     }
 
     private fun render() {
@@ -147,11 +191,51 @@ class BoardView(
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         computeImageRect(r - l, b - t)
-        tiles.values.forEach { place(it) }
+        footer.measure(MeasureSpec.makeMeasureSpec(imageRect.width().toInt(), MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        footer.layout(imageRect.left.toInt(), imageRect.bottom.toInt() - footer.measuredHeight,
+            imageRect.right.toInt(), imageRect.bottom.toInt())
+        if (dashboardMode) placeGrid(r - l, imageRect.bottom.toInt() - footer.measuredHeight) else tiles.values.forEach { place(it) }
+    }
+
+    private fun placeGrid(w: Int, availH: Int) {
+        val visible = tiles.values.filter { it.box.visibility != View.GONE }
+        if (visible.isEmpty()) return
+        val unspec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        visible.forEach { it.box.measure(unspec, unspec) }
+        val gap = max(8, (w * 0.012f).toInt())
+        val cw = visible.maxOf { it.box.measuredWidth }
+        val ch = visible.maxOf { it.box.measuredHeight }
+        val cols = max(1, min(visible.size, (w - gap) / (cw + gap)))
+        val rows = (visible.size + cols - 1) / cols
+        val s = min(1f, min((availH - gap).toFloat() / (rows * (ch + gap)), (w - gap).toFloat() / (cols * (cw + gap))))
+            .coerceAtLeast(0.3f)
+        val cellW = cw * s + gap
+        val cellH = ch * s + gap
+        val left = (w - cols * cellW + gap) / 2f
+        visible.forEachIndexed { i, t ->
+            val box = t.box
+            val cx = left + (i % cols) * cellW + cw * s / 2
+            val cy = gap + (i / cols) * cellH + ch * s / 2
+            val bw = box.measuredWidth
+            val bh = box.measuredHeight
+            box.layout((cx - bw / 2).toInt(), (cy - bh / 2).toInt(), (cx + bw / 2).toInt(), (cy + bh / 2).toInt())
+            box.pivotX = bw / 2f
+            box.pivotY = bh / 2f
+            box.scaleX = s
+            box.scaleY = s
+        }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        computeImageRect(w, h)
+        renderFooter()
     }
 
     // Kachelmitte liegt bei x%/y% der Bildflaeche; die Skalierung wirkt um die Mitte.
     private fun place(t: Tile) {
+        if (dashboardMode) { requestLayout(); return }
         val box = t.box
         if (box.visibility == View.GONE) return
         box.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))

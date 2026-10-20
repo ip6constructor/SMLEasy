@@ -84,6 +84,16 @@ Manual installation: copy `custom_components/smleasy` into `<config>/custom_comp
 
 Alternatively, enable **Home Assistant Integration** in the device configuration and set the broker URI and credentials. Home Assistant's MQTT integration and a reachable broker are required. The firmware publishes retained MQTT discovery messages.
 
+## Android app (SMLEasy Board)
+
+Two variants are maintained: `SMLEasy-Board-<version>-legacy-debug.apk` (minSdk 22, Android 5.1+, e.g. Fire HD 10 7th gen) and `SMLEasy-Board-<version>-standard-debug.apk` (minSdk 24, Android 7+). The app shows the energy board full screen. It is **not available in the Google Play Store**; install it manually (sideload, allow "unknown sources"; Play Protect may warn because the APK is debug-signed). A Play Store release would need a release signature, a developer account and a privacy declaration, and is not planned yet. The app is untested on real devices.
+
+Pairing (IDF-6 development firmware): open `/pair` locally and start the five-minute pairing mode. In the app choose **App koppeln > Geraet suchen** (or enter the IP). Discovery uses `_smleasy-pair._tcp`; pairing uses TLS/TCP port **7384**, not HTTP, QR codes, public DNS or a public CA. Compare the six-digit number in the app and web page before approving that request in the web page. Only then does the app receive its own token and the SHA-256 certificate fingerprint. `/pair` also lists the four app slots, supports renaming and revoking individual apps, and shows the creation time when available. No secrets are displayed.
+
+Regular app access remains HTTPS on port 443, including Internet access via IPv6/FQDN; only pairing is temporary/local. The app tries the hostname, then IPv6, then IPv4, preserves IPv6 interface scopes, and never sends a paired token over HTTP or follows API redirects. Direct-IP HTTPS verifies the approved certificate fingerprint, including self-signed/staging certificates. A changed certificate (including ACME renewal) currently requires local re-pairing; automatic trusted pin rotation is not implemented. Do not expose port 7384 to the Internet. Existing tokens remain valid; the old QR claim endpoint explicitly returns HTTP 410. Manual password-only access remains available.
+
+The energy board's bottom bar shows self-consumption, today's PV generation, net grid costs and savings, in both web and Android views. It uses the status snapshot independently of external power tiles; unknown values are shown as a dash rather than zero.
+
 ## Security
 
 First login: username `admin`, password `P@assword26`. Change the password immediately after flashing the firmware. OTA requires the same web-interface login. The dashboard uses unencrypted HTTP; keep it on a trusted local network and do not expose it directly to the Internet.

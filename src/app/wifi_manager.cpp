@@ -134,6 +134,25 @@ std::vector<std::string> WifiManager::get_ip6_addresses() const
 #endif
 }
 
+bool WifiManager::wait_for_global_ip6(uint32_t timeout_ms) const
+{
+#if CONFIG_LWIP_IPV6
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!netif) return false;
+    for (uint32_t waited = 0;; waited += 1000) {
+        esp_ip6_addr_t address{};
+        if (is_sta_connected() && esp_netif_get_ip6_global(netif, &address) == ESP_OK) return true;
+        if (waited >= timeout_ms) return false;
+        // Router solicitations are only sent at link-local creation; repeat them while waiting for the RA.
+        if (is_sta_connected() && waited % 10000 == 5000) esp_netif_create_ip6_linklocal(netif);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+#else
+    (void)timeout_ms;
+    return false;
+#endif
+}
+
 bool WifiManager::is_in_local_ip6_prefix(const uint8_t* peer_address) const
 {
 #if CONFIG_LWIP_IPV6

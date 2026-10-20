@@ -150,7 +150,15 @@ Device-Identitaet. Keine beliebige KDF-Ausgabe als privaten ECC-Key interpretier
 - Verlust des Device-Identitaetskeys nach vollem Erase erfordert neue physische
   QR-Vertrauensbindung. Historische Data-Keys in Apps bleiben verwendbar.
 
-## 6. QR-Pairing
+## 6. Pairing: Zielmodell und aktuelle Entscheidung
+
+**Entscheidung 2026-10-19:** Kein QR-Code mehr. Besitzer startet einen
+300-s-Koppelmodus im lokalen, authentifizierten Webfrontend. Die App entdeckt
+das Geraet und stellt eine Anfrage; erst die ausdrueckliche Freigabe im
+Webfrontend liefert ein App-Geheimnis und den Fingerprint. Die folgende
+QR-/HPKE-Beschreibung bleibt historische Zielplanung, nicht der aktuelle
+Implementierungsvertrag. Der Entwicklungsstand und seine Grenzen stehen in
+Abschnitt 9a; produktives Key-Wrapping/eFuse sind dadurch nicht freigegeben.
 
 Zielverfahren: kurzlebiger QR-Bootstrap plus TLS mit gepinntem Device-Key.
 Nicht das heutige unverschluesselte Basic-Auth-HTTP fuer Key-Uebergabe verwenden.
@@ -262,19 +270,60 @@ Nicht produktiv; Root ist der Dev-Provider (NVS), kein eFuse-Root.
   wird beim Schreiben gelöscht; Lesen fällt auf Klartext zurück (Migration beim nächsten Speichern).
 - **Web-Passwort:** nur HMAC-Prüfwert (`pv`), nicht entschlüsselbar. Default-/Klartext-Passwort wird
   beim ersten erfolgreichen Login migriert.
-- **App-Token:** Pairing-Fenster (120 s, nur lokal) erzeugt ein Einmal-Geheimnis (128 Bit), das
-  im QR (`smleasy://pair?v=2&fqdn=…&port=…&s=…`) steht. `POST /api/pairing/claim` (ohne Passwort,
-  nur lokale Peers, 5 Fehlversuche schließen das Fenster) liefert ein 256-Bit-Token; gespeichert
-  wird nur `HMAC_root("smleasy/app-token/v1" ‖ token)` (max. 4 Apps, Widerruf in `/pair`).
+- **App-Token / kein QR (2026-10-19):** Das authentifizierte lokale Webfrontend
+  oeffnet maximal 300 s einen TLS/TCP-Dienst auf Port 7384 und mDNS
+  `_smleasy-pair._tcp`. Ein Task (10 KiB Stack, noch nicht laufzeitgemessen)
+  bearbeitet genau eine Verbindung, mit maximal 10 Verbindungsversuchen je Fenster,
+  5 s Handshake-/Nachrichtenbudget und maximal 2048 Byte je JSON-Nachricht.
+  Timeout, Abbruch und Erfolg schliessen Dienst/Advertisement; Fehler sind im
+  Webstatus und ohne Secrets im Log sichtbar. Der bestehende Netzfilter gilt.
+- **Freigabe:** Jede TLS-Verbindung erhaelt eine zufaellige 128-Bit-Anfragekennung.
+  Die App erzeugt einen 256-Bit-Nonce. Beide Seiten bilden unabhaengig die
+  sechsstellige Vergleichsnummer aus SHA-256 ueber
+  `smleasy-pair-v1:<SHA256-Zertifikat-DER-hex>:<Nonce-hex>:<Anfrage-ID-hex>`,
+  jeweils lowercase Hex, erste 4 Hashbytes big-endian modulo 1000000,
+  mit fuehrenden Nullen. Besitzer muss die Nummern vergleichen; Name/mDNS allein
+  sind kein Identitaetsnachweis. Erst `POST /api/pairing/decide` mit Basic-Auth,
+  JSON-Content-Type, aktueller Anfrage-ID und `approve:true` autorisiert diese
+  Verbindung. Ablehnen/Trennen bindet keine spaetere Verbindung.
+- **Nachrichtenvertrag v1:** 2 Byte unsigned Big-Endian-Laenge (1..2048),
+  gefolgt von UTF-8-JSON, innerhalb TLS. App sendet
+  `{"op":"pair","name":"...","nonce":"<64 hex>"}`; ESP antwortet mit
+  `status:pending, request_id`. App fragt auf derselben TLS-Verbindung mit
+  `op:poll, request_id`; Antworten sind `waiting`, `rejected`, `error` oder
+  `approved`. Nur `approved` enthaelt `token` (256 Bit), `fingerprint`
+  (SHA-256 des DER-Blattzertifikats), `device_id`, optionalen `fqdn`,
+  `https_port:443`, `ipv4` und IPv6-Adressliste ohne fremden Interface-Scope.
+  Uebertragung/Logs enthalten keine Messdaten, WLAN-/HA-Passwoerter oder Root-Keys.
+  Verifikation wie bisher nur als HMAC im NVS (max. 4 Apps). Alte QR-Claims
+  antworten absichtlich mit HTTP 410; bereits ausgegebene Tokens bleiben gueltig.
+- **Geraeteverwaltung:** `/pair` listet Namen, Slot, optionalen Erstellzeitpunkt
+  und Belegung. Umbenennen (max. 40 UTF-8-Bytes) und Widerruf pro App benoetigen
+  Web-Authentifizierung und JSON-Content-Type (auch fuer Start/Abbruch).
+  Zeitmetadaten `t0`..`t3` ergaenzen `app_tok`; alte
+  Eintraege ohne Datum bleiben lesbar. Keine Partition-/Schluessel-Migration.
+  Tokenzugriffe werden bei jeder Anfrage geprueft, nicht nur beim Verbindungsaufbau.
 - **Netzfilter:** Port 80 filtert wie bisher beim Verbindungsaufbau. Port 443 prüft pro Request:
   Peers außerhalb der erlaubten Netze erreichen nur lesende Token-Routen (`/api/status`, `/api/stats`,
   `/api/history`, `/api/meter`, `/api/ext/values`, `/house.jpg`) mit gültigem `Authorization: Bearer`.
   Web-UI, Konfiguration, OTA und Pairing bleiben auf erlaubte Netze beschränkt.
 - **Folgen/Rückweg:** Wechsel Dev→eFuse-Root macht Blobs und Token unlesbar (Passwörter neu eingeben,
   Apps neu koppeln). Rückweg auf IDF-4.4-Firmware verliert verschlüsselte Passwörter und Token.
-- **Offen/ungetestet:** kein Hardwaretest, kein Test der Bearer-Route von außerhalb, kein Rate-Limit
-  für Bearer-Fehlversuche, kein Gerätekey-Pinning/HPKE, Token nicht per eFuse gebunden. Der QR enthält
-  nun ein Einmal-Geheimnis (Fenster 120 s). S3-Image 0x19af20 Byte, 14 % frei; Heap/Stack nicht gemessen.
+- **Android:** speichert Token, Zertifikatspin und Kontaktinformationen gemeinsam.
+  Hostname/AAAA, direkte IPv6 (mit erhaltenem lokalem Interface-Scope), dann IPv4.
+  Mit Token/Pin kein HTTP-Fallback und keine HTTP-Redirects. Pinning authentifiziert
+  auch selbstsignierte Zertifikate ohne DNS; der Vergleich im vertrauenswuerdigen
+  Webfrontend ist dafuer zwingend. Ein Zertifikatswechsel, auch ACME-Erneuerung,
+  erfordert aktuell erneutes lokales Koppeln. Sichere automatische Pinrotation ist offen.
+- **Offen/ungetestet:** kein ESP-/Android-Hardwaretest und kein echter externer
+  IPv6-Bearer-Test; keine Produktionsfreigabe oder HPKE/eFuse-Implementierung.
+  Webfrontend auf Klartext-HTTP ist nur im vertrauenswuerdigen LAN geeignet,
+  nicht als Schutz gegen einen Angreifer auf diesem Verwaltungsweg.
+  Kein Rate-Limit fuer laufende Bearer-Fehlversuche. Reale 300-s-Abschaltung,
+  Verbindungsabbruch/Slots voll/NVS-Fehler, Widerruf, mDNS/Scope auf Android,
+  IPv6-Internet und TLS-Last auf C3/S3 bleiben Hardware-Abnahmetests.
+  Build-/Hosttest- und Ressourcen-Nachweis:
+  [Fortschritt 2026-10-19](ZIEL-DESIGN.md#2026-10-19-lokales-pairing-app-verwaltung-ipv6-first-und-kpi-leiste).
 
 ## 10. Quellen
 

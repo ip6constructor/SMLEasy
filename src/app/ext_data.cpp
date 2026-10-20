@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 
 #include <array>
+#include <atomic>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -207,6 +208,13 @@ void ExtData::on_mqtt_message(const std::string& topic, const std::string& paylo
     }
 }
 
+static std::atomic<bool> s_paused{false};
+
+void ExtData::set_paused(bool paused)
+{
+    s_paused.store(paused);
+}
+
 void ExtData::poll_task(void*)
 {
     Impl* self = ExtData::get().impl();
@@ -215,6 +223,7 @@ void ExtData::poll_task(void*)
     for (;;) {
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms));
 
+        if (s_paused.load()) { wait_ms = 2000; continue; }
         ExtDataConfig cfg;
         {
             std::lock_guard<std::mutex> lock(self->mutex);

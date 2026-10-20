@@ -8,6 +8,8 @@
 #include "mqtt_manager.hpp"
 #include "energy_stats.hpp"
 #include "esp_timer.h"
+#include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "esp_wifi.h"
 
 #include "esp_log.h"
@@ -21,6 +23,7 @@
 #include "cJSON.h"
 #include "mbedtls/base64.h"
 #include "lwip/sockets.h"
+#include "lwip/netdb.h"
 #include "lwip/ip4_addr.h"
 #if CONFIG_LWIP_IPV6
 #include "lwip/ip6_addr.h"
@@ -35,6 +38,7 @@
 #include "tls_certs.hpp"
 #include "key_provider.hpp"
 #include "app_tokens.hpp"
+#include "pairing_service.hpp"
 #else
 #define SMLEASY_LOCAL_HTTPS 0
 #endif
@@ -270,6 +274,24 @@ static bool peer_allowed(int sockfd, char* peer_text, size_t peer_text_len)
     return false;
 }
 
+static void peer_string(int sockfd, char* out, size_t len)
+{
+    sockaddr_storage peer{};
+    socklen_t peer_len = sizeof(peer);
+    if (len) out[0] = '\0';
+    if (getpeername(sockfd, reinterpret_cast<sockaddr*>(&peer), &peer_len) != 0) return;
+    if (peer.ss_family == AF_INET) {
+        inet_ntop(AF_INET, &reinterpret_cast<const sockaddr_in*>(&peer)->sin_addr,
+                  out, static_cast<socklen_t>(len));
+    }
+#if CONFIG_LWIP_IPV6
+    else if (peer.ss_family == AF_INET6) {
+        inet_ntop(AF_INET6, &reinterpret_cast<const sockaddr_in6*>(&peer)->sin6_addr,
+                  out, static_cast<socklen_t>(len));
+    }
+#endif
+}
+
 static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
 {
     char peer_text[46] = "?";
@@ -301,11 +323,36 @@ static bool bearer_ok(httpd_req_t* req)
     return app::tokens::verify(header + 7);
 }
 
+// While pairing mode is open only the client that opened it may use the server; every other
+// request is refused and its connection closed so the heap is not spent on parallel TLS sessions.
+static std::mutex g_pair_owner_mtx;
+static std::string g_pair_owner;
+
+static void pair_owner_set(const char* peer)
+{
+    std::lock_guard<std::mutex> lock(g_pair_owner_mtx);
+    g_pair_owner = peer;
+}
+
+static bool pair_blocks_peer(const char* peer)
+{
+    std::lock_guard<std::mutex> lock(g_pair_owner_mtx);
+    if (g_pair_owner.empty()) return false;
+    if (!app::pairing::status().open) {
+        g_pair_owner.clear();
+        return false;
+    }
+    return g_pair_owner != peer;
+}
+
 // Per-request gate: peers outside the allowed networks only reach token routes with a valid token.
 static esp_err_t gated_handler(httpd_req_t* req)
 {
     char peer_text[46] = "?";
-    if (!peer_allowed(httpd_req_to_sockfd(req), peer_text, sizeof(peer_text))) {
+    const bool allowed = peer_allowed(httpd_req_to_sockfd(req), peer_text, sizeof(peer_text));
+    char peer_id[46];
+    peer_string(httpd_req_to_sockfd(req), peer_id, sizeof(peer_id));
+    if (!allowed) {
         if (!token_route(req) || !bearer_ok(req)) {
             ESP_LOGW(TAG, "blocked %s outside allowed networks (no valid app token)", peer_text);
             httpd_resp_set_status(req, "403 Forbidden");
@@ -313,6 +360,13 @@ static esp_err_t gated_handler(httpd_req_t* req)
             httpd_resp_send(req, "Forbidden", HTTPD_RESP_USE_STRLEN);
             return ESP_FAIL;
         }
+    }
+    if (pair_blocks_peer(peer_id)) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "text/plain; charset=utf-8");
+        httpd_resp_set_hdr(req, "Connection", "close");
+        httpd_resp_send(req, "Koppelmodus ist bereits aktiv (anderer Client)", HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
     }
     return reinterpret_cast<esp_err_t (*)(httpd_req_t*)>(req->user_ctx)(req);
 }
@@ -452,6 +506,16 @@ static std::atomic<int> s_acme_state{0};
 static std::atomic<int> s_acme_last_error{ESP_OK};
 // A certificate request and the pre-flight checks both own port 80 and must not overlap.
 static std::atomic<bool> s_acme_busy{false};
+// Announced to clients via /api/status so they stop polling before the services go down.
+static constexpr int kClientPauseS = 120;
+static constexpr int kPauseAnnounceMs = 7000;
+static std::atomic<int64_t> s_pause_until_us{0};
+
+static int pause_remaining_s()
+{
+    const int64_t left = s_pause_until_us.load() - esp_timer_get_time();
+    return left > 0 ? static_cast<int>((left + 999999) / 1000000) : 0;
+}
 
 // Pre-flight checks: 0 idle, 1 running, 2 passed, 3 failed
 struct CheckEntry {
@@ -511,6 +575,37 @@ static std::string trim_certificate_chain(const std::string& pem)
     }
     return pem.substr(0, end) + "\n";
 }
+
+// Resolves the name through the resolver this device uses (the router). Either IPv4 or IPv6 is enough.
+static esp_err_t resolve_locally(const std::string& name, std::vector<std::string>& addresses)
+{
+    addresses.clear();
+    addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* result = nullptr;
+    if (getaddrinfo(name.c_str(), nullptr, &hints, &result) != 0 || !result) return ESP_FAIL;
+    for (addrinfo* entry = result; entry; entry = entry->ai_next) {
+        char text[48] = {};
+        if (entry->ai_family == AF_INET) {
+            inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(entry->ai_addr)->sin_addr, text, sizeof(text));
+        }
+#if CONFIG_LWIP_IPV6
+        else if (entry->ai_family == AF_INET6) {
+            inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(entry->ai_addr)->sin6_addr, text, sizeof(text));
+        }
+#endif
+        if (text[0]) addresses.emplace_back(text);
+    }
+    freeaddrinfo(result);
+    return addresses.empty() ? ESP_FAIL : ESP_OK;
+}
+
+static const char kRebindHint[] =
+    "The router does not resolve this hostname locally although it exists in public DNS. This is typically "
+    "DNS rebind protection (e.g. FRITZ!Box: Home Network > Network > Network Settings > DNS rebind protection "
+    "> add the hostname as an exception; other routers: allow the domain in the DNS rebind / private-address filter). "
+    "Without it the dashboard and app cannot reach the device by name inside the LAN; the app can use the IP address as a fallback.";
 
 static std::string peer_address_text(httpd_req_t* req)
 {
@@ -572,6 +667,13 @@ static esp_err_t handle_https_redirect(httpd_req_t* req)
             ch != '[' && ch != ']' && ch != ':' && ch != '%') return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad host");
     }
     if (name.empty()) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad host");
+    // An IP address cannot match the certificate; send the browser to the certified hostname instead.
+    const bool ip_literal = name[0] == '[' ||
+        name.find_first_not_of("0123456789.") == std::string::npos;
+    if (ip_literal) {
+        const std::string fqdn = app::ConfigStore::get().hostname();
+        if (!fqdn.empty()) name = fqdn;
+    }
     std::string uri = req->uri;
     if (uri.empty() || uri[0] != '/' || uri.find_first_of("\r\n") != std::string::npos) uri = "/";
     const std::string location = "https://" + name + uri;
@@ -594,6 +696,48 @@ static void redirect_switch_task(void*)
     }
 }
 
+// While a certificate check/request runs, everything that competes for heap, sockets and CPU is
+// paused: HTTPS dashboard sessions, MQTT, HA polling and the meter readout.
+struct QuiesceState {
+    bool meter_was_running{false};
+};
+
+static QuiesceState acme_quiesce()
+{
+    QuiesceState state;
+    // Clients see pause_s in /api/status and stop polling before HTTPS goes away.
+    s_pause_until_us.store(esp_timer_get_time() + static_cast<int64_t>(kClientPauseS) * 1000000);
+    vTaskDelay(pdMS_TO_TICKS(kPauseAnnounceMs));
+    app::WebServer::get().stop_https();
+    app::MqttManager::get().stop();
+#if SMLEASY_EXT_DATA
+    app::ExtData::get().set_paused(true);
+#endif
+    auto& meter = app::MeterTask::get();
+    state.meter_was_running = meter.is_running();
+    if (state.meter_was_running) {
+        meter.stop();
+        for (int i = 0; i < 100 && meter.is_running(); ++i) vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    vTaskDelay(pdMS_TO_TICKS(500));
+    acme_client::add_log("Meter readout, MQTT and HTTPS paused for the test; free heap %u bytes",
+                         static_cast<unsigned>(esp_get_free_heap_size()));
+    return state;
+}
+
+static void acme_resume(const QuiesceState& state, bool restart_https)
+{
+    if (state.meter_was_running) app::MeterTask::get().start_continuous();
+#if SMLEASY_EXT_DATA
+    app::ExtData::get().set_paused(false);
+#endif
+    app::HaConfig ha;
+    app::ConfigStore::get().load_ha(ha);
+    app::MqttManager::get().init(ha);
+    if (restart_https) app::WebServer::get().start_https_async(true);
+    s_pause_until_us.store(0);
+}
+
 static void acme_issue_task(void*)
 {
     auto& web_server = app::WebServer::get();
@@ -601,9 +745,10 @@ static void acme_issue_task(void*)
     acme_client::clear_log();
     // Let the HTTP response of the triggering request leave before port 80 is swapped.
     vTaskDelay(pdMS_TO_TICKS(1000));
+    if (!app::WifiManager::get().wait_for_global_ip6(30000))
+        acme_client::add_log("No global IPv6 address yet; continuing");
     web_server.stop_http();
-    // The TLS server sessions and the ACME TLS client together exhaust the heap.
-    web_server.stop_https();
+    const QuiesceState quiesce = acme_quiesce();
     acme_client::add_log("Free heap before request: %u bytes", static_cast<unsigned>(esp_get_free_heap_size()));
 
     esp_err_t err = web_server.start_acme_challenge_listener();
@@ -658,10 +803,10 @@ static void acme_issue_task(void*)
     if (web_server.start(80) != ESP_OK)
         ESP_LOGE(TAG, "failed to restore HTTP dashboard after ACME");
     acme_client::add_log("Dashboard on port 80 restored");
+    acme_resume(quiesce, true);
     if (stored) {
         acme_client::add_log("Certificate stored (%u bytes); restarting HTTPS",
                              static_cast<unsigned>(cfg.certificate_pem.size()));
-        web_server.start_https_async(true);
         app::AppState::get().push_log("I", TAG, "Let's Encrypt certificate issued");
         // Test results and log are single use; a stale "passed" must not unlock another request.
         {
@@ -713,8 +858,11 @@ static void acme_check_task(void*)
     }
     s_checks_state.store(1);
 
+    const QuiesceState quiesce = acme_quiesce();
     // 1: internet access, clock, reachability of the CA
     set_check(0, "running", "");
+    // After a Wi-Fi/IP interruption the router advertisement can take a while.
+    app::WifiManager::get().wait_for_global_ip6(45000);
     acme_client::DirectoryInfo info;
     bool internet_ok = false;
     if (time(nullptr) < 1700000000) {
@@ -760,6 +908,17 @@ static void acme_check_task(void*)
         } else {
             set_check(1, "fail", "No AAAA or A record found for " + cfg.fqdn);
         }
+        if (dns_ok) {
+            std::vector<std::string> local;
+            if (resolve_locally(cfg.fqdn, local) != ESP_OK) {
+                std::string detail;
+                {
+                    std::lock_guard<std::mutex> lock(s_checks_mutex);
+                    detail = s_checks[1].detail;
+                }
+                set_check(1, "warn", detail + ". " + kRebindHint);
+            }
+        }
     }
 
     // 3: reachability from the internet, proven by a Let's Encrypt staging validation
@@ -797,6 +956,7 @@ static void acme_check_task(void*)
         s_checks_done_epoch = passed ? static_cast<int64_t>(time(nullptr)) : 0;
     }
     s_checks_state.store(passed ? 2 : 3);
+    acme_resume(quiesce, true);
     s_acme_busy.store(false);
     vTaskDelete(nullptr);
 }
@@ -951,8 +1111,11 @@ void WebServer::register_routes(httpd_handle_t server)
         { "/api/pairing/open",    HTTP_POST, handle_pairing_open,      nullptr },
         { "/api/pairing/close",   HTTP_POST, handle_pairing_close,     nullptr },
         { "/api/pairing/claim",   HTTP_POST, handle_pairing_claim,     nullptr },
+        { "/api/pairing/decide",  HTTP_POST, handle_pairing_decide,    nullptr },
         { "/api/pairing/revoke",  HTTP_POST, handle_pairing_revoke,    nullptr },
+        { "/api/pairing/rename",  HTTP_POST, handle_pairing_rename,    nullptr },
         { "/api/config/tls",      HTTP_POST, handle_tls_config_save,   nullptr },
+        { "/api/config/hostname", HTTP_POST, handle_hostname_save,     nullptr },
         { "/api/acme/request",    HTTP_POST, handle_acme_request,      nullptr },
         { "/api/acme/check",      HTTP_POST, handle_acme_check,        nullptr },
         { "/api/acme/status",     HTTP_GET,  handle_acme_status,       nullptr },
@@ -1011,26 +1174,8 @@ esp_err_t WebServer::start_https()
 {
     if (https_server_) return ESP_OK;
 
-    TlsConfig tls;
-    ConfigStore::get().load_tls(tls);
-    std::string certificate = tls.certificate_pem;
-    std::string private_key = tls.private_key_pem;
-    bool self_signed = false;
-    if (!tls_certs::valid_pair(certificate, private_key)) {
-        if (!tls_certs::valid_pair(tls.fallback_certificate_pem, tls.fallback_private_key_pem)) {
-            const std::string fqdn = valid_fqdn(tls.fqdn) ? tls.fqdn : "smleasy.local";
-            if (!tls_certs::generate_self_signed(fqdn, tls.fallback_certificate_pem,
-                                                 tls.fallback_private_key_pem) ||
-                !ConfigStore::get().save_tls(tls)) {
-                ESP_LOGE(TAG, "no usable TLS certificate, HTTPS disabled");
-                return ESP_FAIL;
-            }
-            ESP_LOGI(TAG, "generated self-signed certificate for %s", fqdn.c_str());
-        }
-        certificate = tls.fallback_certificate_pem;
-        private_key = tls.fallback_private_key_pem;
-        self_signed = true;
-    }
+    std::string certificate, private_key;
+    if (!tls_certs::load_identity(certificate, private_key)) return ESP_FAIL;
 
     // The IDF default macro omits trailing members; silence only that known warning here.
 #pragma GCC diagnostic push
@@ -1039,10 +1184,10 @@ esp_err_t WebServer::start_https()
 #pragma GCC diagnostic pop
     ssl_cfg.httpd.max_uri_handlers = 56;
     ssl_cfg.httpd.stack_size = 10240;
-    ssl_cfg.httpd.max_open_sockets = 3;
+    ssl_cfg.httpd.max_open_sockets = 4;
     ssl_cfg.httpd.lru_purge_enable = true;
-    ssl_cfg.httpd.recv_wait_timeout = 30;
-    ssl_cfg.httpd.send_wait_timeout = 30;
+    ssl_cfg.httpd.recv_wait_timeout = 8;
+    ssl_cfg.httpd.send_wait_timeout = 8;
     // The HTTP server already owns the default control port.
     ssl_cfg.httpd.ctrl_port = ESP_HTTPD_DEF_CTRL_PORT + 1;
     // The per-request gate in register_routes lets app tokens in from outside the allowed networks.
@@ -1060,74 +1205,43 @@ esp_err_t WebServer::start_https()
     }
     register_routes(handle);
     https_server_ = handle;
-    ESP_LOGI(TAG, "HTTPS dashboard listening on port %u (%s certificate)",
-             ssl_cfg.port_secure, self_signed ? "self-signed" : "configured");
+    ESP_LOGI(TAG, "HTTPS dashboard listening on port %u", ssl_cfg.port_secure);
     return ESP_OK;
 }
 
 void WebServer::stop_https()
 {
+    pairing::close();
     if (https_server_) {
         httpd_ssl_stop(https_server_);
         https_server_ = nullptr;
     }
 }
 
-// ── app pairing window (QR carries the FQDN; no secrets, no unauthenticated endpoint) ──
+// Local TLS pairing; only an authenticated web decision authorizes token delivery.
 
 namespace {
-constexpr int64_t kPairWindowUs = 120LL * 1000000LL;
-std::atomic<int64_t> s_pair_until_us{0};
-std::mutex s_pair_mutex;
-std::string s_pair_secret;
-int s_pair_failures = 0;
-
-std::string random_hex(size_t bytes)
+bool pairing_json_request(httpd_req_t* req)
 {
-    std::string out;
-    for (size_t i = 0; i < bytes; ++i) {
-        char h[3];
-        std::snprintf(h, sizeof(h), "%02x", static_cast<unsigned>(esp_random() & 0xff));
-        out += h;
-    }
-    return out;
+    char content_type[64]{};
+    if (httpd_req_get_hdr_value_str(req, "Content-Type", content_type, sizeof(content_type)) == ESP_OK &&
+        std::strcmp(content_type, "application/json") == 0) return true;
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Content-Type application/json required");
+    return false;
 }
 
-std::string pct_encode(const std::string& in)
+esp_err_t pairing_reply(httpd_req_t* req)
 {
-    static const char hex[] = "0123456789ABCDEF";
-    std::string out;
-    for (unsigned char c : in) {
-        if (std::isalnum(c) || c == '.' || c == '-' || c == '_') {
-            out += static_cast<char>(c);
-        } else {
-            out += '%';
-            out += hex[c >> 4];
-            out += hex[c & 15];
-        }
-    }
-    return out;
-}
-
-esp_err_t pairing_reply(httpd_req_t* req, bool open_now)
-{
-    const int64_t now = esp_timer_get_time();
-    std::string secret;
-    {
-        std::lock_guard<std::mutex> lock(s_pair_mutex);
-        if (open_now) {
-            s_pair_until_us.store(now + kPairWindowUs);
-            s_pair_secret = random_hex(16);
-            s_pair_failures = 0;
-        }
-        secret = s_pair_secret;
-    }
-    const int64_t until = s_pair_until_us.load();
-    const bool open = until > now;
+    const auto status = pairing::status();
     TlsConfig cfg;
     ConfigStore::get().load_tls(cfg);
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddBoolToObject(root, "open", open);
+    cJSON_AddBoolToObject(root, "open", status.open);
+    cJSON_AddNumberToObject(root, "remaining_s", status.remaining_s);
+    cJSON_AddStringToObject(root, "request_id", status.request_id.c_str());
+    cJSON_AddStringToObject(root, "request_name", status.name.c_str());
+    cJSON_AddStringToObject(root, "code", status.code.c_str());
+    cJSON_AddStringToObject(root, "error", status.error.c_str());
     cJSON* apps = cJSON_AddArrayToObject(root, "apps");
     tokens::Info infos[tokens::kMaxApps];
     tokens::list(infos);
@@ -1136,19 +1250,14 @@ esp_err_t pairing_reply(httpd_req_t* req, bool open_now)
         cJSON* a = cJSON_CreateObject();
         cJSON_AddNumberToObject(a, "slot", i);
         cJSON_AddStringToObject(a, "name", infos[i].name.c_str());
+        cJSON_AddNumberToObject(a, "created_at", static_cast<double>(infos[i].created_at));
         cJSON_AddItemToArray(apps, a);
     }
-    cJSON_AddNumberToObject(root, "remaining_s", open ? static_cast<double>((until - now) / 1000000LL) : 0);
     cJSON_AddBoolToObject(root, "https_active", WebServer::get().is_https_running());
     cJSON_AddStringToObject(root, "fqdn", cfg.fqdn.c_str());
     const std::string device_id = keys::device_id_hex();
     cJSON_AddStringToObject(root, "device_id", device_id.c_str());
     cJSON_AddStringToObject(root, "key_provider", keys::kind_name(keys::provider().kind()));
-    if (open && !cfg.fqdn.empty() && !secret.empty()) {
-        std::string payload = "smleasy://pair?v=2&fqdn=" + pct_encode(cfg.fqdn) + "&port=443&s=" + secret;
-        if (!device_id.empty()) payload += "&id=" + device_id;
-        cJSON_AddStringToObject(root, "payload", payload.c_str());
-    }
     char* text = cJSON_PrintUnformatted(root);
     std::string body(text ? text : "{}");
     cJSON_free(text);
@@ -1161,97 +1270,124 @@ esp_err_t pairing_reply(httpd_req_t* req, bool open_now)
 esp_err_t WebServer::handle_pairing_status(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
-    return pairing_reply(req, false);
+    return pairing_reply(req);
 }
 
 esp_err_t WebServer::handle_pairing_open(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
-    TlsConfig cfg;
-    ConfigStore::get().load_tls(cfg);
-    if (cfg.fqdn.empty()) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "FQDN ist nicht konfiguriert");
+    if (!pairing_json_request(req)) return ESP_FAIL;
+    if (!WebServer::get().is_https_running()) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        httpd_resp_sendstr(req, "HTTPS ist noch nicht aktiv");
         return ESP_FAIL;
     }
-    return pairing_reply(req, true);
+    const esp_err_t err = pairing::open([](int fd) {
+        char peer[46] = "?";
+        return peer_allowed(fd, peer, sizeof(peer));
+    });
+    if (err == ESP_ERR_INVALID_STATE) {
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_sendstr(req, "Koppelmodus ist bereits aktiv (anderer Client)");
+        return ESP_FAIL;
+    }
+    if (err == ESP_ERR_TIMEOUT) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        httpd_resp_sendstr(req, "Vorheriger Koppelmodus wird noch beendet");
+        return ESP_FAIL;
+    }
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err));
+        return ESP_FAIL;
+    }
+    {
+        char owner[46];
+        peer_string(httpd_req_to_sockfd(req), owner, sizeof(owner));
+        pair_owner_set(owner);
+    }
+    return pairing_reply(req);
 }
 
 esp_err_t WebServer::handle_pairing_close(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
-    s_pair_until_us.store(0);
-    {
-        std::lock_guard<std::mutex> lock(s_pair_mutex);
-        s_pair_secret.clear();
-    }
-    return pairing_reply(req, false);
+    if (!pairing_json_request(req)) return ESP_FAIL;
+    pairing::close();
+    return pairing_reply(req);
 }
 
-// No password: the one-time secret from the QR code (window open, local peers only) authorizes the claim.
+// Preserve an explicit response for old clients, but never bypass web approval.
 esp_err_t WebServer::handle_pairing_claim(httpd_req_t* req)
 {
+    httpd_resp_set_status(req, "410 Gone");
+    return httpd_resp_sendstr(req, "QR pairing removed; update the app and use local pairing on port 7384");
+}
+
+esp_err_t WebServer::handle_pairing_decide(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
     std::string raw;
-    if (req->content_len > 512 || read_body(req, raw) != ESP_OK) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "read error");
+    if (!pairing_json_request(req)) return ESP_FAIL;
+    if (read_body_limited(req, raw, 256) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "JSON request required");
         return ESP_FAIL;
     }
-    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
-    const cJSON* secret = json ? cJSON_GetObjectItem(json, "secret") : nullptr;
-    const cJSON* name = json ? cJSON_GetObjectItem(json, "name") : nullptr;
-    const std::string given = cJSON_IsString(secret) && secret->valuestring ? secret->valuestring : "";
-    std::string app_name = cJSON_IsString(name) && name->valuestring ? name->valuestring : "";
+    cJSON* json = cJSON_ParseWithLength(raw.data(), raw.size());
+    const cJSON* id = json ? cJSON_GetObjectItemCaseSensitive(json, "request_id") : nullptr;
+    const cJSON* approved = json ? cJSON_GetObjectItemCaseSensitive(json, "approve") : nullptr;
+    const bool ok = cJSON_IsString(id) && cJSON_IsBool(approved) &&
+        pairing::decide(id->valuestring, cJSON_IsTrue(approved));
     cJSON_Delete(json);
-    for (char& c : app_name) if (static_cast<unsigned char>(c) < 32) c = ' ';
-    if (app_name.empty()) app_name = "App";
-
-    bool ok = false;
-    {
-        std::lock_guard<std::mutex> lock(s_pair_mutex);
-        const bool open = s_pair_until_us.load() > esp_timer_get_time() && !s_pair_secret.empty();
-        if (open && given.size() == s_pair_secret.size()) {
-            uint8_t diff = 0;
-            for (size_t i = 0; i < given.size(); ++i) diff |= static_cast<uint8_t>(given[i] ^ s_pair_secret[i]);
-            ok = diff == 0;
-        }
-        if (open && !ok && ++s_pair_failures >= 5) {
-            s_pair_until_us.store(0);
-            s_pair_secret.clear();
-        }
-        if (ok) {
-            s_pair_until_us.store(0);
-            s_pair_secret.clear();
-            s_pair_failures = 0;
-        }
+    if (!ok) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_sendstr(req, "Pairing request expired or already decided");
     }
-    std::string token;
-    if (!ok || !tokens::issue(app_name, token)) {
-        httpd_resp_set_status(req, ok ? "507 Insufficient Storage" : "403 Forbidden");
-        httpd_resp_set_type(req, "text/plain; charset=utf-8");
-        return httpd_resp_send(req, ok ? "Kein freier App-Platz (max. 4)" : "Forbidden", HTTPD_RESP_USE_STRLEN);
-    }
-    cJSON* root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "token", token.c_str());
-    char* text = cJSON_PrintUnformatted(root);
-    std::string body(text ? text : "{}");
-    cJSON_free(text);
-    cJSON_Delete(root);
-    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
-    return send_json(req, body);
+    return pairing_reply(req);
 }
 
 esp_err_t WebServer::handle_pairing_revoke(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
+    if (!pairing_json_request(req)) return ESP_FAIL;
     std::string raw;
-    if (read_body(req, raw) != ESP_OK) {
+    if (read_body_limited(req, raw, 256) != ESP_OK) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "read error");
         return ESP_FAIL;
     }
     cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
     const cJSON* slot = json ? cJSON_GetObjectItem(json, "slot") : nullptr;
-    const bool ok = cJSON_IsNumber(slot) && tokens::revoke(static_cast<int>(slot->valuedouble));
+    const bool ok = cJSON_IsNumber(slot) && slot->valuedouble >= 0 &&
+        slot->valuedouble < tokens::kMaxApps && slot->valuedouble == slot->valueint &&
+        tokens::revoke(slot->valueint);
     cJSON_Delete(json);
-    return send_json(req, ok ? "{\"ok\":true}" : "{\"ok\":false}");
+    if (!ok) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "App konnte nicht widerrufen werden");
+        return ESP_FAIL;
+    }
+    return pairing_reply(req);
+}
+
+esp_err_t WebServer::handle_pairing_rename(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    if (!pairing_json_request(req)) return ESP_FAIL;
+    std::string raw;
+    if (read_body_limited(req, raw, 256) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid request");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.data(), raw.size());
+    const cJSON* slot = json ? cJSON_GetObjectItemCaseSensitive(json, "slot") : nullptr;
+    const cJSON* name = json ? cJSON_GetObjectItemCaseSensitive(json, "name") : nullptr;
+    const bool ok = cJSON_IsNumber(slot) && slot->valuedouble >= 0 &&
+        slot->valuedouble < tokens::kMaxApps && slot->valuedouble == slot->valueint &&
+        cJSON_IsString(name) && tokens::rename(slot->valueint, name->valuestring);
+    cJSON_Delete(json);
+    if (!ok) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "App-Name konnte nicht gespeichert werden (1-40 UTF-8-Bytes)");
+        return ESP_FAIL;
+    }
+    return pairing_reply(req);
 }
 
 esp_err_t WebServer::handle_pair_page(httpd_req_t* req) {
@@ -1300,6 +1436,56 @@ esp_err_t WebServer::handle_tls_config_get(httpd_req_t* req)
     return send_json(req, body);
 }
 
+esp_err_t WebServer::handle_hostname_save(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (read_body_limited(req, raw, 512) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid body");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* value = json ? cJSON_GetObjectItem(json, "hostname") : nullptr;
+    std::string name = cJSON_IsString(value) && value->valuestring ? value->valuestring : "";
+    cJSON_Delete(json);
+    for (auto& ch : name) ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+    if (!name.empty() && !valid_fqdn(name)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid hostname");
+        return ESP_FAIL;
+    }
+    TlsConfig cfg;
+    ConfigStore::get().load_tls(cfg);
+    const bool changed = cfg.fqdn != name;
+    if (changed) {
+        // Certificates are bound to the old name.
+        cfg.fallback_certificate_pem.clear();
+        cfg.fallback_private_key_pem.clear();
+        cfg.certificate_pem.clear();
+        cfg.private_key_pem.clear();
+        cfg.last_issued_epoch = 0;
+        cfg.fqdn = name;
+        if (!ConfigStore::get().save_tls(cfg)) return send_json(req, "{\"ok\":false}");
+    }
+    // Local resolution check: warns about DNS rebind protection without blocking the setting.
+    cJSON* reply = cJSON_CreateObject();
+    cJSON_AddBoolToObject(reply, "ok", true);
+    if (!name.empty()) {
+        std::vector<std::string> local;
+        const bool resolves = resolve_locally(name, local) == ESP_OK;
+        cJSON_AddBoolToObject(reply, "resolves", resolves);
+        cJSON* list = cJSON_AddArrayToObject(reply, "addresses");
+        for (const auto& address : local) cJSON_AddItemToArray(list, cJSON_CreateString(address.c_str()));
+        if (!resolves) cJSON_AddStringToObject(reply, "hint", kRebindHint);
+    }
+    char* text = cJSON_PrintUnformatted(reply);
+    std::string reply_body(text ? text : "{\"ok\":true}");
+    cJSON_free(text);
+    cJSON_Delete(reply);
+    const esp_err_t sent = send_json(req, reply_body);
+    if (changed) WebServer::get().start_https_async(true);
+    return sent;
+}
+
 esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
 {
     REQUIRE_AUTH(req);
@@ -1317,7 +1503,8 @@ esp_err_t WebServer::handle_tls_config_save(httpd_req_t* req)
         cJSON* value = cJSON_GetObjectItem(json, name);
         return cJSON_IsString(value) && value->valuestring ? value->valuestring : "";
     };
-    const std::string fqdn = get_string("fqdn");
+    // The hostname belongs to the network configuration (/api/config/hostname); a posted value is ignored.
+    const std::string fqdn = ConfigStore::get().hostname();
     const std::string email = get_string("email");
     const std::string mode_value = get_string("mode");
     const std::string certificate = get_string("certificate_pem");
@@ -1699,6 +1886,7 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     cJSON_AddBoolToObject  (root, "wifi_connected",
         WifiManager::get().is_sta_connected() || WifiManager::get().is_ap_active());
     cJSON_AddStringToObject(root, "ip",      WifiManager::get().get_ip().c_str());
+    cJSON_AddStringToObject(root, "hostname", ConfigStore::get().hostname().c_str());
     cJSON_AddStringToObject(root, "ssid",    WifiManager::get().is_sta_connected()
                                                ? WifiManager::get().sta_ssid().c_str()
                                                : WifiManager::get().ap_ssid().c_str());
@@ -1724,6 +1912,26 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     cJSON_AddStringToObject(root, "ssid_ap",  WifiManager::get().is_ap_active()
                                                ? WifiManager::get().ap_ssid().c_str() : "");
     cJSON_AddNumberToObject(root, "uptime_s", (double)(esp_timer_get_time() / 1000000LL));
+#if SMLEASY_LOCAL_HTTPS
+    cJSON_AddNumberToObject(root, "pause_s", pause_remaining_s());
+#else
+    cJSON_AddNumberToObject(root, "pause_s", 0); // No ACME pause in the IDF-4 release.
+#endif
+    cJSON_AddNumberToObject(root, "reset_reason", (double)esp_reset_reason());
+    cJSON_AddNumberToObject(root, "free_heap", (double)esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "min_free_heap", (double)esp_get_minimum_free_heap_size());
+    cJSON_AddNumberToObject(root, "largest_free_block",
+        (double)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    {
+        // Unused stack bytes per task (high-water mark); a missing task is omitted.
+        cJSON* stacks = cJSON_AddObjectToObject(root, "stack_free");
+        static const char* const names[] = {"meter_task", "ext_poll", "pairing", "httpd", "https_start"};
+        for (const char* n : names) {
+            if (TaskHandle_t h = xTaskGetHandle(n)) {
+                cJSON_AddNumberToObject(stacks, n, (double)uxTaskGetStackHighWaterMark(h));
+            }
+        }
+    }
     cJSON_AddNumberToObject(root, "read_interval_s", static_cast<double>(st.read_interval_s.load()));
     {
         const int64_t last_us = st.last_meter_us.load();
@@ -1797,6 +2005,11 @@ esp_err_t WebServer::handle_status(httpd_req_t* req) {
     std::string body(s);
     cJSON_free(s);
     cJSON_Delete(root);
+#if SMLEASY_LOCAL_HTTPS
+    char pause_text[12];
+    snprintf(pause_text, sizeof(pause_text), "%d", pause_remaining_s());
+    if (pause_text[0] != '0') httpd_resp_set_hdr(req, "X-Pause", pause_text);
+#endif
     return send_json(req, body);
 }
 
@@ -2351,6 +2564,7 @@ esp_err_t WebServer::handle_stop(httpd_req_t* req) {
 }
 
 esp_err_t WebServer::handle_reboot(httpd_req_t* req) {
+    REQUIRE_AUTH(req);
     send_json(req, "{\"ok\":true}");
     vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();

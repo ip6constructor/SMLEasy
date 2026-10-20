@@ -208,6 +208,7 @@ const UI_TEXT = {
   'Eigenverbrauch': ['Self-consumption', 'Eigenverbrauch', 'Eigenverbruik', 'Autoconsommation', 'Autokonsumpcja'],
   'Gesamterzeugung': ['Total generation', 'Gesamterzeugung', 'Totale opwekking', 'Production totale', 'Całkowita produkcja'],
   'Summe': ['Total', 'Summe', 'Totaal', 'Total', 'Suma'],
+  'Gewinn': ['Profit', 'Gewinn', 'Winst', 'Bénéfice', 'Zysk'],
   'Netzkosten heute': ['Grid cost today', 'Netzkosten heute', 'Netkosten vandaag', 'Coût réseau aujourd\'hui', 'Koszt sieci dzisiaj'],
   'Monat': ['Month', 'Monat', 'Maand', 'Mois', 'Miesiąc'],
   'SMLEasy Dashboard': ['SMLEasy Dashboard', 'SMLEasy Dashboard', 'SMLEasy Dashboard', 'Tableau de bord SMLEasy', 'Panel SMLEasy'],
@@ -1703,16 +1704,23 @@ function renderStats() {
     const sum = [localizedText('Summe'), kwh(tot.i), kwh(tot.e)];
     if (hasPv) sum.push(kwh(tot.pv), kwh(tot.bc) + ' / ' + kwh(tot.bd), kwh(tot.house), String(ownTot));
     sum.push(money(tot.c));
-    if (hasPv) sum.push(money(tot.s));
+    let gainIdx = sum.length - 1;
+    if (hasPv) { sum.push(money(tot.s)); gainIdx = sum.length - 1; }
     if (hasWb) sum.push(kwh(tot.wb), money(tot.wm));
     const tr = body.insertRow();
     sum.forEach((c, i) => { const td = tr.insertCell(); td.textContent = c; td.style.fontWeight = '700'; td.style.borderTop = '2px solid var(--border-strong)'; if (i) td.className = 'value'; });
+    // Gewinn = Ersparnis - Netto-Kosten (Kosten sind bei Ueberschuss negativ)
+    const gain = sum.map(() => '');
+    gain[0] = localizedText('Gewinn');
+    gain[gainIdx] = money((hasPv ? tot.s : 0) - tot.c);
+    const gr = body.insertRow();
+    gain.forEach((c, i) => { const td = gr.insertCell(); td.textContent = c; td.style.fontWeight = '700'; if (i) td.className = 'value'; });
   }
   document.querySelectorAll('[data-stats-view]').forEach(b => {
     b.className = 'btn ' + (b.dataset.statsView === statsView ? 'btn-blue' : 'btn-gray');
   });
   const note = document.getElementById('stats-note');
-  if (note) note.textContent = localizedText('* laufender Zeitraum. Haus = Bezug - Einspeisung + PV - Batterie laden + Batterie entladen. Eigenanteil = Anteil des Hausverbrauchs aus PV und Batterie. Ersparnis = PV-Eigenverbrauch x Bezugspreis. Kosten gelten mit dem Tarif zum Zeitpunkt des Tagesabschlusses.');
+  if (note) note.textContent = localizedText('* laufender Zeitraum. Haus = Bezug - Einspeisung + PV - Batterie laden + Batterie entladen. Eigenanteil = Anteil des Hausverbrauchs aus PV und Batterie. Ersparnis = PV-Eigenverbrauch x Bezugspreis. Kosten gelten mit dem Tarif zum Zeitpunkt des Tagesabschlusses. Gewinn = Ersparnis - Netto-Kosten.');
 }
 
 async function loadStats() {

@@ -256,6 +256,8 @@ Nur Entscheidungen, keine Implementierung. Offene Punkte stehen unten.
   gekoppelt. Ein Geraet, das 6 Wochen nicht pusht, wird samt Eintrag, Schluessel und Daten
   auf dem Server geloescht; es registriert sich nicht automatisch neu.
 - Limit: 4 Apps/Clients pro ESP.
+- Missbrauchsschutz: Bei erkanntem Missbrauch (z. B. zu viele Registrierungen, Pushes oder
+  ungueltige Signaturen) sperrt der Server die Quelle 6 Stunden. Schwellwerte noch offen.
 - Widerspruch zu Abschnitt 8 (Recoverybackup, Historie behalten) bewusst: gilt fuer das
   Relay nicht; Abschnitt 8 bleibt fuer einen spaeteren Server mit Wiederherstellung.
 

@@ -63,9 +63,15 @@ static void add_period(PeriodRecord& a, const PeriodRecord& b)
     a.wb_milli += b.wb_milli;
 }
 
-static int32_t wb_milli_of(uint32_t wb_wh, double price_import, double refund)
+// Wallbox result: the employer refunds `refund` per kWh. The energy cost is the grid share at the import
+// price plus the PV/battery share at the feed-in price (forgone revenue). The PV share is estimated with the
+// own-supply share of the whole house on that day (no per-session data available).
+static int32_t wb_milli_of(uint32_t wb_wh, double price_import, double price_export, double refund,
+                           double imp_wh, double exp_wh, double pv_wh, double chg_wh, double dis_wh)
 {
-    const double v = wb_wh * (refund - price_import);
+    const double house = std::max(0.0, imp_wh - exp_wh + pv_wh - chg_wh + dis_wh);
+    const double own = house > 0 ? std::min(1.0, std::max(0.0, (house - imp_wh) / house)) : 0.0;
+    const double v = wb_wh * (refund - (1.0 - own) * price_import - own * price_export);
     return static_cast<int32_t>(v >= 0 ? v + 0.5 : v - 0.5);
 }
 
@@ -502,7 +508,9 @@ void EnergyStats::finalize_day()
                      pv, static_cast<uint32_t>(bat_chg_wh_ + 0.5), static_cast<uint32_t>(bat_dis_wh_ + 0.5),
                      saving_milli_of(pv, static_cast<uint32_t>(exp), tariff.price_import_kwh),
                      static_cast<uint32_t>(wb_wh_ + 0.5),
-                     wb_milli_of(static_cast<uint32_t>(wb_wh_ + 0.5), tariff.price_import_kwh, tariff.wallbox_refund_kwh)};
+                     wb_milli_of(static_cast<uint32_t>(wb_wh_ + 0.5), tariff.price_import_kwh, tariff.price_export_kwh,
+                                 tariff.wallbox_refund_kwh, static_cast<double>(imp), static_cast<double>(exp), pv_wh_,
+                                 bat_chg_wh_, bat_dis_wh_)};
     pv_wh_ = bat_chg_wh_ = bat_dis_wh_ = wb_wh_ = 0;
     for (int i = 0; i < 4; ++i) {
         have_start_cnt_[i] = have_cnt_[i];
@@ -646,7 +654,9 @@ StatsSnapshot EnergyStats::snapshot() const
         ConfigStore::get().load_tariff(tc);
         const uint32_t exp_wh = static_cast<uint32_t>(today_export_kwh_ * 1000.0 + 0.5);
         const double t_sav = saving_milli_of(static_cast<uint32_t>(t_pv + 0.5), exp_wh, tc.price_import_kwh);
-        const double t_wm = wb_milli_of(static_cast<uint32_t>(wb_wh_ + 0.5), tc.price_import_kwh, tc.wallbox_refund_kwh);
+        const double t_wm = wb_milli_of(static_cast<uint32_t>(wb_wh_ + 0.5), tc.price_import_kwh, tc.price_export_kwh,
+                                        tc.wallbox_refund_kwh, today_import_kwh_ * 1000.0, today_export_kwh_ * 1000.0,
+                                        t_pv, t_bc, t_bd);
         const double tp[4] = {t_pv, t_bc, t_bd, wb_wh_};
         const double wk[4] = {w_pv, w_chg, w_dis, w_wb};
         const double mo[4] = {m_pv, m_chg, m_dis, m_wb};
@@ -810,7 +820,8 @@ std::string EnergyStats::stats_json(double price_import, double price_export, co
         today = PeriodRecord{date_key_, ti, te, cost_milli_of(ti, te, price_import, price_export),
                              pv, static_cast<uint32_t>(bat_chg_wh_ + 0.5), static_cast<uint32_t>(bat_dis_wh_ + 0.5),
                              saving_milli_of(pv, te, price_import), wb,
-                             wb_milli_of(wb, price_import, tariff_cfg.wallbox_refund_kwh)};
+                             wb_milli_of(wb, price_import, price_export, tariff_cfg.wallbox_refund_kwh, ti, te, pv,
+                                         bat_chg_wh_, bat_dis_wh_)};
         feed(today, 0);
         days.push_back(today);
     }

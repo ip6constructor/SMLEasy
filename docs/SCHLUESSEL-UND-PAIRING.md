@@ -267,6 +267,13 @@ Warnung der App vor Ablauf der 6 Wochen, Webgo-Eignung (PHP-Version, sodium, Hea
 
 ## 8b. Relay-Transport und Speicherlayout (Entwurf, nicht implementiert)
 
+Entscheidung 2026-10-20: Der Relay wird **zurueckgestellt**. Der Zugriff bleibt wie heute
+(lokal, IPv6/DynDNS am Router). Wer unterwegs Daten braucht, nutzt die Home-Assistant-Cloud.
+Der Entwurf unten bleibt als Reserve; nichts davon ist beschlossen oder gebaut. Fuer Namen,
+Ports und Zertifikate gilt: Zertifikat gehoert zum Namen, HTTP-01 nur ueber Port 80, DNS-01
+auf einem anderen Rechner mit lokalem Upload ist fuer die ersten Standorte der einfachere Weg;
+ACME im ESP bleibt eine getrennte spaetere Phase.
+
 Betriebsarten: Ohne eingerichteten Cloud-Zugang verbindet ein ESP nie nach aussen
 (Verhalten wie heute, kein Mehrverbrauch an Heap). Mit eingerichtetem Zugang:
 

@@ -85,7 +85,7 @@ static uint16_t day_index(uint32_t key)
     return static_cast<uint16_t>(d < 0 ? 0 : (d > 16383 ? 16383 : d));
 }
 
-static const int kScale[3] = {1, 10, 100};
+static const int kScale[4] = {1, 10, 100, 1000};
 static unsigned rec_kind(const DayRec& r) { return r.day >> 14; }
 static int rec_idx(const DayRec& r) { return r.day & 0x3FFF; }
 
@@ -111,7 +111,7 @@ static DayRec to_rec(const PeriodRecord& p, unsigned kind = 0)
 
 static PeriodRecord to_period(const DayRec& r)
 {
-    const int s = kScale[rec_kind(r) > 2 ? 2 : rec_kind(r)];
+    const int s = kScale[rec_kind(r)];
     return PeriodRecord{civil_key_from_days(static_cast<int64_t>(rec_idx(r)) + epoch2020()),
                         static_cast<uint32_t>(r.imp) * s, static_cast<uint32_t>(r.exp) * s,
                         r.cost_c * 10 * s, static_cast<uint32_t>(r.pv) * s, static_cast<uint32_t>(r.chg) * s,
@@ -294,6 +294,15 @@ void EnergyStats::load_history()
         nvs_close(handle);
     }
     while (days_.size() > kMaxRecords) days_.erase(days_.begin());
+    // Migration to the tiered layout (days / weeks / months / years): fold old records once and persist.
+    const size_t before = days_.size();
+    const uint32_t crc_before = crc32_of(reinterpret_cast<const uint8_t*>(days_.data()), before * sizeof(DayRec));
+    compact_history();
+    if (days_.size() != before ||
+        crc32_of(reinterpret_cast<const uint8_t*>(days_.data()), days_.size() * sizeof(DayRec)) != crc_before) {
+        hist_dirty_ = true;
+        ESP_LOGI(TAG, "history migrated: %u -> %u records", static_cast<unsigned>(before), static_cast<unsigned>(days_.size()));
+    }
     ESP_LOGI(TAG, "history: %u days (%s)", static_cast<unsigned>(days_.size()), part_ ? "partition" : "nvs fallback");
 }
 
@@ -397,7 +406,7 @@ void EnergyStats::flush_history()
     xSemaphoreGive(mutex_);
 }
 
-// Day records older than 4 years become week sums, week sums older than 6 years month sums.
+// Day records older than the current month's length become week sums, week sums older than 6 years month sums.
 void EnergyStats::compact_history()
 {
     if (days_.empty()) return;
@@ -412,7 +421,9 @@ void EnergyStats::compact_history()
             const size_t pos = first_of(from);
             if (pos >= days_.size() || rec_kind(days_[pos]) != from || rec_idx(days_[pos]) >= today - limit) break;
             PeriodRecord p = to_period(days_[pos]);
-            if (to == 1) p.key = week_key(p.key); else p.key = p.key / 100 * 100 + 1;
+            if (to == 1) p.key = week_key(p.key);
+            else if (to == 2) p.key = p.key / 100 * 100 + 1;
+            else p.key = p.key / 10000 * 10000 + 101;
             if (pos > 0 && rec_kind(days_[pos - 1]) == to) {
                 PeriodRecord prev = to_period(days_[pos - 1]);
                 if (prev.key == p.key) {
@@ -425,8 +436,15 @@ void EnergyStats::compact_history()
             days_[pos] = to_rec(p, to);
         }
     };
-    fold(0, 1, kDayRetention);
+    // Days are kept for as many days as the current month has (28-31), older ones become week sums.
+    const int key = to_period(days_.back()).key;
+    const int y = key / 10000, m = key / 100 % 100;
+    static const int mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int dim = (m >= 1 && m <= 12) ? mdays[m - 1] : 31;
+    if (m == 2 && (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0))) dim = 29;
+    fold(0, 1, dim);
     fold(1, 2, kWeekRetention);
+    fold(2, 3, kMonthRetention);
 }
 
 // Closes the running day (date_key_) into the day and month history. Called under mutex_.
@@ -694,10 +712,10 @@ std::string EnergyStats::history_json() const
 
 std::string EnergyStats::stats_json(double price_import, double price_export, const char* currency) const
 {
-    static constexpr size_t kJsonDays = 62, kJsonWeeks = 53, kJsonMonths = 72;
+    static constexpr size_t kJsonDays = 62, kJsonWeeks = 53, kJsonMonths = 72, kJsonYears = 12;
     TariffConfig tariff_cfg;
     ConfigStore::get().load_tariff(tariff_cfg);
-    std::vector<PeriodRecord> days, weeks, months;
+    std::vector<PeriodRecord> days, weeks, months, years;
     PeriodRecord today{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     auto feed = [&](const PeriodRecord& d, unsigned kind) {
         const uint32_t wk = week_key(d.key), mk = d.key / 100;
@@ -705,8 +723,13 @@ std::string EnergyStats::stats_json(double price_import, double price_export, co
             if (weeks.empty() || weeks.back().key != wk) weeks.push_back(PeriodRecord{wk, 0, 0, 0, 0, 0, 0, 0, 0, 0});
             add_period(weeks.back(), d);
         }
-        if (months.empty() || months.back().key != mk) months.push_back(PeriodRecord{mk, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-        add_period(months.back(), d);
+        if (kind < 3) {
+            if (months.empty() || months.back().key != mk) months.push_back(PeriodRecord{mk, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+            add_period(months.back(), d);
+        }
+        const uint32_t yk = d.key / 10000;
+        if (years.empty() || years.back().key != yk) years.push_back(PeriodRecord{yk, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+        add_period(years.back(), d);
     };
     xSemaphoreTake(mutex_, portMAX_DELAY);
     const size_t n = days_.size();
@@ -736,6 +759,7 @@ std::string EnergyStats::stats_json(double price_import, double price_export, co
     xSemaphoreGive(mutex_);
     if (weeks.size() > kJsonWeeks) weeks.erase(weeks.begin(), weeks.end() - kJsonWeeks);
     if (months.size() > kJsonMonths) months.erase(months.begin(), months.end() - kJsonMonths);
+    if (years.size() > kJsonYears) years.erase(years.begin(), years.end() - kJsonYears);
 
     std::string out;
     out.reserve((days.size() + weeks.size() + months.size()) * 120 + 128);
@@ -744,23 +768,33 @@ std::string EnergyStats::stats_json(double price_import, double price_export, co
     out += "\",\"today\":";
     out += std::to_string(today.key);
     char buf[288];
-    auto emit = [&](const char* name, const std::vector<PeriodRecord>& v, uint32_t running_key) {
+    // "q" is a stable sequence number per level (day/week/month/year since 2020) that clients can cache by.
+    auto seq_of = [](unsigned kind, uint32_t key) -> int32_t {
+        switch (kind) {
+            case 0: return day_index(key);
+            case 1: return (day_index(key) + 2) / 7;
+            case 2: return static_cast<int32_t>((key / 100 - 2020) * 12 + key % 100 - 1);
+            default: return static_cast<int32_t>(key) - 2020;
+        }
+    };
+    auto emit = [&](const char* name, unsigned kind, const std::vector<PeriodRecord>& v, uint32_t running_key) {
         out += ",\"";
         out += name;
         out += "\":[";
         for (size_t i = 0; i < v.size(); ++i) {
-            snprintf(buf, sizeof(buf), "%s{\"k\":%" PRIu32 ",\"i\":%" PRIu32 ",\"e\":%" PRIu32 ",\"c\":%" PRId32
+            snprintf(buf, sizeof(buf), "%s{\"k\":%" PRIu32 ",\"q\":%" PRId32 ",\"i\":%" PRIu32 ",\"e\":%" PRIu32 ",\"c\":%" PRId32
                      ",\"pv\":%" PRIu32 ",\"bc\":%" PRIu32 ",\"bd\":%" PRIu32 ",\"s\":%" PRId32 ",\"wb\":%" PRIu32 ",\"wm\":%" PRId32 "%s}",
-                     i ? "," : "", v[i].key, v[i].import_wh, v[i].export_wh, v[i].cost_milli,
+                     i ? "," : "", v[i].key, seq_of(kind, v[i].key), v[i].import_wh, v[i].export_wh, v[i].cost_milli,
                      v[i].pv_wh, v[i].bat_chg_wh, v[i].bat_dis_wh, v[i].sav_milli, v[i].wb_wh, v[i].wb_milli,
                      v[i].key == running_key ? ",\"p\":1" : "");
             out += buf;
         }
         out += ']';
     };
-    emit("days", days, today.key);
-    emit("weeks", weeks, today.key != 0 ? week_key(today.key) : 0);
-    emit("months", months, today.key / 100);
+    emit("days", 0, days, today.key);
+    emit("weeks", 1, weeks, today.key != 0 ? week_key(today.key) : 0);
+    emit("months", 2, months, today.key / 100);
+    emit("years", 3, years, today.key / 10000);
     out += '}';
     return out;
 }

@@ -307,7 +307,7 @@ class DashboardView(context: Context) : ScrollView(context) {
         val c = card(null)
         val tabs = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         tabs.addView(label("Statistik").apply { setPadding(0, 0, dp(10), 0) })
-        listOf("days" to "Tage", "weeks" to "Wochen", "months" to "Monate").forEach { (key, name) ->
+        listOf("days" to "Tage", "weeks" to "Wochen", "months" to "Monate", "years" to "Jahre").forEach { (key, name) ->
             val sel = key == statsView
             tabs.addView(Button(context).apply {
                 text = name

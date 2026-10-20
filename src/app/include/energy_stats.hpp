@@ -50,11 +50,11 @@ struct PeriodRecord {
     int32_t  wb_milli;     ///< wallbox result: reimbursement - import price * energy
 };
 
-/// Compact stored period (20 bytes). Tiered retention: days (<4 years), weeks (4-6 years), months (older).
-/// Energy and money are stored in units of 1 / 10 / 100 Wh resp. 0.01 / 0.1 / 1 currency for day / week / month.
+/// Compact stored period (20 bytes). Tiered retention: days (current month length), weeks (up to 26 weeks), months (up to 24 months), years (older).
+/// Energy and money are stored in units of 1 / 10 / 100 / 1000 Wh resp. 0.01 / 0.1 / 1 / 10 currency for day / week / month / year.
 #pragma pack(push, 1)
 struct DayRec {
-    uint16_t day;      ///< bits 0-13: days since 2020-01-01 (week: Monday, month: 1st), bits 14-15: 0 day, 1 week, 2 month
+    uint16_t day;      ///< bits 0-13: days since 2020-01-01 (week: Monday, month: 1st), bits 14-15: 0 day, 1 week, 2 month, 3 year (Jan 1st)
     uint16_t imp, exp, pv, chg, dis, wb;
     int16_t  cost_c, sav_c, wbres_c;
 };
@@ -88,8 +88,8 @@ public:
     /// Prices are only used for the running day; closed periods keep their stored cost.
     std::string stats_json(double price_import, double price_export, const char* currency) const;
 
-    static constexpr int kDayRetention  = 1461;  ///< days kept as day records (4 years)
-    static constexpr int kWeekRetention = 2191;  ///< older than this only month sums (6 years)
+    static constexpr int kWeekRetention  = 182;  ///< weeks older than this become month sums (~26 weeks)
+    static constexpr int kMonthRetention = 730;  ///< months older than this become year sums (24 months)
     static constexpr size_t kMaxRecords = 3000;  ///< below the 3276 records of one history slot
 
     /// Ring buffer capacity — sized for ~6h of samples at the default 30s

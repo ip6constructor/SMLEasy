@@ -468,7 +468,18 @@ siehe offene Entscheidungen, nichts davon umgesetzt.
 Rueckweg: vorheriges IDF-6-Image per OTA; fuer die vorige Konfiguration die vier
 `MBEDTLS_DYNAMIC_*`-Zeilen entfernen und `max_open_sockets` zuruecksetzen.
 
+### 2026-10-20 (abends): gestufte Statistik-Aufbewahrung mit Jahresstufe und Sequenznummern
+
+Betroffene Phase: Statistikspeicher (Firmware), kein Relay, kein P4-P7.
+
+- Aufbewahrung: Tage = Anzahl Tage des laufenden Monats (28-31), danach Wochensummen bis 182 Tage, danach Monate bis 730 Tage, danach Jahressummen (neue Stufe 3 in `DayRec.day` Bits 14-15, Einheit 1000 Wh). Rest liegt in Home Assistant.
+- Migration: `load_history()` faltet vorhandene Datensaetze beim Start einmalig (`compact_history()`) und schreibt sie neu (`history migrated`-Log). Nicht umkehrbar: ein altes Image liest die Datensaetze, kennt aber Stufe 3 nicht und wuerde Jahre als Monate lesen. Ruecksicherung: `/api/stats`, `/api/history`, `/api/status` vom 2026-10-20 unter `%USERPROFILE%\smleasy-backup-20261020` (nicht im Git).
+- API (nur additiv): `/api/stats` hat je Eintrag das Feld `q` (Sequenznummer je Stufe: Tag/Woche/Monat/Jahr seit 2020, zustandslos aus dem Datum) und ein neues Array `years`. Bestehende Felder unveraendert. Dashboard und App zeigen `years` noch nicht an.
+- Messung am C3 (192.168.1.172, ESP-IDF 6.1, BIN 1.790.xxx Byte, Slot-Reserve 9 %): nach OTA Heap 100.800 frei, min 57.908, groesster Block 73.728, Reset-Grund 3. Es gab nur 9 Tage Historie: keine sichtbare Faltung, Jahreseintrag 2026 wird aus den Monaten abgeleitet. Die Faltung ueber alte Daten und die Rundung bei Stufe 3 sind nicht auf dem Geraet getestet.
+- Risiken: Rundung je Faltung (<= 0,5 kWh/Monat bei Jahressummen); Faltung nutzt den letzten Datensatz als "heute", bei falscher Uhr nicht korrekt.
+
 ### 2026-10-19: lokales Pairing, App-Verwaltung, IPv6-first und KPI-Leiste
+
 
 Betroffene Phase: Entwicklungsstand fuer P3/P4; keine produktive P4-/P5-Aktivierung.
 Kein Flashen, keine Aenderung an Partitionen, OTA-Slots oder eFuses.

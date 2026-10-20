@@ -240,6 +240,29 @@ Der Server prueft Account -> Meter -> Device fuer jeden Download/Grant.
 - Noch nicht hochgeladene Daten eines physisch zerstoerten ESP koennen verloren
   sein. Austauschbarkeit garantiert keine Rettung ungesicherter Flashdaten.
 
+## 8a. Entscheidungen des Betreibers (2026-10-20, Entwurf Push-Relay)
+
+Nur Entscheidungen, keine Implementierung. Offene Punkte stehen unten.
+
+- Zwei Schluessel: Geraeteschluessel (Identitaet, nur fuer die Gueltigkeitspruefung
+  gegenueber dem Server) und ein davon getrennter Datenschluessel fuer Verschluesselung
+  und Signatur einzelner JSON-Teile. Der Datenschluessel wird beim lokalen Koppeln
+  verschluesselt zwischen ESP und App geteilt und dem Server nie bekannt.
+- Klartext im Paket nur, was der Server fuer Sequenz/Dedup braucht (Geraete-ID, epoch,
+  seq, Zeitstempel, Stufe, q). Alles Weitere verschluesselt; Signatur ueber das ganze Paket.
+- Aufbewahrung auf dem Server: nur das letzte Paket plus abgeschlossene Perioden
+  (Tage = Monatslaenge, dann Wochen, Monate, Jahre); der Rest liegt in Home Assistant.
+- Verlust/Tausch: keine Wiederherstellung der Cloud-Daten. Ein ersetztes Geraet wird neu
+  gekoppelt. Ein Geraet, das 6 Wochen nicht pusht, wird samt Eintrag, Schluessel und Daten
+  auf dem Server geloescht; es registriert sich nicht automatisch neu.
+- Limit: 4 Apps/Clients pro ESP.
+- Widerspruch zu Abschnitt 8 (Recoverybackup, Historie behalten) bewusst: gilt fuer das
+  Relay nicht; Abschnitt 8 bleibt fuer einen spaeteren Server mit Wiederherstellung.
+
+Offen: Verfahren (libsodium/HPKE/mbedTLS, Messung Flash/Heap auf dem C3), Schluesselversion
+(`kid`) bei Rotation, Datenschluessel im Web-Client, Limit fuer Registrierungen/Pushes,
+Warnung der App vor Ablauf der 6 Wochen, Webgo-Eignung (PHP-Version, sodium, Header, Cron).
+
 ## 9. Produktions-Gate und Tests
 
 Secure Boot und Flash Encryption nicht automatisch aktivieren. C3-Chiprevision,

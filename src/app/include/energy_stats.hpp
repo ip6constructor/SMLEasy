@@ -79,6 +79,8 @@ public:
     StatsSnapshot snapshot() const;
     DailyBaselineSnapshot daily_baseline() const;
     bool set_daily_baseline(int32_t import_wh, int32_t export_wh);
+    /// Corrects the PV energy of the running day or a stored single day (key yyyymmdd).
+    bool set_pv_wh(uint32_t key, uint32_t pv_wh, double price_import);
 
     /// JSON array of {"t":epoch_s,"p":watts}, oldest first.
     std::string history_json() const;
@@ -132,6 +134,9 @@ private:
     // Last seen cumulative HA counters (Wh); energy of a period = difference of the counter.
     double last_cnt_wh_[4]{0, 0, 0, 0};
     bool   have_cnt_[4]{false, false, false, false};
+    // Counter values at the start of the running day (pv, charge, discharge, wallbox); today = counter - start.
+    double day_start_cnt_wh_[4]{0, 0, 0, 0};
+    bool   have_start_cnt_[4]{false, false, false, false};
     double wb_wh_{0};
     int64_t last_integration_us_{0};
     int64_t last_acc_persist_us_{0};

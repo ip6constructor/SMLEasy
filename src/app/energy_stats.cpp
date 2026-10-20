@@ -192,9 +192,15 @@ void EnergyStats::load_persisted_day()
         bat_dis_wh_ = acc_dis;
     }
     static const char* const kCntKeys[4] = {"cnt_pv", "cnt_chg", "cnt_dis", "cnt_wb"};
+    static const char* const kStartKeys[4] = {"st_pv", "st_chg", "st_dis", "st_wb"};
     for (int i = 0; i < 4; ++i) {
         uint32_t wh = 0;
         if (nvs_get_u32(handle, kCntKeys[i], &wh) == ESP_OK) { last_cnt_wh_[i] = wh; have_cnt_[i] = true; }
+        int64_t st = 0;
+        if (acc_date == date_key && date_key != 0 && nvs_get_i64(handle, kStartKeys[i], &st) == ESP_OK) {
+            day_start_cnt_wh_[i] = static_cast<double>(st);
+            have_start_cnt_[i] = true;
+        }
     }
     nvs_close(handle);
     if (!valid) return;
@@ -316,8 +322,12 @@ void EnergyStats::persist_accumulators() const
     if (err == ESP_OK) err = nvs_set_u32(handle, "acc_dis", static_cast<uint32_t>(bat_dis_wh_));
     if (err == ESP_OK) err = nvs_set_u32(handle, "acc_wb", static_cast<uint32_t>(wb_wh_));
     static const char* const kCntKeys[4] = {"cnt_pv", "cnt_chg", "cnt_dis", "cnt_wb"};
-    for (int i = 0; i < 4 && err == ESP_OK; ++i)
+    static const char* const kStartKeys[4] = {"st_pv", "st_chg", "st_dis", "st_wb"};
+    for (int i = 0; i < 4 && err == ESP_OK; ++i) {
         if (have_cnt_[i]) err = nvs_set_u32(handle, kCntKeys[i], static_cast<uint32_t>(last_cnt_wh_[i]));
+        if (err == ESP_OK && have_start_cnt_[i])
+            err = nvs_set_i64(handle, kStartKeys[i], static_cast<int64_t>(day_start_cnt_wh_[i]));
+    }
     if (err == ESP_OK) nvs_commit(handle);
     nvs_close(handle);
 }
@@ -337,12 +347,28 @@ void EnergyStats::integrate_ha_power()
         double wh = 0;
         if (!ExtData::get().role_energy_wh(kRoles[i], wh)) continue;
         counter_used[i] = true;
-        // 0 or a lower value means "not available yet" for a total counter: keep the last known reading
-        if (wh <= 0 || (have_cnt_[i] && wh < last_cnt_wh_[i])) continue;
-        if (have_cnt_[i]) {
-            const double delta = wh - last_cnt_wh_[i];
-            if (delta > 0 && delta < 1.0e6) *targets[i] += delta;
+        if (wh <= 0) continue;
+        // A lower value is first treated as a glitch; if it persists for 2 minutes the counter was reset
+        // (e.g. a daily energy sensor at midnight): the start is moved so that today's value is kept.
+        static int64_t lower_since_us[4] = {0, 0, 0, 0};
+        if (have_cnt_[i] && wh < last_cnt_wh_[i]) {
+            if (lower_since_us[i] == 0) lower_since_us[i] = now_us;
+            if (now_us - lower_since_us[i] < 120LL * 1000000) continue;
+            day_start_cnt_wh_[i] = wh - *targets[i];
+            have_start_cnt_[i] = true;
+            last_cnt_wh_[i] = wh;
+            lower_since_us[i] = 0;
+            continue;
         }
+        lower_since_us[i] = 0;
+        if (!have_start_cnt_[i]) {
+            // First reading of the day: bridge the gap since the last persisted counter.
+            day_start_cnt_wh_[i] = (have_cnt_[i] ? last_cnt_wh_[i] : wh) - *targets[i];
+            have_start_cnt_[i] = true;
+        }
+        // Implausible jump (> 1000 kWh, e.g. sensor exchange) is not counted as energy.
+        if (have_cnt_[i] && wh - last_cnt_wh_[i] >= 1.0e6) day_start_cnt_wh_[i] += wh - last_cnt_wh_[i];
+        *targets[i] = std::max(0.0, wh - day_start_cnt_wh_[i]);
         last_cnt_wh_[i] = wh;
         have_cnt_[i] = true;
     }
@@ -478,6 +504,10 @@ void EnergyStats::finalize_day()
                      static_cast<uint32_t>(wb_wh_ + 0.5),
                      wb_milli_of(static_cast<uint32_t>(wb_wh_ + 0.5), tariff.price_import_kwh, tariff.wallbox_refund_kwh)};
     pv_wh_ = bat_chg_wh_ = bat_dis_wh_ = wb_wh_ = 0;
+    for (int i = 0; i < 4; ++i) {
+        have_start_cnt_[i] = have_cnt_[i];
+        day_start_cnt_wh_[i] = last_cnt_wh_[i];
+    }
     days_.push_back(to_rec(rec));
     compact_history();
     while (days_.size() > kMaxRecords) days_.erase(days_.begin());
@@ -689,6 +719,34 @@ bool EnergyStats::set_daily_baseline(int32_t import_wh, int32_t export_wh)
     }
     xSemaphoreGive(mutex_);
     return true;
+}
+
+bool EnergyStats::set_pv_wh(uint32_t key, uint32_t pv_wh, double price_import)
+{
+    if (pv_wh > 65535) return false;
+    bool ok = false;
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    if (key == date_key_) {
+        pv_wh_ = pv_wh;
+        if (have_cnt_[0]) {
+            day_start_cnt_wh_[0] = last_cnt_wh_[0] - pv_wh;
+            have_start_cnt_[0] = true;
+        }
+        persist_accumulators();
+        ok = persist_day_snapshot();
+    } else {
+        const int idx = day_index(key);
+        for (auto& r : days_) {
+            if (rec_kind(r) != 0 || rec_idx(r) != idx) continue;
+            r.pv = static_cast<uint16_t>(pv_wh);
+            r.sav_c = encs16(saving_milli_of(pv_wh, r.exp, price_import), 1);
+            hist_dirty_ = true;
+            ok = true;
+            break;
+        }
+    }
+    xSemaphoreGive(mutex_);
+    return ok;
 }
 
 std::string EnergyStats::history_json() const

@@ -112,6 +112,7 @@ body.eh-edit .eh-tile{cursor:move;outline:2px dashed #38bdf8}
 .eh-flowbar.l i{animation-direction:reverse}.eh-flowbar.idle i{animation:none;background:rgba(148,163,184,.25)}
 @keyframes ehrun{to{background-position:1.5em 0}}
 .eh-tile[data-k=grid]{min-width:230px}.eh-tile[data-k=grid] .eh-row{font-size:1.25em;padding:3px 0}.eh-tile[data-k=grid] .eh-row span:last-child{font-weight:700}
+.eh-gauge{display:block;width:130px;height:130px;margin:6px auto 2px}.eh-gauge path{fill:none;stroke-width:8}.eh-gauge .bg{stroke:#334155}.eh-gauge .fl{transition:stroke-dasharray .9s ease}.eh-gauge circle{transition:fill .5s}
 .eh-soc i{flex:1;height:.8em;border-radius:3px;background:rgba(148,163,184,.25)}
 .eh-soc i.red{background:#ef4444}.eh-soc i.yellow{background:#f59e0b}.eh-soc i.green{background:#22c55e}
 )rawcss";
@@ -206,6 +207,7 @@ const UI_TEXT = {
   'E-Auto': ['EV', 'E-Auto', 'EV', 'VE', 'EV'],
   'Eigenverbrauch': ['Self-consumption', 'Eigenverbrauch', 'Eigenverbruik', 'Autoconsommation', 'Autokonsumpcja'],
   'Gesamterzeugung': ['Total generation', 'Gesamterzeugung', 'Totale opwekking', 'Production totale', 'Całkowita produkcja'],
+  'Summe': ['Total', 'Summe', 'Totaal', 'Total', 'Suma'],
   'Netzkosten heute': ['Grid cost today', 'Netzkosten heute', 'Netkosten vandaag', 'Coût réseau aujourd\'hui', 'Koszt sieci dzisiaj'],
   'Monat': ['Month', 'Monat', 'Maand', 'Mois', 'Miesiąc'],
   'SMLEasy Dashboard': ['SMLEasy Dashboard', 'SMLEasy Dashboard', 'SMLEasy Dashboard', 'Tableau de bord SMLEasy', 'Panel SMLEasy'],
@@ -1677,14 +1679,17 @@ function renderStats() {
   const head = table.tHead;
   head.replaceChildren();
   const hr = head.insertRow();
-  cols.forEach(c => { const th = document.createElement('th'); th.textContent = localizedText(c); hr.appendChild(th); });
+  cols.forEach((c, i) => { const th = document.createElement('th'); th.textContent = localizedText(c); if (i) th.style.textAlign = 'right'; hr.appendChild(th); });
   const body = table.tBodies[0];
   body.replaceChildren();
+  const tot = {i: 0, e: 0, pv: 0, bc: 0, bd: 0, house: 0, grid: 0, c: 0, s: 0, wb: 0, wm: 0};
   rows.forEach(r => {
     const house = Math.max(0, r.i - r.e + r.pv - r.bc + r.bd);
     const pvDirect = Math.max(0, r.pv - r.e - r.bc);
     const grid = Math.max(0, house - pvDirect - r.bd);
     const own = house > 0 ? Math.round(100 * (house - grid) / house) : 0;
+    tot.i += r.i; tot.e += r.e; tot.pv += r.pv; tot.bc += r.bc; tot.bd += r.bd; tot.house += house; tot.grid += grid;
+    tot.c += r.c; tot.s += r.s; tot.wb += r.wb; tot.wm += r.wm;
     const cells = [statsLabel(statsView, r.k) + (r.p ? ' *' : ''), kwh(r.i), kwh(r.e)];
     if (hasPv) cells.push(kwh(r.pv), kwh(r.bc) + ' / ' + kwh(r.bd), kwh(house), String(own));
     cells.push(money(r.c));
@@ -1693,6 +1698,16 @@ function renderStats() {
     const tr = body.insertRow();
     cells.forEach((c, i) => { const td = tr.insertCell(); td.textContent = c; if (i) td.className = 'value'; });
   });
+  if (rows.length) {
+    const ownTot = tot.house > 0 ? Math.round(100 * (tot.house - tot.grid) / tot.house) : 0;
+    const sum = [localizedText('Summe'), kwh(tot.i), kwh(tot.e)];
+    if (hasPv) sum.push(kwh(tot.pv), kwh(tot.bc) + ' / ' + kwh(tot.bd), kwh(tot.house), String(ownTot));
+    sum.push(money(tot.c));
+    if (hasPv) sum.push(money(tot.s));
+    if (hasWb) sum.push(kwh(tot.wb), money(tot.wm));
+    const tr = body.insertRow();
+    sum.forEach((c, i) => { const td = tr.insertCell(); td.textContent = c; td.style.fontWeight = '700'; td.style.borderTop = '2px solid var(--border-strong)'; if (i) td.className = 'value'; });
+  }
   document.querySelectorAll('[data-stats-view]').forEach(b => {
     b.className = 'btn ' + (b.dataset.statsView === statsView ? 'btn-blue' : 'btn-gray');
   });
@@ -3072,6 +3087,25 @@ const EH_IC = {
   euro: '<svg class="eh-ic" viewBox="0 0 24 24"><path d="M17 6a7 7 0 1 0 0 12M4 10h9M4 14h9"/></svg>'
 };
 function ehHd(icon, color, title) { return '<div class="eh-hd" style="color:' + color + '">' + EH_IC[icon] + '<h3 style="color:#cbd5e1">' + title + '</h3></div>'; }
+const EH_GRID_PTS = [[0, 0], [10, 10], [50, 25], [100, 35], [500, 55], [1000, 70], [2500, 85], [5000, 100]];
+function ehGridPct(w) {
+  const a = Math.abs(w);
+  if (a >= 5000) return 100;
+  for (let i = 1; i < EH_GRID_PTS.length; i++) {
+    const p = EH_GRID_PTS[i - 1], q = EH_GRID_PTS[i];
+    if (a <= q[0]) return p[1] + (q[1] - p[1]) * (a - p[0]) / (q[0] - p[0]);
+  }
+  return 100;
+}
+function ehGauge(prev, w) {
+  const a = Math.abs(w), c = w > 0 ? '#ef4444' : '#22c55e';
+  const dot = (x, on) => '<circle cx="' + x + '" cy="50" r="4" fill="' + (on ? c : '#334155') + '"/>';
+  return '<svg class="eh-gauge" viewBox="0 0 100 100" aria-hidden="true">'
+    + '<path class="bg" pathLength="100" d="M50 92A42 42 0 0 1 50 8"/><path class="bg" pathLength="100" d="M50 92A42 42 0 0 0 50 8"/>'
+    + '<path class="fl gl" pathLength="100" stroke="#ef4444" style="stroke-dasharray:' + prev.l + ' 100" d="M50 92A42 42 0 0 1 50 8"/>'
+    + '<path class="fl gr" pathLength="100" stroke="#22c55e" style="stroke-dasharray:' + prev.r + ' 100" d="M50 92A42 42 0 0 0 50 8"/>'
+    + dot(42, a >= 10000) + dot(58, a >= 20000) + '</svg>';
+}
 function ehTile(icon, color, title, value, rows, sub, extra) {
   let h = '<div class="eh-top" style="color:' + color + '">' + EH_IC[icon] + '<div><h3>' + title + '</h3>' + (sub ? '<small style="color:#94a3b8">' + sub + '</small>' : '') + '<span class="eh-val">' + value + '</span></div></div>';
   if (extra) h += extra;
@@ -3116,7 +3150,18 @@ async function ehRefresh() {
     ehSet('pvo', ehTile('sun', '#fbbf24', T('PV Ost'), pvEast === null ? '\u2014' : ehKw(pvEast), prow(pvEast, pk.e), null, pbar(pvEast, pk.e)));
     const hc = gridW > 0 ? '#60a5fa' : '#fbbf24';
     ehSet('house', ehTile('house', hc, T('Hausverbrauch'), typeof d.today_house_kwh === 'number' ? d.today_house_kwh.toFixed(1) + ' kWh' : '\u2014', [[T('Leistung'), Math.round(Math.max(0, houseW)) + ' W'], [T('Monat'), typeof d.month_house_kwh === 'number' ? d.month_house_kwh.toFixed(0) + ' kWh' : '?']], T('Heute')));
-    ehSet('grid', ehTile('pylon', '#ef4444', T('Stromnetz'), Math.round(Math.abs(gridW)) + ' W', [[T('Bezug') + ' (' + T('Heute') + ')', (d.today_import_kwh || 0).toFixed(2) + ' kWh', '#ef4444'], [T('Einspeisung') + ' (' + T('Heute') + ')', (d.today_export_kwh || 0).toFixed(2) + ' kWh', '#fbbf24']], null, '<div class="eh-flowbar ' + (Math.abs(gridW) < 5 ? 'idle' : gridW > 0 ? 'l' : 'r') + '" style="--c:' + (gridW > 0 ? '#ef4444' : '#fbbf24') + '"><i></i></div>'));
+    const gp = ehGridPct(gridW), gimp = gridW > 0, gact = Math.abs(gridW) >= 1;
+    const gcur = {l: gimp && gact ? gp : 0, r: !gimp && gact ? gp : 0};
+    const gprev = window.ehGridPrev || {l: 0, r: 0};
+    ehSet('grid', ehTile('pylon', gridW < 0 ? '#22c55e' : '#ef4444', T('Stromnetz'), Math.round(Math.abs(gridW)) + ' W', [[T('Bezug') + ' (' + T('Heute') + ')', (d.today_import_kwh || 0).toFixed(2) + ' kWh', '#ef4444'], [T('Einspeisung') + ' (' + T('Heute') + ')', (d.today_export_kwh || 0).toFixed(2) + ' kWh', '#22c55e']], null, ehGauge(gprev, gridW)));
+    window.ehGridPrev = gcur;
+    setTimeout(() => {
+      const gt = document.querySelector('.eh-tile[data-k="grid"]');
+      if (!gt) return;
+      const gl = gt.querySelector('.gl'), gr = gt.querySelector('.gr');
+      if (gl) gl.style.strokeDasharray = gcur.l + ' 100';
+      if (gr) gr.style.strokeDasharray = gcur.r + ' 100';
+    }, 30);
     const pct = soc ? Math.max(0, Math.min(100, soc.value)) : null;
     const on = pct === null ? 0 : (pct > 0 ? Math.max(1, Math.round(pct / 20)) : 0);
     const col = pct === null ? '' : pct < 40 ? 'red' : pct > 60 ? 'green' : 'yellow';

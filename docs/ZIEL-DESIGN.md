@@ -468,6 +468,40 @@ siehe offene Entscheidungen, nichts davon umgesetzt.
 Rueckweg: vorheriges IDF-6-Image per OTA; fuer die vorige Konfiguration die vier
 `MBEDTLS_DYNAMIC_*`-Zeilen entfernen und `max_open_sockets` zuruecksetzen.
 
+### 2026-10-20 (nachts): Tageswerte aus Zaehlerstaenden, Korrektur-Endpunkt, Netz-Kreis, Summenzeile
+
+Betroffene Phase: Statistik (Firmware) und lokales Web-Dashboard. Kein Relay, kein P4-P7.
+
+- PV, Batterie laden/entladen und Wallbox: Tageswert = HA-Zaehlerstand minus
+  Zaehlerstand zum Tagesstart (`day_start_cnt_wh_`, NVS-Keys `st_pv`, `st_chg`,
+  `st_dis`, `st_wb`, i64 Wh, nur fuer den laufenden Tag). Beim Tageswechsel wird der
+  letzte Zaehlerstand zum neuen Start. Ein dauerhaft (>= 120 s) niedrigerer Stand
+  (Zaehler-Reset) oder ein Sprung >= 1000 kWh verschiebt nur den Start; der
+  Tageswert bleibt erhalten. Ohne gespeicherten Start wird der letzte persistierte
+  Zaehlerstand verwendet, so geht die Luecke ueber einen Neustart nicht verloren.
+  `acc_*`/`cnt_*` bleiben unveraendert gespeichert (Rueckweg auf das alte Image).
+- Ursache der falschen PV-Zahlen: HA-Rolle `pv_kwh` war ein Tageszaehler;
+  umgestellt auf `sensor.goodwe_total_pv_generation` (Lebenszaehler, 1927,9 kWh).
+- Neuer Endpunkt `POST /api/stats/pv` (Auth) `{"key":yyyymmdd,"pv_wh":n}`: setzt PV
+  eines gespeicherten Tages (Ersparnis wird neu berechnet) oder des laufenden Tages
+  (Start wird angepasst). `max_uri_handlers` 56 -> 64. Alte Vertraege unveraendert.
+- Korrigierte Tage (manuell vom Betreiber): 17.10. 45,6; 18.10. 9,9; 19.10. 38,6;
+  20.10. 34,4 kWh. 12.-16.10. unveraendert (nicht bekannt). Backup vor der Aenderung
+  unter `%USERPROFILE%\smleasy-backup-20261020\b2` (nicht im Git).
+- Web: Netz-Kachel mit nichtlinearem Kreis (rot Bezug links, gruen Einspeisung
+  rechts, 5 kW = 12 Uhr, Punkte 10/20 kW), rechtsbuendige Tabellenueberschriften,
+  Summenzeile in Tage/Wochen/Monate/Jahre. Android-App unveraendert (/api/stats
+  bleibt kompatibel).
+
+Tests: Build IDF 6.1 OK (BIN 0x1b6470, 9 % Slot-Reserve, unter dem 20-%-Ziel); OTA
+auf C3 192.168.1.172; Korrekturwerte nach zwei Neustarts unveraendert;
+Reset-Grund 3; Heap frei 93.476 (min 62.960) kurz nach Boot. Nicht getestet: Tageswechsel
+mit Lebenszaehler (erst morgen), Zaehler-Reset im Betrieb, Netz-Kreis und
+Summenzeile optisch, Langzeitlauf, S3/andere Hardware.
+
+Risiken: Heap-Minimum niedrig, Slot-Reserve knapp. Rueckweg: vorheriges Image per OTA
+(unbekannte `st_*`-Keys werden ignoriert).
+
 ### 2026-10-20 (abends): gestufte Statistik-Aufbewahrung mit Jahresstufe und Sequenznummern
 
 Betroffene Phase: Statistikspeicher (Firmware), kein Relay, kein P4-P7.

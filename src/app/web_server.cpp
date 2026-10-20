@@ -1005,7 +1005,7 @@ esp_err_t WebServer::start(uint16_t port)
 {
     httpd_config_t http_cfg = HTTPD_DEFAULT_CONFIG();
     http_cfg.server_port = port;
-    http_cfg.max_uri_handlers = 56;
+    http_cfg.max_uri_handlers = 64;
     http_cfg.stack_size = SMLEASY_LOCAL_HTTPS ? 10240 : 8192;
 #if SMLEASY_LOCAL_HTTPS
     http_cfg.max_open_sockets = 6;
@@ -1094,6 +1094,7 @@ void WebServer::register_routes(httpd_handle_t server)
         { "/api/config/tariff",   HTTP_POST, handle_tariff_save,       nullptr },
         { "/api/config/daily-baseline", HTTP_GET, handle_daily_baseline_get, nullptr },
         { "/api/config/daily-baseline", HTTP_POST, handle_daily_baseline_save, nullptr },
+        { "/api/stats/pv",        HTTP_POST, handle_stats_pv,         nullptr },
         { "/api/start",           HTTP_POST, handle_start,            nullptr },
         { "/api/start_continuous", HTTP_POST, handle_start_continuous, nullptr },
         { "/api/stop",            HTTP_POST, handle_stop,             nullptr },
@@ -1182,7 +1183,7 @@ esp_err_t WebServer::start_https()
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     httpd_ssl_config_t ssl_cfg = HTTPD_SSL_CONFIG_DEFAULT();
 #pragma GCC diagnostic pop
-    ssl_cfg.httpd.max_uri_handlers = 56;
+    ssl_cfg.httpd.max_uri_handlers = 64;
     ssl_cfg.httpd.stack_size = 10240;
     ssl_cfg.httpd.max_open_sockets = 4;
     ssl_cfg.httpd.lru_purge_enable = true;
@@ -2178,6 +2179,35 @@ esp_err_t WebServer::handle_daily_baseline_get(httpd_req_t* req)
     cJSON_free(text);
     cJSON_Delete(root);
     return send_json(req, body);
+}
+
+esp_err_t WebServer::handle_stats_pv(httpd_req_t* req)
+{
+    REQUIRE_AUTH(req);
+    std::string raw;
+    if (req->content_len == 0 || req->content_len > 256 || read_body(req, raw) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid pv correction request");
+        return ESP_FAIL;
+    }
+    cJSON* json = cJSON_ParseWithLength(raw.c_str(), raw.size());
+    cJSON* key = json ? cJSON_GetObjectItem(json, "key") : nullptr;
+    cJSON* pv = json ? cJSON_GetObjectItem(json, "pv_wh") : nullptr;
+    const bool valid = cJSON_IsNumber(key) && cJSON_IsNumber(pv) && key->valuedouble >= 20200101 &&
+                       key->valuedouble <= 20991231 && pv->valuedouble >= 0 && pv->valuedouble <= 65535;
+    const uint32_t k = valid ? static_cast<uint32_t>(key->valuedouble) : 0;
+    const uint32_t wh = valid ? static_cast<uint32_t>(pv->valuedouble + 0.5) : 0;
+    cJSON_Delete(json);
+    if (!valid) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "key yyyymmdd and pv_wh 0..65535 required");
+        return ESP_FAIL;
+    }
+    TariffConfig tariff;
+    ConfigStore::get().load_tariff(tariff);
+    if (!EnergyStats::get().set_pv_wh(k, wh, tariff.price_import_kwh)) {
+        httpd_resp_set_status(req, "404 Not Found");
+        return send_json(req, "{\"ok\":false,\"reason\":\"day_not_found\"}");
+    }
+    return send_json(req, "{\"ok\":true}");
 }
 
 esp_err_t WebServer::handle_daily_baseline_save(httpd_req_t* req)

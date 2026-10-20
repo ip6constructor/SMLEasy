@@ -468,6 +468,24 @@ siehe offene Entscheidungen, nichts davon umgesetzt.
 Rueckweg: vorheriges IDF-6-Image per OTA; fuer die vorige Konfiguration die vier
 `MBEDTLS_DYNAMIC_*`-Zeilen entfernen und `max_open_sockets` zuruecksetzen.
 
+### 2026-10-21: serieller Notfallzugang (nur Dokumentation)
+
+Betroffene Phase: Recovery/Betrieb, keine Code- oder Flash-Aenderung.
+
+- Geraet: C3-Board "WiFi IR SMI V32" (Christians Technikshop). USB-C liefert nur
+  Strom, ohne Datenweg zum C3 (Angabe des Betreibers, nicht am Geraet geprueft).
+- Serieller Zugang ueber den Stecker "Zusatzmodul": RX, TX, GND und der GPIO fuer
+  den Flash-Modus (Angabe des Betreibers). Pinreihenfolge und Steckerbelegung sind
+  **nicht belegt** und muessen vor dem Anschluss aus Datenblatt/Schaltplan oder per
+  Durchgangsmessung bestaetigt werden.
+- Adapter: USB-UART-Modul mit 3,3 V (Betreiber). Kein 5-V-Pegel am C3.
+- Allgemein beim ESP32-C3: Flash-Modus durch GPIO9 auf GND beim Reset, UART0 fuer
+  den ROM-Bootloader. Fuer dieses Board nicht geprueft.
+- OTA bleibt der Normalweg. Seriell nur bei nicht erreichbarem OTA; Flashen nur auf
+  ausdrueckliche Freigabe, mit bestaetigtem Chip/Board/Pinbelegung.
+- Offen: Pinbelegung, Test des seriellen Flashens und Wiederherstellung des
+  Boot-Modus (kein Test ausgefuehrt).
+
 ### 2026-10-20 (nachts): Tageswerte aus Zaehlerstaenden, Korrektur-Endpunkt, Netz-Kreis, Summenzeile
 
 Betroffene Phase: Statistik (Firmware) und lokales Web-Dashboard. Kein Relay, kein P4-P7.

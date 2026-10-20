@@ -265,6 +265,34 @@ Offen: Verfahren (libsodium/HPKE/mbedTLS, Messung Flash/Heap auf dem C3), Schlue
 (`kid`) bei Rotation, Datenschluessel im Web-Client, Limit fuer Registrierungen/Pushes,
 Warnung der App vor Ablauf der 6 Wochen, Webgo-Eignung (PHP-Version, sodium, Header, Cron).
 
+## 8b. Relay-Transport und Speicherlayout (Entwurf, nicht implementiert)
+
+Betriebsarten: Ohne eingerichteten Cloud-Zugang verbindet ein ESP nie nach aussen
+(Verhalten wie heute, kein Mehrverbrauch an Heap). Mit eingerichtetem Zugang:
+
+1. Tagesabschluss: Der ESP legt den abgeschlossenen Tag (mit `q`, Stufen Tag/Woche/Monat/Jahr)
+   auf dem Server ab. Clients holen fehlende Perioden nach.
+2. Live-Modus: Ein Client, der den ESP nicht direkt erreicht, setzt auf dem Server ein
+   befristetes Flag (Lease, z. B. 10-15 min). Jeder Abruf des Clients verlaengert es, ohne
+   Abrufe laeuft es ab. Ein Dauerflag gibt es nicht.
+3. Der ESP fragt alle 5 min kurz nach dem Flag (kleiner Request, kein Keep-Alive noetig).
+4. Ist das Flag gesetzt, pusht er alle 30 s den aktuellen Wert, mit TLS-Keep-Alive, solange der
+   Server die Verbindung haelt; sonst Reconnect (ggf. Session-Resumption).
+5. Die Flag-Antwort muss authentisiert sein (Signatur oder festes Server-Zertifikat), mit
+   Maximum der Lease-Dauer und Mindestintervall am ESP, damit niemand Dauerpush erzwingt.
+6. Serverausfall, DNS- oder TLS-Fehler duerfen den lokalen Betrieb nicht blockieren und keinen
+   Neustart ausloesen; Fehler werden sichtbar angezeigt.
+
+Speicherlayout auf Webgo (Variante Datei): ein Unterordner pro ESP ausserhalb des Web-Roots
+oder per `.htaccess` gesperrt, Name = zufaellige Geraete-ID. Inhalt: letztes Paket,
+abgeschlossene Perioden, oeffentlicher Geraeteschluessel, Token-Hashes, Metadaten (letzter Push,
+Client-Anzahl, Sperrzeit). Zugriff nur ueber PHP; Schreiben mit `flock` und atomar (Temp-Datei,
+umbenennen). 6-Wochen-Bereinigung loescht den Ordner. Alternative SQLite ist noch offen.
+
+Noch zu messen: TLS-Handshake-Dauer C3 zu Webgo, Heap/Stack des ausgehenden Clients (kurz und
+mit Keep-Alive), KeepAliveTimeout und Session-Ticket-Unterstuetzung bei Webgo, Flash-Zuwachs
+durch die Kryptobibliothek.
+
 ## 9. Produktions-Gate und Tests
 
 Secure Boot und Flash Encryption nicht automatisch aktivieren. C3-Chiprevision,

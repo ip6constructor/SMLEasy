@@ -488,6 +488,12 @@ Betroffene Phase: Statistik (Firmware) und lokales Web-Dashboard. Kein Relay, ke
 - Korrigierte Tage (manuell vom Betreiber): 17.10. 45,6; 18.10. 9,9; 19.10. 38,6;
   20.10. 34,4 kWh. 12.-16.10. unveraendert (nicht bekannt). Backup vor der Aenderung
   unter `%USERPROFILE%\smleasy-backup-20261020\b2` (nicht im Git).
+- Wallbox-Ergebnis (`wb_milli_of`): kWh x (Erstattung - Netzanteil x Bezugspreis -
+  PV-Anteil x Einspeisepreis). Der PV-Anteil ist geschaetzt (Eigenanteil des Hauses
+  am Tag), nicht je Ladevorgang. Wirkung erst mit einer Wallbox-Rolle in HA; bisher
+  sind die Wallbox-Spalten 0, nicht an einer echten Ladung getestet. Spaeter:
+  KEBA-Sitzungsdaten je Karte (UDP 7090, `report 101..130`, noch nicht geprueft,
+  Zugang offen). Web-Zeile "Gewinn" = Ersparnis - Netto-Kosten unter der Summe.
 - Web: Netz-Kachel mit nichtlinearem Kreis (rot Bezug links, gruen Einspeisung
   rechts, 5 kW = 12 Uhr, Punkte 10/20 kW), rechtsbuendige Tabellenueberschriften,
   Summenzeile in Tage/Wochen/Monate/Jahre. Android-App unveraendert (/api/stats

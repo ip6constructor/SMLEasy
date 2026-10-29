@@ -2,9 +2,13 @@
 __pycache__/
 *.py[cod]
 build/
+build_c3/
+build_c3_idf6/
+build_c3_verify/
 managed_components/
 _backup/
 sdkconfig
+sdkconfig.old
 idf_build*.log
 idf_set_target.log
 pio_*.log

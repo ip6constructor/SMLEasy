@@ -12,10 +12,10 @@ const values = data => Array.from(context.ehKpiValues(data));
 
 test('footer renders all four real status values and updates on the next sample', () => {
     assert.deepEqual(values({
-        today_pv_kwh: 12.5, today_export_kwh: 2.5, cost_today: 1.23, today_saving: 3.45, currency: 'EUR',
+        today_pv_kwh: 12.5, today_house_kwh: 10, today_import_kwh: 2, cost_today: 1.23, today_saving: 3.45, currency: 'EUR',
     }), ['80 %', '12.5 kWh', '1.23 EUR', '3.45 EUR']);
     assert.deepEqual(values({
-        today_pv_kwh: 20, today_export_kwh: 10, cost_today: -2, today_saving: 5, currency: 'CHF',
+        today_pv_kwh: 20, today_house_kwh: 20, today_import_kwh: 10, cost_today: -2, today_saving: 5, currency: 'CHF',
     }), ['50 %', '20.0 kWh', '-2.00 CHF', '5.00 CHF']);
 });
 
@@ -23,10 +23,10 @@ test('missing, null and invalid values never become plausible zero readings', ()
     assert.deepEqual(values({}), ['—', '—', '—', '—']);
     assert.deepEqual(values({ today_pv_kwh: null, cost_today: NaN, today_saving: '3.0' }), ['—', '—', '—', '—']);
     assert.deepEqual(values({
-        today_pv_kwh: 0, today_export_kwh: 0, cost_today: 0, today_saving: 0,
+        today_pv_kwh: 0, today_house_kwh: 0, today_import_kwh: 0, today_export_kwh: 0, cost_today: 0, today_saving: 0,
     }), ['—', '0.0 kWh', '0.00 EUR', '0.00 EUR']);
     assert.equal(values({ today_pv_kwh: 10 })[0], '—');
-    assert.equal(values({ today_pv_kwh: 1, today_export_kwh: 2 })[0], '0 %');
+    assert.equal(values({ today_pv_kwh: 1, today_house_kwh: 1, today_import_kwh: 2 })[0], '0 %');
 });
 
 test('external-data failure cannot prevent a fresh status footer', async () => {

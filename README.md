@@ -42,17 +42,27 @@ The default meter profile is Iskraemeco MT631/MS2020. A successful read validate
 
 ### Build
 
-With PlatformIO and the ESP-IDF toolchain installed:
+The PlatformIO/ESP-IDF 4.4.8 release path was retired 2026-10-29. The only supported SDK is
+**ESP-IDF 6.1**, built directly with `idf.py` (no PlatformIO):
 
-```powershell
-platformio run --environment esp32c3_optical_meter
+```bash
+. "$IDF_PATH/export.sh"   # export.bat on Windows
+idf.py -B build_c3 -DIDF_TARGET=esp32c3 -DSMLEASY_IDF6_APP=1 \
+  -DSDKCONFIG=build_c3/sdkconfig \
+  "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.c3_idf6" build
 ```
 
-The OTA image is produced at `.pio/build/esp32c3_optical_meter/firmware.bin`. Upload it from the configuration page or choose a published GitHub Release. Release assets are named `SMLEasy-<version>.bin` and require a matching `v<version>` tag. OTA uploads require the web-interface credentials.
+The OTA image is produced at `build_c3/smartmeter.bin`. Upload it from the configuration page or
+choose a published GitHub Release. Release assets are named `SMLEasy-<version>.bin` and require a
+matching `v<version>` tag. OTA uploads require the web-interface credentials.
 
 ### GitHub Releases
 
-The GitHub Actions workflow builds the ESP32-C3 PlatformIO environment when a `v*` tag is pushed. The tag must match `build_version.txt`; the workflow publishes `SMLEasy-<version>.bin` to the release. The dashboard OTA picker only accepts assets from this repository with that exact naming scheme.
+The GitHub Actions workflow (`.github/workflows/firmware-release.yml`) builds the ESP32-C3 and
+ESP32-S3 firmware with ESP-IDF 6.1 directly via `idf.py` (container `espressif/idf:v6.1`) when a
+`v*` tag is pushed. The tag must match `build_version.txt`; the workflow publishes
+`SMLEasy-<version>.bin` to the release. The dashboard OTA picker only accepts assets from this
+repository with that exact naming scheme.
 
 The current published firmware is **v3.6.0**, with the OTA asset [`SMLEasy-3.6.0.bin`](https://github.com/ip6constructor/SMLEasy/releases/download/v3.6.0/SMLEasy-3.6.0.bin). In the device configuration, open **OTA-Update**, load GitHub versions, select **v3.6.0**, and install it. Older GitHub release entries have been removed; the corresponding source tags remain in the repository.
 
@@ -93,6 +103,18 @@ Pairing (IDF-6 development firmware): open `/pair` locally and start the five-mi
 Regular app access remains HTTPS on port 443, including Internet access via IPv6/FQDN; only pairing is temporary/local. The app tries the hostname, then IPv6, then IPv4, preserves IPv6 interface scopes, and never sends a paired token over HTTP or follows API redirects. Direct-IP HTTPS verifies the approved certificate fingerprint, including self-signed/staging certificates. A changed certificate (including ACME renewal) currently requires local re-pairing; automatic trusted pin rotation is not implemented. Do not expose port 7384 to the Internet. Existing tokens remain valid; the old QR claim endpoint explicitly returns HTTP 410. Manual password-only access remains available.
 
 The energy board's bottom bar shows self-consumption, today's PV generation, net grid costs and savings, in both web and Android views. It uses the status snapshot independently of external power tiles; unknown values are shown as a dash rather than zero.
+
+### Building the app locally
+
+From `android/`, with the Android SDK and a JDK available:
+
+```powershell
+$env:JAVA_HOME = "E:\Android\jdk\jdk-17.0.20.1+1"   # local dev machine path; adjust per machine
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+.\gradlew.bat :app:assembleStandardDebug :app:assembleLegacyDebug
+```
+
+`android/local.properties` points `sdk.dir` at the local Android SDK (e.g. `E:\Android\sdk`) and is not checked in. Gradle itself does not read `JAVA_HOME` from `local.properties`; it must be set in the environment (or via `org.gradle.java.home` in `gradle.properties`) before invoking `gradlew.bat`, otherwise the build fails with "JAVA_HOME is not set and no 'java' command could be found in your PATH". Output APKs land in `android/app/build/outputs/apk/<flavor>/debug/`.
 
 ## Security
 

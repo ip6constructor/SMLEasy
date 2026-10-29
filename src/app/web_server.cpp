@@ -302,16 +302,28 @@ static esp_err_t dashboard_network_filter(httpd_handle_t, int sockfd)
 }
 
 #if SMLEASY_LOCAL_HTTPS
-// Read-only endpoints a paired app may call with its bearer token, also from outside the allowed networks.
+// Read-only routes that (a) a paired app may call with its bearer token from outside the allowed
+// networks, and (b) stay reachable in plain HTTP on port 80 even once a browser-trusted certificate
+// forces everything else to redirect to HTTPS. Local integrations (e.g. Home Assistant) must not
+// depend on the small HTTPS session pool just to poll these; dashboard_network_filter still applies.
+static constexpr const char* const kLanReadOnlyRoutes[] = {
+    "/api/status", "/api/ext/values", "/api/stats", "/api/history", "/api/meter", "/house.jpg",
+};
+
+// Local automation (e.g. Home Assistant) control actions that must also keep working on plain
+// HTTP port 80 in redirect-only mode. POST-only; token_route() is GET-only, so an app token from
+// outside the allowed networks can never reach these - gated_handler still requires the peer to
+// be inside the allowed networks for them, same as before this exemption existed.
+static constexpr const char* const kLanControlRoutes[] = {
+    "/api/start", "/api/start_continuous", "/api/stop", "/api/reset_counters",
+};
+
 static bool token_route(const httpd_req_t* req)
 {
     if (req->method != HTTP_GET) return false;
     std::string uri(req->uri);
     uri = uri.substr(0, uri.find('?'));
-    static const char* const kRoutes[] = {
-        "/api/status", "/api/ext/values", "/api/stats", "/api/history", "/api/meter", "/house.jpg",
-    };
-    for (const char* r : kRoutes) if (uri == r) return true;
+    for (const char* r : kLanReadOnlyRoutes) if (uri == r) return true;
     return false;
 }
 
@@ -1015,16 +1027,13 @@ esp_err_t WebServer::start(uint16_t port)
     http_cfg.send_wait_timeout = 60;
     http_cfg.open_fn = dashboard_network_filter;
 #if SMLEASY_LOCAL_HTTPS
-    // With a browser-trusted certificate, port 80 only redirects to HTTPS.
+    // With a browser-trusted certificate, port 80 only redirects to HTTPS, except the read-only
+    // REST routes local integrations poll (kLanReadOnlyRoutes) and their control actions
+    // (kLanControlRoutes) - those keep the normal resource budget below since they do real
+    // work, not just a 308 response.
     const bool redirect_only = port == 80 && https_redirect_wanted();
     s_redirect_mode.store(redirect_only);
-    if (redirect_only) {
-        http_cfg.uri_match_fn = httpd_uri_match_wildcard;
-        http_cfg.max_open_sockets = 3;
-        http_cfg.stack_size = 6144;
-        http_cfg.recv_wait_timeout = 10;
-        http_cfg.send_wait_timeout = 10;
-    }
+    if (redirect_only) http_cfg.uri_match_fn = httpd_uri_match_wildcard;
 #endif
     if (httpd_start(&server_, &http_cfg) != ESP_OK) {
         ESP_LOGE(TAG, "HTTP dashboard start failed");
@@ -1033,11 +1042,13 @@ esp_err_t WebServer::start(uint16_t port)
 
 #if SMLEASY_LOCAL_HTTPS
     if (redirect_only) {
+        // Specific routes are matched before the "/*" catch-all, so these stay in cleartext.
+        register_routes(server_, /*lan_rest_only=*/true);
         const httpd_uri_t get_uri = { "/*", HTTP_GET, handle_https_redirect, nullptr };
         const httpd_uri_t post_uri = { "/*", HTTP_POST, handle_https_redirect, nullptr };
         httpd_register_uri_handler(server_, &get_uri);
         httpd_register_uri_handler(server_, &post_uri);
-        ESP_LOGI(TAG, "HTTP port 80 redirects to HTTPS");
+        ESP_LOGI(TAG, "HTTP port 80 redirects to HTTPS (read-only REST routes stay on HTTP)");
     } else
 #endif
     register_routes(server_);
@@ -1066,8 +1077,9 @@ esp_err_t WebServer::start(uint16_t port)
     return ESP_OK;
 }
 
-void WebServer::register_routes(httpd_handle_t server)
+void WebServer::register_routes(httpd_handle_t server, bool lan_rest_only)
 {
+    (void)lan_rest_only;
     const httpd_uri_t routes[] = {
         { "/",                    HTTP_GET,  handle_root,          nullptr },
         { "/config",              HTTP_GET,  handle_config_page,   nullptr },
@@ -1132,6 +1144,18 @@ void WebServer::register_routes(httpd_handle_t server)
     };
     for (const auto& r : routes) {
 #if SMLEASY_LOCAL_HTTPS
+        if (lan_rest_only) {
+            bool exempt = false;
+            for (const char* uri : kLanReadOnlyRoutes) {
+                if (r.method == HTTP_GET && std::strcmp(r.uri, uri) == 0) { exempt = true; break; }
+            }
+            if (!exempt) {
+                for (const char* uri : kLanControlRoutes) {
+                    if (r.method == HTTP_POST && std::strcmp(r.uri, uri) == 0) { exempt = true; break; }
+                }
+            }
+            if (!exempt) continue;
+        }
         httpd_uri_t gated = r;
         gated.user_ctx = reinterpret_cast<void*>(r.handler);
         gated.handler = gated_handler;

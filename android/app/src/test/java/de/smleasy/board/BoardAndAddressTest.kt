@@ -18,16 +18,17 @@ class BoardAndAddressTest {
     }
 
     @Test fun footerShowsAllFourValuesAndUsesTheStatusCurrency() {
-        val data = JSONObject().put("today_pv_kwh", 12.5).put("today_export_kwh", 2.5)
+        // Eigenverbrauch = Autarkiegrad (Anteil Hausverbrauch ohne Netzbezug), nicht PV-Eigenverbrauchsquote.
+        val data = JSONObject().put("today_pv_kwh", 12.5).put("today_house_kwh", 12.5).put("today_import_kwh", 2.5)
             .put("cost_today", -1.23).put("today_saving", 3.45).put("currency", "CHF")
         assertEquals(listOf("80 %", "12,5 kWh", "-1,23 CHF", "3,45 CHF"), BoardModel.kpis(data).map { it.value })
-        data.put("today_pv_kwh", 20.0).put("today_export_kwh", 10.0)
+        data.put("today_house_kwh", 20.0).put("today_import_kwh", 10.0)
         assertEquals("50 %", BoardModel.kpis(data)[0].value)
     }
 
     @Test fun footerDistinguishesMissingFromRealZeroValues() {
         assertEquals(List(4) { "\u2014" }, BoardModel.kpis(JSONObject()).map { it.value })
-        val zeros = JSONObject().put("today_pv_kwh", 0).put("today_export_kwh", 0)
+        val zeros = JSONObject().put("today_pv_kwh", 0).put("today_house_kwh", 0).put("today_import_kwh", 0)
             .put("cost_today", 0).put("today_saving", 0)
         assertEquals(listOf("\u2014", "0,0 kWh", "0,00 EUR", "0,00 EUR"), BoardModel.kpis(zeros).map { it.value })
         zeros.put("today_pv_kwh", JSONObject.NULL)

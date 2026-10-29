@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground: the SMLEasy brand mark (meter ring, gauge arcs,
+     bar-chart trend, lightning bolt), reusing the exact path data from the
+     kLogoSvg embedded in src/app/include/web_assets.hpp so the app icon and
+     the web dashboard favicon/header logo stay visually identical.
+     The two-stop cyan->blue gradient used on the web is approximated with a
+     single solid blue (#2563eb, the gradient's end color) because vector
+     drawable <gradient> fills require API 24+, while this app's legacy
+     flavor supports minSdk 22.
+     The whole 0..100 logo coordinate space is scaled/centered into the
+     adaptive icon's 108dp canvas via the enclosing <group> transform so the
+     artwork stays within the safe (non-masked) zone on all launcher shapes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="50"
+        android:pivotY="50"
+        android:scaleX="0.62"
+        android:scaleY="0.62"
+        android:translateX="4"
+        android:translateY="4">
+        <!-- Meter ring -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#0b1220"
+            android:strokeWidth="9"
+            android:pathData="M8,50 A42,42 0 1,1 92,50 A42,42 0 1,1 8,50 Z" />
+        <!-- Gauge arc segments -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#2563eb"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:pathData="M50,8 A42,42 0 0,1 90.5,40" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#2563eb"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:pathData="M8,55 A42,42 0 0,0 40,91.5" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#2563eb"
+            android:strokeAlpha="0.85"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:pathData="M12,40 A42,42 0 0,1 30,15" />
+        <!-- Bar-chart trend -->
+        <path
+            android:fillColor="#2563eb"
+            android:pathData="M34,55h7v16h-7z" />
+        <path
+            android:fillColor="#2563eb"
+            android:pathData="M44,48h7v23h-7z" />
+        <path
+            android:fillColor="#2563eb"
+            android:pathData="M54,40h7v31h-7z" />
+        <!-- Lightning bolt -->
+        <path
+            android:fillColor="#2563eb"
+            android:pathData="M72,30 L58,55 L68,55 L60,78 L80,50 L69,50 Z" />
+    </group>
+</vector>

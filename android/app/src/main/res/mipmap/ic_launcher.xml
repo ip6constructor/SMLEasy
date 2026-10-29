@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy (non-adaptive) launcher icon for API < 26, used as the universal
+     fallback resource. Full-bleed rendering of the SMLEasy logo on its dark
+     background, matching the web dashboard favicon/header exactly (see
+     kLogoSvg in src/app/include/web_assets.hpp). Gradient approximated with
+     a solid blue for broad VectorDrawable compatibility (legacy flavor
+     targets minSdk 22). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#0b1220"
+        android:pathData="M0,0h100v100h-100z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0b1220"
+        android:strokeWidth="9"
+        android:pathData="M8,50 A42,42 0 1,1 92,50 A42,42 0 1,1 8,50 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2563eb"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:pathData="M50,8 A42,42 0 0,1 90.5,40" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2563eb"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:pathData="M8,55 A42,42 0 0,0 40,91.5" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2563eb"
+        android:strokeAlpha="0.85"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:pathData="M12,40 A42,42 0 0,1 30,15" />
+    <path
+        android:fillColor="#2563eb"
+        android:pathData="M34,55h7v16h-7z" />
+    <path
+        android:fillColor="#2563eb"
+        android:pathData="M44,48h7v23h-7z" />
+    <path
+        android:fillColor="#2563eb"
+        android:pathData="M54,40h7v31h-7z" />
+    <path
+        android:fillColor="#2563eb"
+        android:pathData="M72,30 L58,55 L68,55 L60,78 L80,50 L69,50 Z" />
+</vector>

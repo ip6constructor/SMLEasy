@@ -413,7 +413,7 @@ Tarifkorrekturen nicht durch ausschliesslich vorab berechnete Kosten verhindern.
 | Entscheidung | Status / Empfehlung | Spaetestens |
 |---|---|---|
 | S3 N16R8 physische Revision/Flash/PSRAM/Pins | Boardfamilie vom Besitzer identifiziert; Hardwarewerte seriell bestaetigen | P0 |
-| SDK | 4.4.8 fuer isolierte Untersuchung; Upgrade separat bewerten | P0 |
+| SDK | entschieden: 4.4.8/PlatformIO-Releasepfad am 2026-10-29 vollstaendig entfernt, ESP-IDF 6.1.0 einziger Pfad (Nutzerentscheidung trotz zu diesem Zeitpunkt nur teilweise frisch nachgewiesener Gates, siehe Fortschrittsnachweis 2026-10-29) | P0 |
 | Reset und Sequenzidentitaet | stream_id oder gesperrte High-Water-Recovery | P0/P2 |
 | Partitionsmigration/Coredump | nach realem Speicherbudget | P1 |
 | App-Plattform/Framework | offen, SQLite und Secure Storage erforderlich | P3 |
@@ -429,6 +429,72 @@ Tarifkorrekturen nicht durch ausschliesslich vorab berechnete Kosten verhindern.
 Die P0-Quellcode-/SDK-Untersuchung und der PC-IPv6-HTTPS-Test sind belegt.
 Die folgenden Entwicklungs-Builds sind keine Freigabe der noch offenen
 Hardware-/Recovery-Gates; kein eFuse-Brennen oder SDK-Wechsel durch diese Aenderung.
+
+### 2026-10-29: IDF-4.4.8/PlatformIO-Pfad entfernt, LAN-Steuerrouten, Dashboard-/App-Autarkie-Korrektur, App-Icon
+
+Betroffene Phase: Entwicklungsstand fuer P3/P4 (C3/S3, ESP-IDF 6.1); keine
+produktive P5-Aktivierung. Partitionslayout, eFuse und OTA-Vertraege unveraendert.
+
+**SDK-Entscheidung vollzogen (Nutzerfreigabe, nicht alle Gates frisch belegt):**
+`platformio.ini`, `sdkconfig.esp32c3_optical_meter` und der `.pio`-Cache geloescht;
+`CMakeLists.txt` waehlt jetzt unconditional `src/app_s3` als `EXTRA_COMPONENT_DIRS`
+(kein IDF4.4.8-/No-ACME-Zweig mehr; `-DSMLEASY_IDF6_APP=1` dadurch wirkungslos,
+aber unschaedlich). `README.md` und `.vscode/extensions.json` auf den
+`idf.py`-Workflow umgestellt. `dependencies.lock` dadurch auf Component-Manager-
+Aufloesung (espressif/cjson, espressif/mdns, espressif/mqtt, idf 6.1.0) aktualisiert.
+Die §5-Tabelle "Noch erforderliche Entscheidungen" ist entsprechend angepasst.
+
+**Firmware:** `kLanControlRoutes` (`web_server.cpp`/`.hpp`) ergaenzt die bestehenden
+`kLanReadOnlyRoutes`: `/api/start`, `/api/start_continuous`, `/api/stop`,
+`/api/reset_counters` bleiben per POST auf Port 80 erreichbar, auch wenn der Server
+sonst auf HTTPS umleitet (Home-Assistant-Integration nutzt Port 80/HTTP ohne TLS).
+`web_assets.hpp`: `EH_POS_DEFAULT`-Koordinaten fuer `pvo`/`pvw` (PV Ost/West) waren
+seitenverkehrt und sind getauscht; die KPI "Eigenverbrauch" rechnete bisher die
+PV-Eigenverbrauchsquote `(PV-Erzeugung - Einspeisung) / PV-Erzeugung` statt des vom
+Nutzer erwarteten Autarkiegrads `(Hausverbrauch - Netzbezug) / Hausverbrauch` und
+ist entsprechend korrigiert (Formel-Unterschied in Code-Kommentar dokumentiert).
+
+**Android-App:** Dieselbe Autarkie-Korrektur in `BoardModel.kt` nachgezogen (die App
+hatte unabhaengig vom Web-Dashboard dieselbe alte PV-Eigenverbrauchsquote-Formel;
+Nutzer meldete weiterhin ~40 % in der App nach dem Web-Fix). Neues Launcher-Icon
+(adaptiv fuer API 26+, Vektor-Fallback fuer die `legacy`-Variante mit minSdk 22) aus
+dem bestehenden `kLogoSvg`-Markenzeichen erzeugt (`android/app/src/main/res/drawable`,
+`mipmap`, `mipmap-anydpi-v26`); Gradient durch Volltonblau ersetzt, da
+Vector-Drawable-Gradients erst ab API 24 unterstuetzt werden. `AndroidManifest.xml`
+referenziert jetzt `android:icon`/`android:roundIcon`. Beide Debug-APKs
+(`SMLEasy-Board-3.6.0-legacy-debug.apk`, `...-standard-debug.apk`) am Repo-Root neu
+gebaut und ersetzt.
+
+**Home-Assistant-Integration (`custom_components/smleasy`):** Geprueft, keine
+Code-Aenderung noetig. Sie berechnet keine eigene Eigenverbrauchs-/Autarkie-Prozentzahl,
+sondern liefert nur Rohwerte (`today_house_kwh`, `today_import_kwh`, `today_pv_kwh`,
+`today_export_kwh` u. a. je Zeitraum); Routen/Port/TLS-Defaults (`/api/status` GET,
+`/api/start`/`/api/stop`/`/api/reset_counters` POST, Port 80, SSL aus) passen bereits
+zu den LAN-Ausnahmen.
+
+| Nachweis | Ergebnis |
+|---|---|
+| Webtests (`node --test tests/energy_board.test.cjs`) | 4 bestanden (Autarkie-Formel-Fixtures angepasst) |
+| C3, IDF v6.1, Clean-Build ohne `-DSMLEASY_IDF6_APP` (vereinfachtes `CMakeLists.txt`) | Build erfolgreich; BIN 1.797.120 Byte |
+| OTA auf Live-Geraet `192.168.1.172`/`smartmeter.mkreutzer.de` | `{"ok":true}`, Neustart nach ca. 30 s (`reset_reason` 3); `app_version` 3.6.2, `idf_version` v6.1; `free_heap` 96.184 Byte, `min_free_heap` 74.128 Byte |
+| Live-Verifikation Dashboard (Browser) | "Self-consumption"-KPI zeigt 98 % (`today_house_kwh` 14,466 kWh, `today_import_kwh` 0,264 kWh); Kachel "PV East" bei `left:90.6%`, "PV West" bei `left:18.5%` (korrekt getauscht) |
+| Android (`./gradlew :app:assembleStandardDebug :app:assembleLegacyDebug`, JDK 17.0.20.1 unter `E:\Android\jdk`, SDK unter `E:\Android\sdk`) | Build erfolgreich (4 min 36 s); APKs 895.194 / 898.943 Byte |
+| HA-Integration | alle `.py`-Dateien mit `py_compile` syntaktisch geprueft; keine automatisierten Tests im Projekt vorhanden |
+
+**Offen:** Vollstaendiger `IPV6-PRUEFPLAN.md`-Durchlauf fuer diesen konkreten Build
+nicht erneut ausgefuehrt (nur `ip6_sta`/`ip6_addresses` im Status-Snapshot als Indiz
+geprueft). S3-Build nach der `CMakeLists.txt`-Vereinfachung in dieser Sitzung nicht
+erneut kompiliert (sollte unveraendert funktionieren, da S3 bereits vorher `src/app_s3`
+nutzte, aber nicht gegengeprueft). Android-App nicht auf echtem Geraet/Emulator
+getestet (kein Android-Geraet/-Emulator in dieser Umgebung verfuegbar, nur
+Gradle-Build + angepasster Unit-Test-Quelltext). Lokale Gradle-Wrapper-Dateien
+(`gradlew`, `gradlew.bat`, `gradle-wrapper.jar`/`.properties`) wichen bereits vor
+dieser Sitzung von der eingecheckten Version (8.7) auf 9.7.1 ab; das ist keine
+Aenderung dieser Sitzung und wurde unveraendert gelassen/nicht committet.
+
+Rueckweg: vorheriges GitHub-Release (`v3.6.0`) bzw. vorheriges OTA-Image auf dem
+Live-Geraet; `CMakeLists.txt`/`platformio.ini`-Entfernung per Git-Revert umkehrbar,
+falls der IDF-6.1-Pfad doch nicht ausreichend traegt.
 
 ### 2026-10-20: C3-Heap-Optimierung, Koppelmodus-Sperre, Neustart, Helligkeit
 

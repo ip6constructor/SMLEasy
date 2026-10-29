@@ -2971,7 +2971,9 @@ function startOta(file) {
   xhr.send(file);
 }
 
-const EH_POS_DEFAULT = {pvo: [18.5, 7.3], pvs: [43.6, 7.3], pv: [65.8, 8.3], pvw: [90.6, 25.9], house: [13, 43.4], bat: [13.9, 68.4], grid: [51.9, 60.7], car: [70.6, 45], wb: [91, 43.8]};
+// pvo (PV Ost = east) must sit on the right side of the house photo, pvw (PV West) on the left -
+// facing the house from the south (standard orientation), east is on the viewer's right.
+const EH_POS_DEFAULT = {pvo: [90.6, 25.9], pvs: [43.6, 7.3], pv: [65.8, 8.3], pvw: [18.5, 7.3], house: [13, 43.4], bat: [13.9, 68.4], grid: [51.9, 60.7], car: [70.6, 45], wb: [91, 43.8]};
 const EH_COLORS = {pv: '#fbbf24', gridIn: '#60a5fa', gridOut: '#34d399', bat: '#c084fc', wb: '#2dd4bf'};
 let ehTimer = null;
 let ehGen = 0;
@@ -3206,11 +3208,14 @@ async function ehRefresh() {
 }
 function ehKpiValues(d) {
   const number = key => typeof d[key] === 'number' && Number.isFinite(d[key]) ? d[key] : null;
-  const pv = number('today_pv_kwh'), ex = number('today_export_kwh');
+  const pv = number('today_pv_kwh'), house = number('today_house_kwh'), imp = number('today_import_kwh');
   const fmt = (value, digits, unit) => value === null ? '\u2014' : value.toFixed(digits) + ' ' + unit;
   const currency = d.currency || 'EUR';
+  // Autarkiegrad: Anteil des Hausverbrauchs, der nicht aus dem Netz bezogen wurde (nicht die
+  // PV-Eigenverbrauchsquote - bei viel Ueberschusseinspeisung waeren das zwei sehr verschiedene
+  // Zahlen, siehe Netzbezug nahe 0 trotz hoher Einspeisung).
   return [
-    pv !== null && ex !== null && pv > 0.05 ? Math.max(0, Math.min(100, (pv - ex) / pv * 100)).toFixed(0) + ' %' : '\u2014',
+    house !== null && imp !== null && house > 0.05 ? Math.max(0, Math.min(100, (house - imp) / house * 100)).toFixed(0) + ' %' : '\u2014',
     fmt(pv, 1, 'kWh'), fmt(number('cost_today'), 2, currency), fmt(number('today_saving'), 2, currency)
   ];
 }

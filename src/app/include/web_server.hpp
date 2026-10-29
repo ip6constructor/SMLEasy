@@ -23,7 +23,9 @@ public:
 
 private:
     WebServer() = default;
-    static void register_routes(httpd_handle_t server);
+    /// lan_rest_only restricts registration to kLanReadOnlyRoutes (used while port 80 otherwise
+    /// redirects to HTTPS, so local integrations like Home Assistant keep plain-HTTP polling).
+    static void register_routes(httpd_handle_t server, bool lan_rest_only = false);
     static void https_task(void* restart);
     esp_err_t start_https();
     static esp_err_t handle_tls_config_get(httpd_req_t*);

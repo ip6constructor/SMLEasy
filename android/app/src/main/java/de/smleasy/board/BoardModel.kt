@@ -37,10 +37,11 @@ object BoardModel {
     fun kpis(status: JSONObject): List<BoardKpi> {
         fun number(key: String): Double? = (status.opt(key) as? Number)?.toDouble()?.takeIf { it.isFinite() }
         fun value(key: String, digits: Int, unit: String) = number(key)?.let { f(it, digits) + " " + unit } ?: dash
-        val pv = number("today_pv_kwh")
-        val export = number("today_export_kwh")
-        val share = if (pv != null && export != null && pv > 0.05)
-            f(((pv - export) / pv * 100).coerceIn(0.0, 100.0), 0) + " %" else dash
+        // Autarkiegrad (Anteil des Hausverbrauchs ohne Netzbezug), nicht PV-Eigenverbrauchsquote.
+        val house = number("today_house_kwh")
+        val gridImport = number("today_import_kwh")
+        val share = if (house != null && gridImport != null && house > 0.05)
+            f(((house - gridImport) / house * 100).coerceIn(0.0, 100.0), 0) + " %" else dash
         val currency = status.optString("currency", "EUR")
         return listOf(
             BoardKpi("Eigenverbrauch", share, "\u25c7", GREEN),

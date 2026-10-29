@@ -430,6 +430,48 @@ Die P0-Quellcode-/SDK-Untersuchung und der PC-IPv6-HTTPS-Test sind belegt.
 Die folgenden Entwicklungs-Builds sind keine Freigabe der noch offenen
 Hardware-/Recovery-Gates; kein eFuse-Brennen oder SDK-Wechsel durch diese Aenderung.
 
+### 2026-10-29 (2): HA-Lovelace-Dashboard im Kachelmuster
+
+Betroffene Phase: reine Home-Assistant-Konfiguration/Dokumentation, keine Firmware-
+oder App-Aenderung, kein SDK-/Partitions-/eFuse-Bezug.
+
+Auf ausdruecklichen Wunsch wurde eine Lovelace-Dashboard-Vorlage im Kachelstil des
+Web-Dashboards erstellt: `custom_components/smleasy/dashboard.yaml` (Tile-Grid fuer
+PV Ost/Sued/West, Netzbezug/-einspeisung, Hausverbrauch, Batterie, Wallbox, Auto,
+KPI-Zeile Autarkiegrad/Gesamterzeugung/Netzkosten/Ersparnis) und
+`custom_components/smleasy/dashboard_example.md` (Anleitung inkl. Template-Sensor
+fuer den Autarkiegrad, den die Integration nicht als eigenen Sensor liefert).
+
+Mit temporaerem Admin-Zugang auf der laufenden HA-Testinstanz (192.168.1.12) wurden
+die tatsaechlichen Entity-IDs ueber `hass.states` verifiziert statt nur aus dem
+Integrationscode abgeleitet: Praefix ist `sensor.energie_smartmeter_smleasy_*`
+(abhaengig vom dort vergebenen Geraetenamen "Energie Smartmeter"), nicht das anfangs
+angenommene `sensor.smleasy_*`. YAML und Anleitung entsprechend korrigiert.
+
+Live eingerichtet (nicht nur als Repo-Vorlage geliefert): Template-Sensor
+"SMLEasy Autarkiegrad heute" (`sensor.smleasy_autarkiegrad_heute`) ueber die
+Helpers-UI angelegt (Formel `(Hausverbrauch - Bezug) / Hausverbrauch * 100`,
+auf 0 bis 100 geklemmt); neues Dashboard "SMLEasy Energie" (`/smleasy-energie`)
+angelegt und dessen Lovelace-Konfiguration per `lovelace/config/save`-WebSocket-Call
+(JSON, aus der YAML-Vorlage generiert) gesetzt. Live-Pruefung per Screenshot:
+alle Kacheln zeigen reale Werte, Autarkiegrad 98 % (deckt sich mit der zuvor am
+Web-Dashboard verifizierten Kennzahl).
+
+| Nachweis | Ergebnis |
+|---|---|
+| YAML-Syntaxpruefung (`python -c "yaml.safe_load(...)"`) | lesbar, kein Parserfehler |
+| Template-Vorschau in HA (Testmodus) | 98 % (deckt sich mit Web-Dashboard-KPI) |
+| Live-Dashboard-Screenshot nach Speichern | alle Tiles zeigen reale Entitaetswerte, keine "unavailable" |
+
+**Offen:** Entity-ID-Praefix ist instanzspezifisch (haengt vom HA-Geraetenamen ab);
+bei anderen HA-Installationen muss das Praefix in Template-Sensor und Dashboard-YAML
+angepasst werden (in `dashboard_example.md` dokumentiert). Kein automatisierter Test
+fuer Lovelace-YAML/Template-Sensoren im Projekt vorhanden.
+
+Rueckweg: Dashboard "SMLEasy Energie" und Helper "SMLEasy Autarkiegrad heute" in
+der HA-UI loeschen (Einstellungen -> Dashboards bzw. -> Helfer); Repo-Dateien
+`dashboard.yaml`/`dashboard_example.md` per Git-Revert entfernen.
+
 ### 2026-10-29: IDF-4.4.8/PlatformIO-Pfad entfernt, LAN-Steuerrouten, Dashboard-/App-Autarkie-Korrektur, App-Icon
 
 Betroffene Phase: Entwicklungsstand fuer P3/P4 (C3/S3, ESP-IDF 6.1); keine

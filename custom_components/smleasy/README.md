@@ -46,4 +46,14 @@ Diese Integration liest den Status deines Smartmeter-Geraets ueber HTTP (`/api/s
 - Keine Cloud-Abhaengigkeit.
 - Diagnostics findest du in Home Assistant unter dem Geraet/der Integration.
 
+## Dashboard-Vorlage (Kachelmuster)
+
+Eine fertige Lovelace-Dashboard-Vorlage im Kachel-Stil des Web-Dashboards
+(PV Ost/Sued/West, Netzbezug/-einspeisung, Hausverbrauch, Batterie, Wallbox,
+KPI-Leiste mit Autarkiegrad/Gesamterzeugung/Netzkosten/Ersparnis) findest du in
+[`dashboard_example.md`](dashboard_example.md) (Anleitung) und
+[`dashboard.yaml`](dashboard.yaml) (zum Einfuegen im Raw-Konfigurationseditor).
+Fuer den Autarkiegrad ist vorab ein kleiner Template-Sensor noetig, da die
+Integration nur Rohwerte liefert.
+
 Der SMLEasy-Firmwarecode steht unter der GNU Affero General Public License v3.0 oder später. Siehe das [`LICENSE`](../../LICENSE) im Repository.

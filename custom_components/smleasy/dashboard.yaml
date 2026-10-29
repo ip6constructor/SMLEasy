@@ -1,0 +1,116 @@
+title: SMLEasy Energie
+views:
+  - title: Energie
+    path: smleasy-energie
+    icon: mdi:solar-power-variant
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Photovoltaik
+            icon: mdi:solar-power-variant
+          - type: grid
+            columns: 3
+            square: false
+            cards:
+              - type: tile
+                entity: sensor.goodwe_pv2_power
+                name: PV Ost
+                icon: mdi:solar-power
+                color: amber
+              - type: tile
+                entity: sensor.goodwe_pv1_power
+                name: PV Süd
+                icon: mdi:solar-power
+                color: amber
+              - type: tile
+                entity: sensor.goodwe_pv3_power
+                name: PV West
+                icon: mdi:solar-power
+                color: amber
+              - type: tile
+                entity: sensor.goodwe_pv_power
+                name: PV Leitung (gesamt)
+                icon: mdi:solar-power-variant
+                color: amber
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Haus & Netz
+            icon: mdi:home-lightning-bolt
+          - type: grid
+            columns: 3
+            square: false
+            cards:
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_netzbezug_leistung
+                name: Netzbezug
+                icon: mdi:transmission-tower-import
+                color: red
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_netzeinspeisung_leistung
+                name: Netzeinspeisung
+                icon: mdi:transmission-tower-export
+                color: green
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_hausverbrauch_heute
+                name: Hausverbrauch heute
+                icon: mdi:home-lightning-bolt
+                color: blue
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Speicher & Fahrzeug
+            icon: mdi:battery-charging-high
+          - type: grid
+            columns: 3
+            square: false
+            cards:
+              - type: tile
+                entity: sensor.goodwe_battery_state_of_charge
+                name: Batterie
+                icon: mdi:battery-charging-high
+                color: green
+              - type: tile
+                entity: sensor.wallbox_ladeleistung
+                name: Wallbox
+                icon: mdi:ev-station
+                color: purple
+              - type: tile
+                entity: sensor.evcc_wallbox_hof_vehicle_soc
+                name: Auto Ladestand
+                icon: mdi:car-electric
+                color: purple
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Kennzahlen heute
+            icon: mdi:chart-donut
+          - type: grid
+            columns: 4
+            square: false
+            cards:
+              - type: tile
+                entity: sensor.smleasy_autarkiegrad_heute
+                name: Autarkiegrad
+                icon: mdi:home-battery-outline
+                color: green
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_pv_erzeugung_heute
+                name: Gesamterzeugung
+                icon: mdi:white-balance-sunny
+                color: amber
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_netto_kosten_netz_heute
+                name: Netzkosten heute
+                icon: mdi:cash
+                color: blue
+              - type: tile
+                entity: sensor.energie_smartmeter_smleasy_ersparnis_pv_heute
+                name: Ersparnis heute
+                icon: mdi:piggy-bank
+                color: green
